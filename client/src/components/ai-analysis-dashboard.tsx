@@ -18,6 +18,33 @@ interface ViolationAnalysis {
   description: string;
   recommendations: string[];
   suspiciousActivities: string[];
+  behaviorAnalysis?: {
+    emotionDetection: {
+      stress: number; // 0-100
+      anxiety: number;
+      frustration: number;
+      confidence: number;
+    };
+    movementAnalysis: {
+      suspiciousMovements: string[];
+      postureCompliance: number; // 0-100
+      headMovementPattern: string;
+      eyeGazeDirection: string;
+    };
+    microExpressions: {
+      detected: boolean;
+      type: string[];
+      suspicionLevel: number;
+    };
+  };
+  audioAnalysis?: {
+    multipleSpeakers: boolean;
+    backgroundVoices: boolean;
+    whisperingDetected: boolean;
+    voicePatternMatch: number; // consistency score
+    audioAnomalies: string[];
+    ambientNoise: string;
+  };
 }
 
 interface VideoAnalysis {
@@ -383,6 +410,105 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                             <span className="text-sm">Confidence: {Math.round(violation.confidence * 100)}%</span>
                           </div>
                           <p className="text-sm mb-2">{violation.description}</p>
+                          
+                          {/* Behavioral Analysis Section */}
+                          {violation.behaviorAnalysis && (
+                            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Brain className="w-4 h-4 text-blue-600" />
+                                <span className="font-medium text-blue-700 dark:text-blue-300">Behavioral Analysis</span>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                <div>
+                                  <p className="font-medium text-gray-600 dark:text-gray-300">Emotions:</p>
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between">
+                                      <span>Stress:</span>
+                                      <span className="text-red-600">{violation.behaviorAnalysis.emotionDetection.stress}%</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Anxiety:</span>
+                                      <span className="text-orange-600">{violation.behaviorAnalysis.emotionDetection.anxiety}%</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Confidence:</span>
+                                      <span className="text-green-600">{violation.behaviorAnalysis.emotionDetection.confidence}%</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-600 dark:text-gray-300">Movement:</p>
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between">
+                                      <span>Posture:</span>
+                                      <span>{violation.behaviorAnalysis.movementAnalysis.postureCompliance}%</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Gaze:</span>
+                                      <span className="capitalize">{violation.behaviorAnalysis.movementAnalysis.eyeGazeDirection}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              {violation.behaviorAnalysis.microExpressions.detected && (
+                                <div className="mt-2 p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded">
+                                  <p className="text-xs font-medium text-yellow-800 dark:text-yellow-200">
+                                    Micro-expressions: {violation.behaviorAnalysis.microExpressions.type.join(', ')}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Audio Analysis Section */}
+                          {violation.audioAnalysis && (
+                            <div className="mb-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Mic className="w-4 h-4 text-purple-600" />
+                                <span className="font-medium text-purple-700 dark:text-purple-300">Audio Analysis</span>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                <div>
+                                  <div className="flex justify-between">
+                                    <span>Multiple Speakers:</span>
+                                    <span className={violation.audioAnalysis.multipleSpeakers ? "text-red-600" : "text-green-600"}>
+                                      {violation.audioAnalysis.multipleSpeakers ? "Yes" : "No"}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Background Voices:</span>
+                                    <span className={violation.audioAnalysis.backgroundVoices ? "text-red-600" : "text-green-600"}>
+                                      {violation.audioAnalysis.backgroundVoices ? "Yes" : "No"}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Whispering:</span>
+                                    <span className={violation.audioAnalysis.whisperingDetected ? "text-red-600" : "text-green-600"}>
+                                      {violation.audioAnalysis.whisperingDetected ? "Yes" : "No"}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="flex justify-between">
+                                    <span>Voice Pattern:</span>
+                                    <span>{violation.audioAnalysis.voicePatternMatch}%</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Environment:</span>
+                                    <span className="capitalize">{violation.audioAnalysis.ambientNoise}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              {violation.audioAnalysis.audioAnomalies.length > 0 && (
+                                <div className="mt-2 p-2 bg-red-100 dark:bg-red-900/30 rounded">
+                                  <p className="text-xs font-medium text-red-800 dark:text-red-200">
+                                    Audio Anomalies: {violation.audioAnalysis.audioAnomalies.join(', ')}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           {violation.suspiciousActivities.length > 0 && (
                             <div className="text-xs text-muted-foreground">
                               <strong>Activities:</strong> {violation.suspiciousActivities.join(', ')}
