@@ -55,6 +55,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
   const [proctoringSetupComplete, setProctoringSetupComplete] = useState(false);
   const [violations, setViolations] = useState<any[]>([]);
   const [submissionId, setSubmissionId] = useState<number | undefined>();
+  const [proctoringSessionId, setProctoringSessionId] = useState<string | undefined>();
   const { toast } = useToast();
 
   const { data: exam, isLoading, error } = useQuery<ExamWithQuestions>({
@@ -161,6 +162,11 @@ export default function StudentExam({ examId }: StudentExamProps) {
   const handleProctoringSetupComplete = () => {
     setProctoringSetupComplete(true);
     setExamStarted(true);
+  };
+
+  const handleSessionIdReady = (sessionId: string) => {
+    setProctoringSessionId(sessionId);
+    console.log(`Captured session ID: ${sessionId}`);
   };
 
   const handleAnswerChange = (questionId: number, answer: any) => {

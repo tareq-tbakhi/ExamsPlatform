@@ -11,6 +11,7 @@ interface ProctoringManagerProps {
   onViolation: (violation: ViolationData) => void;
   examId: number;
   submissionId?: number;
+  onSessionIdReady?: (sessionId: string) => void;
 }
 
 interface ViolationData {
@@ -52,7 +53,8 @@ export default function ProctoringManager({
   isActive, 
   onViolation, 
   examId, 
-  submissionId 
+  submissionId,
+  onSessionIdReady
 }: ProctoringManagerProps) {
   // Generate unique session ID for this proctoring session
   const sessionIdRef = useRef<string>(generateSessionId());
@@ -102,6 +104,10 @@ export default function ProctoringManager({
       initializeProctoring();
       enableBrowserLockdown();
       setupUploadMonitoring();
+      // Notify parent of session ID
+      if (onSessionIdReady) {
+        onSessionIdReady(sessionIdRef.current);
+      }
     } else {
       stopProctoring();
       disableBrowserLockdown();
