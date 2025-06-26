@@ -448,8 +448,8 @@ export default function ProctoringManager({
     const uniqueId = submissionId || sessionIdRef.current;
     const filename = `camera_${examId}_${uniqueId}_${Date.now()}_chunk${Math.floor(Date.now() / 40000)}.webm`;
     
-    // Debug logging
-    console.log(`Session ID: ${sessionIdRef.current}, Submission ID: ${submissionId}, Unique ID: ${uniqueId}`);
+    // Debug logging - ensure session ID is used during exam
+    console.log(`Camera upload - Using ID: ${uniqueId} (Session: ${sessionIdRef.current})`);
     
     // Track storage usage for quality optimization
     recordingQualityManager.updateStorageUsage(blob.size);
@@ -470,8 +470,8 @@ export default function ProctoringManager({
     const uniqueId = submissionId || sessionIdRef.current;
     const filename = `screen_${examId}_${uniqueId}_${Date.now()}_chunk${Math.floor(Date.now() / 40000)}.webm`;
     
-    // Debug logging
-    console.log(`Screen - Session ID: ${sessionIdRef.current}, Submission ID: ${submissionId}, Unique ID: ${uniqueId}`);
+    // Debug logging - ensure session ID is used during exam
+    console.log(`Screen upload - Using ID: ${uniqueId} (Session: ${sessionIdRef.current})`);
     
     // Track storage usage for quality optimization
     recordingQualityManager.updateStorageUsage(blob.size);
