@@ -115,6 +115,18 @@ export async function analyzeVideoRecording(videoPath: string, examContext: stri
     }
     
     const videoBytes = fs.readFileSync(actualPath);
+    
+    // Determine MIME type based on file extension
+    const isWebm = actualPath.toLowerCase().endsWith('.webm');
+    const mimeType = isWebm ? "video/webm" : "video/mp4";
+    
+    // Check file size - Gemini has limits on video size
+    const fileSizeInMB = videoBytes.length / (1024 * 1024);
+    console.log(`Video file size: ${fileSizeInMB.toFixed(2)}MB, MIME type: ${mimeType}`);
+    
+    if (fileSizeInMB > 20) {
+      throw new Error(`Video file too large (${fileSizeInMB.toFixed(2)}MB). Maximum size is 20MB.`);
+    }
 
     const prompt = `
     You are an expert exam proctoring AI analyzing a video recording of a student taking an exam.
@@ -140,7 +152,7 @@ export async function analyzeVideoRecording(videoPath: string, examContext: stri
       {
         inlineData: {
           data: videoBytes.toString("base64"),
-          mimeType: "video/mp4",
+          mimeType: mimeType,
         },
       },
       prompt,
@@ -212,6 +224,30 @@ export async function analyzeVideoRecording(videoPath: string, examContext: stri
           severity: 'minor' as const
         }],
         summary: "Video successfully recorded and ready for review. AI analysis temporarily unavailable due to quota limits. Your recordings are saved and can be manually reviewed or analyzed later when quotas reset."
+      };
+    }
+    
+    // Handle internal server errors for screen recordings
+    if (error.status === 500 && videoPath.includes('screen_')) {
+      return {
+        overallSuspicion: 10,
+        violations: [{
+          severity: 'minor' as const,
+          confidence: 0.7,
+          description: 'Screen recording detected but AI analysis temporarily unavailable',
+          recommendations: [
+            'Screen recording successfully captured and stored',
+            'Video can be manually reviewed by exam proctor',
+            'Consider using camera recording for AI analysis'
+          ],
+          suspiciousActivities: ['Screen recording available for manual review']
+        }],
+        timeline: [{
+          timestamp: Date.now(),
+          activity: 'Screen recording captured',
+          severity: 'minor' as const
+        }],
+        summary: "Screen recording successfully captured. AI analysis of screen recordings is temporarily limited due to processing constraints. The video is saved and available for manual review by proctors."
       };
     }
     
