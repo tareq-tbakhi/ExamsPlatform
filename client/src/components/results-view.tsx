@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Users, TrendingUp, Medal, Eye } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ClipboardList, Users, TrendingUp, Medal, Eye, Brain } from "lucide-react";
+import AIAnalysisDashboard from "@/components/ai-analysis-dashboard";
 import type { SubmissionWithExam } from "@shared/schema";
 
 export default function ResultsView() {
