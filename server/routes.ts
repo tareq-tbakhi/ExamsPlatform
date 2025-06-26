@@ -251,6 +251,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Proctoring routes
+  app.post("/api/proctoring/violation", async (req, res) => {
+    try {
+      const violationData = {
+        submissionId: parseInt(req.body.submissionId),
+        type: req.body.type,
+        category: req.body.category,
+        description: req.body.description,
+        evidence: req.body.evidence || {}
+      };
+
+      const violation = await storage.createProctoringViolation(violationData);
+      res.json(violation);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to record violation", error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/upload-proctoring-video", async (req, res) => {
+    try {
+      // In production, save video to cloud storage (AWS S3, etc.)
+      const videoUrl = `https://storage.example.com/proctoring/${req.body.examId}/${Date.now()}.webm`;
+      
+      res.json({ videoUrl, message: "Video uploaded successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to upload video", error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/upload-video-answer", async (req, res) => {
+    try {
+      // In production, save video to cloud storage
+      const videoUrl = `https://storage.example.com/video-answers/${Date.now()}.webm`;
+      
+      const videoAnswer = await storage.createVideoAnswer({
+        submissionId: parseInt(req.body.submissionId) || 0,
+        videoQuestionId: parseInt(req.body.questionId),
+        videoUrl: videoUrl,
+        transcript: req.body.transcript,
+        confidence: parseInt(req.body.confidence) || 0,
+        duration: parseInt(req.body.duration)
+      });
+
+      res.json({ videoUrl, videoAnswer });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to upload video answer", error: (error as Error).message });
+    }
+  });
+
+  // Video questions routes
+  app.post("/api/video-questions", async (req, res) => {
+    try {
+      const questionData = {
+        examId: parseInt(req.body.examId),
+        question: req.body.question,
+        maxDuration: parseInt(req.body.maxDuration),
+        order: parseInt(req.body.order),
+        points: parseInt(req.body.points)
+      };
+      
+      const videoQuestion = await storage.createVideoQuestion(questionData);
+      res.json(videoQuestion);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to create video question", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/video-questions/exam/:examId", async (req, res) => {
+    try {
+      const examId = parseInt(req.params.examId);
+      const videoQuestions = await storage.getVideoQuestionsByExam(examId);
+      res.json(videoQuestions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch video questions", error: (error as Error).message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
