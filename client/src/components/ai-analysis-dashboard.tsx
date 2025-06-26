@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, CheckCircle, XCircle, FileText, Video, Mic } from "lucide-react";
 
@@ -44,19 +44,20 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
   // Fetch existing violations
   const { data: violations, isLoading: violationsLoading } = useQuery({
     queryKey: ['/api/violations', submissionId],
-    queryFn: () => apiRequest(`/api/violations/${submissionId}`)
+    queryFn: () => fetch(`/api/violations/${submissionId}`).then(res => res.json())
   });
 
   // Generate violation report mutation
   const generateReportMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest('/api/analyze/generate-report', {
+      const response = await fetch('/api/analyze/generate-report', {
         method: 'POST',
         body: JSON.stringify({ submissionId }),
         headers: { 'Content-Type': 'application/json' }
       });
+      return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: { report: string }) => {
       setGeneratedReport(data.report);
       toast({
         title: "Report Generated",
@@ -74,8 +75,8 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
 
   // Analyze video recording mutation
   const analyzeVideoMutation = useMutation({
-    mutationFn: async (videoPath: string) => {
-      return apiRequest('/api/analyze/video-recording', {
+    mutationFn: async (videoPath: string): Promise<VideoAnalysis> => {
+      const response = await fetch('/api/analyze/video-recording', {
         method: 'POST',
         body: JSON.stringify({ 
           videoPath, 
@@ -83,6 +84,7 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
         }),
         headers: { 'Content-Type': 'application/json' }
       });
+      return response.json();
     },
     onSuccess: (data: VideoAnalysis) => {
       setActiveAnalysis(data);

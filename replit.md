@@ -131,6 +131,21 @@ The application uses eight main entities:
 - **Major**: Tab switching, copy/paste attempts, developer tools access, window focus loss
 - **Minor**: Right-click attempts, brief face loss, keyboard shortcuts, text selection
 
+## AI-Powered Analysis Features
+
+### Gemini AI Integration
+- **Violation Analysis**: Real-time AI analysis of proctoring violations using Gemini computer vision
+- **Video Recording Analysis**: Comprehensive AI review of exam recordings for suspicious behavior
+- **Arabic Audio Transcription**: Advanced speech-to-text with confidence scoring for video responses
+- **Automated Report Generation**: AI-generated violation reports with severity assessment and recommendations
+- **Smart Evidence Capture**: Automatic screenshot capture during violations for AI analysis
+
+### Analysis Dashboard
+- **Multi-tab Interface**: Violations, video analysis, timeline, and AI reports in one view
+- **Confidence Scoring**: AI confidence levels for all detections and analyses
+- **Real-time Monitoring**: Automatic analysis triggers for critical violations
+- **Timeline Visualization**: Chronological view of all detected activities during exam
+
 ## Changelog
 
 ```
@@ -145,6 +160,12 @@ Changelog:
   * Browser lockdown and violation detection
   * Arabic voice transcription for video questions
   * Advanced security monitoring and reporting
+- June 26, 2025. Added Gemini AI analysis integration with:
+  * Automated violation image analysis with confidence scoring
+  * Comprehensive video recording analysis and suspicious behavior detection
+  * AI-generated violation reports with severity assessment
+  * Real-time analysis dashboard with timeline visualization
+  * Enhanced proctoring manager with automatic AI analysis triggers
 ```
 
 ## User Preferences
