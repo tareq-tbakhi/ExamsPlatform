@@ -79,9 +79,10 @@ export default function StudentExam({ examId }: StudentExamProps) {
       setSubmissionResult(result);
       setSubmissionId(result.id);
       setExamSubmitted(true);
+      
       toast({
         title: "Exam Submitted!",
-        description: "Your answers have been recorded successfully.",
+        description: "Your answers have been recorded successfully. All proctoring features have been disabled.",
       });
     },
     onError: (error) => {

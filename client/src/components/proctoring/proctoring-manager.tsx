@@ -688,13 +688,33 @@ export default function ProctoringManager({
       clearInterval(faceDetectionIntervalRef.current);
     }
 
+    // Phase 2: Stop advanced monitoring
+    multiMonitorDetector.stopMonitoring();
+    applicationMonitor.stopMonitoring();
+
+    // Phase 3: Deactivate advanced lockdown system
+    advancedLockdownManager.deactivateLockdown();
+
+    // Reset all proctoring state
     setState(prev => ({
       ...prev,
       videoRecording: false,
       screenRecording: false,
       faceDetection: false,
-      browserLocked: false
+      browserLocked: false,
+      applicationMonitoring: false,
+      audioMonitoring: false,
+      fullscreenLocked: false,
+      kioskModeActive: false,
+      advancedBlocking: false,
+      securityViolations: 0,
+      escapeAttempts: 0
     }));
+
+    toast({
+      title: "Exam Completed",
+      description: "All proctoring features have been safely disabled.",
+    });
   };
 
   return (
