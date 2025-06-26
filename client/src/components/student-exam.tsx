@@ -200,6 +200,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
       answers,
       totalPoints: exam.totalPoints,
       timeSpent,
+      sessionId: proctoringSessionId,
     };
 
     submitExamMutation.mutate(submissionData);
@@ -403,6 +404,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
           onViolation={handleViolation}
           examId={examId}
           submissionId={submissionId}
+          onSessionIdReady={handleSessionIdReady}
         />
       )}
       

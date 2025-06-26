@@ -43,6 +43,7 @@ export const submissions = pgTable("submissions", {
   submittedAt: timestamp("submitted_at").defaultNow(),
   timeSpent: integer("time_spent"), // minutes
   proctoringData: jsonb("proctoring_data").default({}), // stores video urls, violations, etc
+  sessionId: text("session_id"), // proctoring session identifier
 });
 
 export const proctoringViolations = pgTable("proctoring_violations", {
