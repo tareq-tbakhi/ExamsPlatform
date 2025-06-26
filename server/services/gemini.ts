@@ -59,7 +59,7 @@ export async function analyzeViolationImage(imagePath: string, context: string):
     ];
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: "gemini-2.5-flash",
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -147,7 +147,7 @@ export async function analyzeVideoRecording(videoPath: string, examContext: stri
     ];
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: "gemini-2.5-flash",
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -283,7 +283,7 @@ export async function analyzeArabicAudioTranscription(audioData: string): Promis
     `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-pro",
+      model: "gemini-2.5-flash",
       config: {
         responseMimeType: "application/json",
         responseSchema: {
