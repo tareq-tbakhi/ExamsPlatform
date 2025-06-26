@@ -1,4 +1,10 @@
-import { users, exams, questions, submissions, type User, type InsertUser, type Exam, type InsertExam, type Question, type InsertQuestion, type Submission, type InsertSubmission, type ExamWithQuestions, type ExamWithStats, type SubmissionWithExam } from "@shared/schema";
+import { 
+  users, exams, questions, submissions, proctoringViolations, videoQuestions, videoAnswers,
+  type User, type InsertUser, type Exam, type InsertExam, type Question, type InsertQuestion, 
+  type Submission, type InsertSubmission, type ExamWithQuestions, type ExamWithStats, 
+  type SubmissionWithExam, type ProctoringViolation, type InsertProctoringViolation,
+  type VideoQuestion, type InsertVideoQuestion, type VideoAnswer, type InsertVideoAnswer
+} from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 
@@ -29,6 +35,21 @@ export interface IStorage {
   getSubmissionsByExam(examId: number): Promise<SubmissionWithExam[]>;
   getRecentSubmissions(limit?: number): Promise<SubmissionWithExam[]>;
   updateSubmissionScore(id: number, score: number): Promise<Submission | undefined>;
+
+  // Proctoring Violations
+  createProctoringViolation(violation: InsertProctoringViolation): Promise<ProctoringViolation>;
+  getViolationsBySubmission(submissionId: number): Promise<ProctoringViolation[]>;
+
+  // Video Questions
+  createVideoQuestion(question: InsertVideoQuestion): Promise<VideoQuestion>;
+  getVideoQuestionsByExam(examId: number): Promise<VideoQuestion[]>;
+  updateVideoQuestion(id: number, question: Partial<InsertVideoQuestion>): Promise<VideoQuestion | undefined>;
+  deleteVideoQuestion(id: number): Promise<boolean>;
+
+  // Video Answers
+  createVideoAnswer(answer: InsertVideoAnswer): Promise<VideoAnswer>;
+  getVideoAnswersBySubmission(submissionId: number): Promise<VideoAnswer[]>;
+  updateVideoAnswer(id: number, answer: Partial<InsertVideoAnswer>): Promise<VideoAnswer | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -222,6 +243,82 @@ export class DatabaseStorage implements IStorage {
       .where(eq(submissions.id, id))
       .returning();
     return submission || undefined;
+  }
+
+  // Proctoring Violations
+  async createProctoringViolation(insertViolation: InsertProctoringViolation): Promise<ProctoringViolation> {
+    const [violation] = await db
+      .insert(proctoringViolations)
+      .values(insertViolation)
+      .returning();
+    return violation;
+  }
+
+  async getViolationsBySubmission(submissionId: number): Promise<ProctoringViolation[]> {
+    return await db
+      .select()
+      .from(proctoringViolations)
+      .where(eq(proctoringViolations.submissionId, submissionId))
+      .orderBy(proctoringViolations.timestamp);
+  }
+
+  // Video Questions
+  async createVideoQuestion(insertQuestion: InsertVideoQuestion): Promise<VideoQuestion> {
+    const [question] = await db
+      .insert(videoQuestions)
+      .values(insertQuestion)
+      .returning();
+    return question;
+  }
+
+  async getVideoQuestionsByExam(examId: number): Promise<VideoQuestion[]> {
+    return await db
+      .select()
+      .from(videoQuestions)
+      .where(eq(videoQuestions.examId, examId))
+      .orderBy(videoQuestions.order);
+  }
+
+  async updateVideoQuestion(id: number, updateData: Partial<InsertVideoQuestion>): Promise<VideoQuestion | undefined> {
+    const [question] = await db
+      .update(videoQuestions)
+      .set(updateData)
+      .where(eq(videoQuestions.id, id))
+      .returning();
+    return question || undefined;
+  }
+
+  async deleteVideoQuestion(id: number): Promise<boolean> {
+    const result = await db
+      .delete(videoQuestions)
+      .where(eq(videoQuestions.id, id));
+    return (result as any).changes > 0;
+  }
+
+  // Video Answers
+  async createVideoAnswer(insertAnswer: InsertVideoAnswer): Promise<VideoAnswer> {
+    const [answer] = await db
+      .insert(videoAnswers)
+      .values(insertAnswer)
+      .returning();
+    return answer;
+  }
+
+  async getVideoAnswersBySubmission(submissionId: number): Promise<VideoAnswer[]> {
+    return await db
+      .select()
+      .from(videoAnswers)
+      .where(eq(videoAnswers.submissionId, submissionId))
+      .orderBy(videoAnswers.submittedAt);
+  }
+
+  async updateVideoAnswer(id: number, updateData: Partial<InsertVideoAnswer>): Promise<VideoAnswer | undefined> {
+    const [answer] = await db
+      .update(videoAnswers)
+      .set(updateData)
+      .where(eq(videoAnswers.id, id))
+      .returning();
+    return answer || undefined;
   }
 }
 

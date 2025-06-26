@@ -22,10 +22,13 @@ import {
   Flag,
   Send,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Shield
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import ProctoringManager from "@/components/proctoring/proctoring-manager";
+import ProctoringSetup from "@/components/proctoring/proctoring-setup";
 import type { ExamWithQuestions, Question } from "@shared/schema";
 
 interface StudentExamProps {
@@ -48,6 +51,10 @@ export default function StudentExam({ examId }: StudentExamProps) {
   const [examSubmitted, setExamSubmitted] = useState(false);
   const [submissionResult, setSubmissionResult] = useState<any>(null);
   const [studentInfo, setStudentInfo] = useState<StudentInfo | null>(null);
+  const [proctoringEnabled, setProctoringEnabled] = useState(false);
+  const [proctoringSetupComplete, setProctoringSetupComplete] = useState(false);
+  const [violations, setViolations] = useState<any[]>([]);
+  const [submissionId, setSubmissionId] = useState<number | undefined>();
   const { toast } = useToast();
 
   const { data: exam, isLoading, error } = useQuery<ExamWithQuestions>({
