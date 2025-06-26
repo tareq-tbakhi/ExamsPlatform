@@ -119,12 +119,11 @@ export default function ProctoringManager({
 
   const startVideoRecording = async () => {
     try {
+      const videoConstraints = recordingQualityManager.getVideoConstraints();
+      const audioConstraints = recordingQualityManager.getAudioConstraints();
+      
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          width: 640, 
-          height: 480,
-          facingMode: "user"
-        },
+        video: videoConstraints,
         audio: true
       });
 
@@ -135,10 +134,9 @@ export default function ProctoringManager({
         videoRef.current.play();
       }
 
-      // Start recording in 40-second chunks
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9'
-      });
+      // Start recording in 40-second chunks with optimized settings
+      const recorderOptions = recordingQualityManager.getRecorderOptions();
+      const mediaRecorder = new MediaRecorder(stream, recorderOptions);
 
       mediaRecorderRef.current = mediaRecorder;
       videoChunksRef.current = [];
@@ -181,12 +179,8 @@ export default function ProctoringManager({
 
   const startScreenRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          mediaSource: 'screen'
-        },
-        audio: true
-      });
+      const screenConstraints = recordingQualityManager.getScreenConstraints();
+      const stream = await navigator.mediaDevices.getDisplayMedia(screenConstraints);
 
       screenStreamRef.current = stream;
 
@@ -404,40 +398,36 @@ export default function ProctoringManager({
     if (videoChunksRef.current.length === 0) return;
 
     const blob = new Blob(videoChunksRef.current, { type: 'video/webm' });
-    const formData = new FormData();
-    formData.append('video', blob, `video_${examId}_${Date.now()}.webm`);
-    formData.append('examId', examId.toString());
-    formData.append('submissionId', submissionId?.toString() || '');
-    formData.append('type', 'camera');
-
-    try {
-      await fetch('/api/upload-proctoring-video', {
-        method: 'POST',
-        body: formData
-      });
-    } catch (error) {
-      console.error('Failed to upload video chunk:', error);
-    }
+    const filename = `camera_${examId}_${submissionId || 'unknown'}_${Date.now()}_chunk${Math.floor(Date.now() / 40000)}.webm`;
+    
+    // Track storage usage for quality optimization
+    recordingQualityManager.updateStorageUsage(blob.size);
+    
+    // Add to offline upload queue (handles network failures automatically)
+    const uploadId = uploadQueue.addToQueue(blob, filename, examId, submissionId, 'video');
+    
+    console.log(`Video chunk queued for upload: ${filename} (${(blob.size / 1024 / 1024).toFixed(2)}MB)`);
+    
+    // Reset chunk buffer
+    videoChunksRef.current = [];
   };
 
   const uploadScreenChunk = async () => {
     if (screenChunksRef.current.length === 0) return;
 
     const blob = new Blob(screenChunksRef.current, { type: 'video/webm' });
-    const formData = new FormData();
-    formData.append('video', blob, `screen_${examId}_${Date.now()}.webm`);
-    formData.append('examId', examId.toString());
-    formData.append('submissionId', submissionId?.toString() || '');
-    formData.append('type', 'screen');
-
-    try {
-      await fetch('/api/upload-proctoring-video', {
-        method: 'POST',
-        body: formData
-      });
-    } catch (error) {
-      console.error('Failed to upload screen chunk:', error);
-    }
+    const filename = `screen_${examId}_${submissionId || 'unknown'}_${Date.now()}_chunk${Math.floor(Date.now() / 40000)}.webm`;
+    
+    // Track storage usage for quality optimization
+    recordingQualityManager.updateStorageUsage(blob.size);
+    
+    // Add to offline upload queue (handles network failures automatically)
+    const uploadId = uploadQueue.addToQueue(blob, filename, examId, submissionId, 'screen');
+    
+    console.log(`Screen chunk queued for upload: ${filename} (${(blob.size / 1024 / 1024).toFixed(2)}MB)`);
+    
+    // Reset chunk buffer
+    screenChunksRef.current = [];
   };
 
   const reportViolation = useCallback((violation: ViolationData) => {
@@ -479,13 +469,13 @@ export default function ProctoringManager({
       clearInterval(faceDetectionIntervalRef.current);
     }
 
-    setState({
+    setState(prev => ({
+      ...prev,
       videoRecording: false,
       screenRecording: false,
       faceDetection: false,
-      browserLocked: false,
-      violations: []
-    });
+      browserLocked: false
+    }));
   };
 
   return (
