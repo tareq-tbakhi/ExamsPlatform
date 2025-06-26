@@ -440,8 +440,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               await storage.createProctoringViolation({
                 submissionId: submissionId,
                 type: violation.severity as 'critical' | 'major' | 'minor',
+                category: videoPath.includes('screen_') ? 'screen_activity' : 'camera_monitoring',
                 description: violation.description,
-                timestamp: new Date(),
                 evidence: {
                   videoPath: videoPath,
                   confidence: violation.confidence,
