@@ -131,16 +131,22 @@ export default function ProctoringManager({
       startApplicationMonitoring();
       startEnhancedAudioMonitoring();
       
+      // Phase 3: Complete Browser Lockdown
+      activateAdvancedLockdown();
+      
       setState(prev => ({
         ...prev,
         browserLocked: true,
         applicationMonitoring: true,
-        audioMonitoring: true
+        audioMonitoring: true,
+        fullscreenLocked: true,
+        kioskModeActive: true,
+        advancedBlocking: true
       }));
 
       toast({
-        title: "Enhanced Proctoring Active",
-        description: "Phase 1 & 2 monitoring: Video, screen, multi-monitor detection, and application monitoring enabled."
+        title: "Complete Proctoring System Active",
+        description: "All 3 phases enabled: Recording optimization, advanced monitoring, and complete browser lockdown."
       });
     } catch (error) {
       console.error("Failed to initialize proctoring:", error);
@@ -597,6 +603,45 @@ export default function ProctoringManager({
     }
   };
 
+  // Phase 3: Advanced Browser Lockdown
+  const activateAdvancedLockdown = () => {
+    try {
+      // Configure complete lockdown
+      advancedLockdownManager.activateLockdown({
+        forceFullscreen: true,
+        preventPrintScreen: true,
+        blockNavigation: true,
+        kioskMode: true,
+        enhancedBlocking: true,
+        autoReentry: true
+      });
+
+      // Setup security violation monitoring
+      advancedLockdownManager.onViolation((violation) => {
+        setState(prev => ({
+          ...prev,
+          securityViolations: prev.securityViolations + 1,
+          escapeAttempts: violation.type === 'escape_attempt' ? prev.escapeAttempts + 1 : prev.escapeAttempts
+        }));
+
+        // Report security violations with appropriate severity
+        reportViolation({
+          type: violation.severity === 'critical' ? 'critical' : violation.severity === 'high' ? 'major' : 'minor',
+          category: `security_${violation.type}`,
+          description: `Advanced security violation: ${violation.details}`,
+          evidence: {
+            securityViolation: violation,
+            lockdownStatus: advancedLockdownManager.getSecurityStatus()
+          }
+        });
+      });
+
+      console.log('Advanced browser lockdown activated');
+    } catch (error) {
+      console.error('Failed to activate advanced lockdown:', error);
+    }
+  };
+
   const reportViolation = useCallback((violation: ViolationData) => {
     setState(prev => ({
       ...prev,
@@ -739,12 +784,45 @@ export default function ProctoringManager({
             
             <hr className="border-gray-600 my-2" />
             
+            <div className="flex justify-between">
+              <span>Fullscreen Lock:</span>
+              <span className={state.fullscreenLocked ? 'text-green-400' : 'text-red-400'}>
+                {state.fullscreenLocked ? 'LOCKED' : 'UNLOCKED'}
+              </span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span>Kiosk Mode:</span>
+              <span className={state.kioskModeActive ? 'text-green-400' : 'text-red-400'}>
+                {state.kioskModeActive ? 'ACTIVE' : 'INACTIVE'}
+              </span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span>Escape Attempts:</span>
+              <span className={state.escapeAttempts > 0 ? 'text-red-400 font-bold' : 'text-green-400'}>
+                {state.escapeAttempts}
+              </span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span>Security Violations:</span>
+              <span className={state.securityViolations > 0 ? 'text-red-400 font-bold' : 'text-green-400'}>
+                {state.securityViolations}
+              </span>
+            </div>
+            
+            <hr className="border-gray-600 my-2" />
+            
             <div className="text-center text-gray-300 text-xs">
               <div className="font-medium text-green-400 mb-1">PHASE 1 ✓</div>
-              <div className="text-xs">Offline Queue • Quality Control • Recovery</div>
+              <div className="text-xs mb-2">Offline Queue • Quality Control • Recovery</div>
               
-              <div className="font-medium text-blue-400 mt-2 mb-1">PHASE 2 ✓</div>
-              <div className="text-xs">Multi-Monitor • App Tracking • Audio Analysis</div>
+              <div className="font-medium text-blue-400 mb-1">PHASE 2 ✓</div>
+              <div className="text-xs mb-2">Multi-Monitor • App Tracking • Audio Analysis</div>
+              
+              <div className="font-medium text-purple-400 mb-1">PHASE 3 ✓</div>
+              <div className="text-xs">Fullscreen Lock • Kiosk Mode • Enhanced Security</div>
             </div>
           </div>
         </div>
