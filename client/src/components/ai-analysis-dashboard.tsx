@@ -185,9 +185,10 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
               }
             }}
             disabled={analyzeVideoMutation.isPending || !videos?.proctoringVideos?.length}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
           >
-            <Video className="h-4 w-4 mr-2" />
-            Analyze Recording
+            <Brain className="h-4 w-4 mr-2" />
+            Enhanced AI Analysis
           </Button>
         </div>
       </div>
@@ -389,6 +390,17 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                 </div>
               ) : activeAnalysis ? (
                 <div className="space-y-6">
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 p-4 rounded-lg border">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Brain className="w-5 h-5 text-blue-600" />
+                      <span className="font-medium text-blue-700 dark:text-blue-300">Enhanced AI Analysis Active</span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      This analysis includes comprehensive behavioral psychology, emotion detection, movement analysis, 
+                      micro-expressions, voice pattern matching, and audio anomaly detection.
+                    </p>
+                  </div>
+                  
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-semibold">Overall Suspicion Level</h3>
                     <Badge variant={activeAnalysis.overallSuspicion > 70 ? "destructive" : 
