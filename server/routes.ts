@@ -35,9 +35,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/exams/creator", async (req, res) => {
     try {
       const createdBy = 1; // Default user ID for demo purposes
+      console.log("Fetching exams for creator:", createdBy);
       const exams = await storage.getExamsByCreator(createdBy);
       res.json(exams);
     } catch (error) {
+      console.error("Error in /api/exams/creator:", error);
       res.status(500).json({ message: "Failed to fetch exams", error: (error as Error).message });
     }
   });
