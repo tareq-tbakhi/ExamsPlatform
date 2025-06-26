@@ -192,9 +192,30 @@ export async function analyzeVideoRecording(videoPath: string, examContext: stri
     } else {
       throw new Error("Empty response from Gemini");
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini video analysis error:", error);
-    // Fallback analysis
+    
+    // Handle quota exceeded specifically
+    if (error.status === 429) {
+      return {
+        overallSuspicion: 15,
+        violations: [{
+          severity: 'minor' as const,
+          confidence: 0.8,
+          description: 'AI analysis temporarily unavailable due to quota limits',
+          recommendations: ['Video has been recorded and is available for manual review', 'Try AI analysis again later when quota resets'],
+          suspiciousActivities: ['Quota limit reached - manual review recommended']
+        }],
+        timeline: [{
+          timestamp: Date.now(),
+          activity: 'AI analysis quota exceeded',
+          severity: 'minor' as const
+        }],
+        summary: "Video successfully recorded and ready for review. AI analysis temporarily unavailable due to quota limits. Your recordings are saved and can be manually reviewed or analyzed later when quotas reset."
+      };
+    }
+    
+    // Fallback analysis for other errors
     return {
       overallSuspicion: 0,
       violations: [],
