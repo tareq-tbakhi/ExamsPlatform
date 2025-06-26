@@ -98,7 +98,23 @@ export async function analyzeViolationImage(imagePath: string, context: string):
 
 export async function analyzeVideoRecording(videoPath: string, examContext: string): Promise<VideoAnalysis> {
   try {
-    const videoBytes = fs.readFileSync(videoPath);
+    // Convert URL path to actual file path
+    let actualPath = videoPath;
+    if (videoPath.startsWith('/api/videos/proctoring/')) {
+      const filename = videoPath.split('/').pop();
+      actualPath = `uploads/proctoring/${filename}`;
+    } else if (videoPath.startsWith('/api/videos/answers/')) {
+      const filename = videoPath.split('/').pop();
+      actualPath = `uploads/videos/${filename}`;
+    }
+    
+    console.log(`Analyzing video: ${videoPath} -> ${actualPath}`);
+    
+    if (!fs.existsSync(actualPath)) {
+      throw new Error(`Video file not found: ${actualPath}`);
+    }
+    
+    const videoBytes = fs.readFileSync(actualPath);
 
     const prompt = `
     You are an expert exam proctoring AI analyzing a video recording of a student taking an exam.
