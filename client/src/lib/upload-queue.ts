@@ -4,6 +4,7 @@ interface QueuedUpload {
   filename: string;
   examId: number;
   submissionId?: number;
+  sessionId?: string;
   timestamp: number;
   retryCount: number;
   maxRetries: number;
@@ -35,6 +36,7 @@ class UploadQueue {
     filename: string, 
     examId: number, 
     submissionId?: number,
+    sessionId?: string,
     type: 'video' | 'screen' = 'video'
   ): string {
     const id = `upload_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -45,6 +47,7 @@ class UploadQueue {
       filename,
       examId,
       submissionId,
+      sessionId,
       timestamp: Date.now(),
       retryCount: 0,
       maxRetries: 5,
@@ -97,6 +100,9 @@ class UploadQueue {
     formData.append('examId', upload.examId.toString());
     if (upload.submissionId) {
       formData.append('submissionId', upload.submissionId.toString());
+    }
+    if (upload.sessionId) {
+      formData.append('sessionId', upload.sessionId);
     }
     formData.append('type', upload.type);
 

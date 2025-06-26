@@ -343,9 +343,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fs.mkdirSync(uploadDir, { recursive: true });
       }
 
-      // Create filename with timestamp and chunk index
+      // Create filename with timestamp and chunk index - use sessionId if available
       const timestamp = Date.now();
-      const filename = `${type}_${examId}_${submissionId || 'unknown'}_${timestamp}_chunk${chunkIndex}.webm`;
+      const sessionId = req.body.sessionId;
+      const identifier = submissionId || sessionId || 'unknown';
+      const filename = `${type}_${examId}_${identifier}_${timestamp}_chunk${chunkIndex}.webm`;
       const filePath = path.join(uploadDir, filename);
       
       // Save video buffer to file

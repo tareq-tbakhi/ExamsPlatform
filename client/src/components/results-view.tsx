@@ -203,14 +203,29 @@ export default function ResultsView() {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled
-                            title="View Details (Coming Soon)"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="View Details"
+                                onClick={() => setSelectedSubmission(submission)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                              <DialogHeader>
+                                <DialogTitle>Submission Details</DialogTitle>
+                                <DialogDescription>
+                                  Detailed answers for {submission.studentName}'s submission
+                                </DialogDescription>
+                              </DialogHeader>
+                              {selectedSubmission && (
+                                <SubmissionDetails submissionId={selectedSubmission.id} />
+                              )}
+                            </DialogContent>
+                          </Dialog>
                           <Dialog>
                             <DialogTrigger asChild>
                               <Button

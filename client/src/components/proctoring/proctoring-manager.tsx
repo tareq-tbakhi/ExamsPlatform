@@ -471,7 +471,7 @@ export default function ProctoringManager({
     recordingQualityManager.updateStorageUsage(blob.size);
     
     // Add to offline upload queue (handles network failures automatically)
-    const uploadId = uploadQueue.addToQueue(blob, filename, examId, submissionId, 'screen');
+    const uploadId = uploadQueue.addToQueue(blob, filename, examId, submissionId, sessionIdRef.current, 'screen');
     
     console.log(`Screen chunk queued for upload: ${filename} (${(blob.size / 1024 / 1024).toFixed(2)}MB)`);
     
