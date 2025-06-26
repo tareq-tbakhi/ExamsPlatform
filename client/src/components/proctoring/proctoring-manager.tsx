@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { uploadQueue, type UploadStatus } from "@/lib/upload-queue";
 import { recordingQualityManager } from "@/lib/recording-quality";
+import { multiMonitorDetector, type MonitorConfiguration } from "@/lib/multi-monitor-detection";
+import { applicationMonitor, type ApplicationActivity } from "@/lib/application-monitor";
 
 interface ProctoringManagerProps {
   isActive: boolean;
@@ -26,6 +28,12 @@ interface ProctoringState {
   uploadStatus: UploadStatus;
   recordingQuality: string;
   networkStatus: 'online' | 'offline' | 'poor';
+  // Phase 2: Advanced Monitoring
+  monitorConfiguration: MonitorConfiguration | null;
+  applicationMonitoring: boolean;
+  audioMonitoring: boolean;
+  multiMonitorDetected: boolean;
+  applicationSwitches: number;
 }
 
 export default function ProctoringManager({ 
@@ -184,9 +192,8 @@ export default function ProctoringManager({
 
       screenStreamRef.current = stream;
 
-      const screenRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9'
-      });
+      const recorderOptions = recordingQualityManager.getRecorderOptions();
+      const screenRecorder = new MediaRecorder(stream, recorderOptions);
 
       screenRecorderRef.current = screenRecorder;
       screenChunksRef.current = [];
@@ -492,21 +499,68 @@ export default function ProctoringManager({
       {/* Hidden canvas for face detection processing */}
       <canvas ref={canvasRef} className="hidden" />
       
-      {/* Proctoring status indicator */}
+      {/* Enhanced Phase 1 Status Indicator */}
       {isActive && (
-        <div className="bg-red-600 text-white px-3 py-2 rounded-lg shadow-lg flex items-center space-x-2">
-          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-          <span className="text-sm font-medium">PROCTORED EXAM</span>
-          <div className="flex space-x-1">
-            {state.videoRecording && (
-              <div className="w-2 h-2 bg-green-400 rounded-full" title="Video Recording"></div>
-            )}
-            {state.screenRecording && (
-              <div className="w-2 h-2 bg-blue-400 rounded-full" title="Screen Recording"></div>
-            )}
-            {state.faceDetection && (
-              <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Face Detection"></div>
-            )}
+        <div className="fixed top-4 right-4 z-50 bg-black/90 text-white p-4 rounded-lg shadow-xl max-w-xs border border-gray-600">
+          <div className="flex items-center space-x-2 mb-3">
+            <div className={`w-3 h-3 rounded-full ${state.networkStatus === 'online' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+            <span className="text-sm font-bold">PHASE 1 PROCTORING</span>
+          </div>
+          
+          <div className="space-y-2 text-xs">
+            <div className="flex justify-between items-center">
+              <span>Video Recording:</span>
+              <div className="flex items-center space-x-1">
+                <span className={state.videoRecording ? 'text-green-400' : 'text-red-400'}>
+                  {state.videoRecording ? 'ACTIVE' : 'INACTIVE'}
+                </span>
+                {state.videoRecording && <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>}
+              </div>
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <span>Screen Recording:</span>
+              <div className="flex items-center space-x-1">
+                <span className={state.screenRecording ? 'text-green-400' : 'text-red-400'}>
+                  {state.screenRecording ? 'ACTIVE' : 'INACTIVE'}
+                </span>
+                {state.screenRecording && <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>}
+              </div>
+            </div>
+            
+            <div className="flex justify-between">
+              <span>Quality Mode:</span>
+              <span className="text-blue-400 font-medium">{state.recordingQuality.toUpperCase()}</span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span>Upload Queue:</span>
+              <span className={state.uploadStatus.queueSize > 0 ? 'text-yellow-400' : 'text-green-400'}>
+                {state.uploadStatus.queueSize} chunks
+              </span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span>Network Status:</span>
+              <span className={state.networkStatus === 'online' ? 'text-green-400' : 'text-red-400'}>
+                {state.networkStatus.toUpperCase()}
+              </span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span>Security Violations:</span>
+              <span className={state.violations.length > 0 ? 'text-red-400 font-bold' : 'text-green-400'}>
+                {state.violations.length}
+              </span>
+            </div>
+            
+            <hr className="border-gray-600 my-2" />
+            
+            <div className="text-center text-gray-300 text-xs">
+              ✓ Offline Upload Queue<br/>
+              ✓ Adaptive Quality Control<br/>
+              ✓ Network Recovery System
+            </div>
           </div>
         </div>
       )}
