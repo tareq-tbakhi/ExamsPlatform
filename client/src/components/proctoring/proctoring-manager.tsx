@@ -4,6 +4,7 @@ import { uploadQueue, type UploadStatus } from "@/lib/upload-queue";
 import { recordingQualityManager } from "@/lib/recording-quality";
 import { multiMonitorDetector, type MonitorConfiguration } from "@/lib/multi-monitor-detection";
 import { applicationMonitor, type ApplicationActivity } from "@/lib/application-monitor";
+import { advancedLockdownManager, type SecurityViolation } from "@/lib/advanced-lockdown";
 
 interface ProctoringManagerProps {
   isActive: boolean;
@@ -34,6 +35,12 @@ interface ProctoringState {
   audioMonitoring: boolean;
   multiMonitorDetected: boolean;
   applicationSwitches: number;
+  // Phase 3: Complete Browser Lockdown
+  fullscreenLocked: boolean;
+  kioskModeActive: boolean;
+  securityViolations: number;
+  escapeAttempts: number;
+  advancedBlocking: boolean;
 }
 
 export default function ProctoringManager({ 
@@ -55,7 +62,19 @@ export default function ProctoringManager({
       lastSync: Date.now()
     },
     recordingQuality: 'auto',
-    networkStatus: 'online'
+    networkStatus: 'online',
+    // Phase 2: Advanced Monitoring
+    monitorConfiguration: null,
+    applicationMonitoring: false,
+    audioMonitoring: false,
+    multiMonitorDetected: false,
+    applicationSwitches: 0,
+    // Phase 3: Complete Browser Lockdown
+    fullscreenLocked: false,
+    kioskModeActive: false,
+    securityViolations: 0,
+    escapeAttempts: 0,
+    advancedBlocking: false
   });
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -102,18 +121,26 @@ export default function ProctoringManager({
 
   const initializeProctoring = async () => {
     try {
+      // Phase 1: Core Recording Features
       await startVideoRecording();
       await startScreenRecording();
       startFaceDetection();
       
+      // Phase 2: Advanced Monitoring
+      await initializeMultiMonitorDetection();
+      startApplicationMonitoring();
+      startEnhancedAudioMonitoring();
+      
       setState(prev => ({
         ...prev,
-        browserLocked: true
+        browserLocked: true,
+        applicationMonitoring: true,
+        audioMonitoring: true
       }));
 
       toast({
-        title: "Proctoring Active",
-        description: "Video and screen recording started. Browser security enabled."
+        title: "Enhanced Proctoring Active",
+        description: "Phase 1 & 2 monitoring: Video, screen, multi-monitor detection, and application monitoring enabled."
       });
     } catch (error) {
       console.error("Failed to initialize proctoring:", error);
@@ -437,6 +464,139 @@ export default function ProctoringManager({
     screenChunksRef.current = [];
   };
 
+  // Phase 2: Multi-Monitor Detection
+  const initializeMultiMonitorDetection = async () => {
+    try {
+      const config = await multiMonitorDetector.detectMonitors();
+      
+      setState(prev => ({
+        ...prev,
+        monitorConfiguration: config,
+        multiMonitorDetected: config.totalMonitors > 1
+      }));
+
+      // Setup monitor change detection
+      multiMonitorDetector.onConfigurationChange((newConfig) => {
+        setState(prev => ({
+          ...prev,
+          monitorConfiguration: newConfig,
+          multiMonitorDetected: newConfig.totalMonitors > 1
+        }));
+
+        // Report multi-monitor violations
+        if (newConfig.totalMonitors > 1) {
+          reportViolation({
+            type: 'critical',
+            category: 'multi_monitor',
+            description: `Multiple monitors detected: ${newConfig.totalMonitors} displays. Exam requires single monitor setup.`
+          });
+        }
+
+        if (newConfig.isExtendedDesktop) {
+          reportViolation({
+            type: 'critical',
+            category: 'extended_desktop',
+            description: 'Extended desktop configuration detected. This violates exam security policies.'
+          });
+        }
+      });
+
+      // Validate current configuration
+      const validation = multiMonitorDetector.validateConfiguration();
+      if (!validation.isValid) {
+        validation.violations.forEach(violation => {
+          reportViolation({
+            type: 'critical',
+            category: 'monitor_violation',
+            description: violation
+          });
+        });
+      }
+
+      console.log('Multi-monitor detection initialized:', config);
+    } catch (error) {
+      console.error('Failed to initialize multi-monitor detection:', error);
+    }
+  };
+
+  // Phase 2: Application Monitoring
+  const startApplicationMonitoring = () => {
+    try {
+      applicationMonitor.startMonitoring();
+
+      // Setup application violation detection
+      applicationMonitor.onViolation((activity) => {
+        setState(prev => ({
+          ...prev,
+          applicationSwitches: prev.applicationSwitches + 1
+        }));
+
+        // Report application violations based on risk level
+        const appInfo = applicationMonitor.getApplicationRisk(activity.application || 'unknown');
+        
+        let violationType: 'critical' | 'major' | 'minor' = 'minor';
+        if (appInfo.riskLevel === 'critical') violationType = 'critical';
+        else if (appInfo.riskLevel === 'high') violationType = 'major';
+
+        reportViolation({
+          type: violationType,
+          category: 'application_switch',
+          description: `Application activity detected: ${activity.windowTitle || activity.application}`,
+          evidence: {
+            activity,
+            riskLevel: appInfo.riskLevel,
+            duration: activity.duration
+          }
+        });
+      });
+
+      console.log('Application monitoring started');
+    } catch (error) {
+      console.error('Failed to start application monitoring:', error);
+    }
+  };
+
+  // Phase 2: Enhanced Audio Monitoring
+  const startEnhancedAudioMonitoring = () => {
+    try {
+      // Audio level monitoring for detecting suspicious sounds
+      if (videoStreamRef.current) {
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(videoStreamRef.current);
+        const analyser = audioContext.createAnalyser();
+        
+        analyser.fftSize = 256;
+        source.connect(analyser);
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        
+        const monitorAudio = () => {
+          analyser.getByteFrequencyData(dataArray);
+          
+          // Calculate average audio level
+          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+          
+          // Detect unusual audio patterns
+          if (average > 50) { // Threshold for suspicious audio
+            reportViolation({
+              type: 'minor',
+              category: 'audio_activity',
+              description: `Elevated audio activity detected (level: ${Math.round(average)})`
+            });
+          }
+
+          // Continue monitoring
+          requestAnimationFrame(monitorAudio);
+        };
+
+        monitorAudio();
+        console.log('Enhanced audio monitoring started');
+      }
+    } catch (error) {
+      console.error('Failed to start enhanced audio monitoring:', error);
+    }
+  };
+
   const reportViolation = useCallback((violation: ViolationData) => {
     setState(prev => ({
       ...prev,
@@ -556,10 +716,35 @@ export default function ProctoringManager({
             
             <hr className="border-gray-600 my-2" />
             
+            <div className="flex justify-between">
+              <span>Multi-Monitor:</span>
+              <span className={state.multiMonitorDetected ? 'text-red-400 font-bold' : 'text-green-400'}>
+                {state.multiMonitorDetected ? 'DETECTED' : 'SINGLE'}
+              </span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span>App Monitoring:</span>
+              <span className={state.applicationMonitoring ? 'text-green-400' : 'text-red-400'}>
+                {state.applicationMonitoring ? 'ACTIVE' : 'INACTIVE'}
+              </span>
+            </div>
+            
+            <div className="flex justify-between">
+              <span>App Switches:</span>
+              <span className={state.applicationSwitches > 5 ? 'text-red-400 font-bold' : 'text-yellow-400'}>
+                {state.applicationSwitches}
+              </span>
+            </div>
+            
+            <hr className="border-gray-600 my-2" />
+            
             <div className="text-center text-gray-300 text-xs">
-              ✓ Offline Upload Queue<br/>
-              ✓ Adaptive Quality Control<br/>
-              ✓ Network Recovery System
+              <div className="font-medium text-green-400 mb-1">PHASE 1 ✓</div>
+              <div className="text-xs">Offline Queue • Quality Control • Recovery</div>
+              
+              <div className="font-medium text-blue-400 mt-2 mb-1">PHASE 2 ✓</div>
+              <div className="text-xs">Multi-Monitor • App Tracking • Audio Analysis</div>
             </div>
           </div>
         </div>
