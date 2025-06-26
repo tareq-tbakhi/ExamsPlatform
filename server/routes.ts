@@ -248,9 +248,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/videos/submission/:submissionId", async (req, res) => {
     try {
       const submissionId = parseInt(req.params.submissionId);
+      console.log(`Getting videos for submission ${submissionId}`);
+      
       const submission = await storage.getSubmission(submissionId);
       
       if (!submission) {
+        console.log(`Submission ${submissionId} not found`);
         return res.status(404).json({ message: "Submission not found" });
       }
 
@@ -262,22 +265,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (fs.existsSync(proctoringDir)) {
         const files = fs.readdirSync(proctoringDir);
-        proctoringVideos = files
-          .filter(file => file.includes(`_${submissionId}_`) && file.endsWith('.webm'))
-          .map(filename => {
+        console.log(`Found files in proctoring dir:`, files);
+        const filteredFiles = files.filter(file => file.includes(`_${submissionId}_`) && file.endsWith('.webm'));
+        console.log(`Filtered files for submission ${submissionId}:`, filteredFiles);
+        
+        proctoringVideos = filteredFiles.map(filename => {
+          try {
             const filePath = path.join(proctoringDir, filename);
             const stats = fs.statSync(filePath);
-            const parts = filename.split('_');
-            const timestamp = parts[parts.length - 1].replace('chunk0.webm', '');
             
             return {
               filename,
               url: `/api/videos/proctoring/${filename}`,
               type: filename.startsWith('screen_') ? 'screen' : 'proctoring',
               size: stats.size,
-              timestamp: new Date(parseInt(timestamp)).toISOString()
+              timestamp: stats.mtime.toISOString()
             };
-          });
+          } catch (error) {
+            console.log(`Error processing file ${filename}:`, error);
+            return null;
+          }
+        }).filter(Boolean);
       }
 
       if (fs.existsSync(videosDir)) {
