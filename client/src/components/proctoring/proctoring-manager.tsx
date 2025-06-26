@@ -127,6 +127,7 @@ export default function ProctoringManager({
   };
 
   const initializeProctoring = async () => {
+    console.log(`Starting proctoring for exam ${examId} with session ${sessionIdRef.current}`);
     try {
       // Phase 1: Core Recording Features
       await startVideoRecording();
@@ -166,6 +167,7 @@ export default function ProctoringManager({
   };
 
   const startVideoRecording = async () => {
+    console.log(`Starting video recording with session: ${sessionIdRef.current}`);
     try {
       const videoConstraints = recordingQualityManager.getVideoConstraints();
       const audioConstraints = recordingQualityManager.getAudioConstraints();
