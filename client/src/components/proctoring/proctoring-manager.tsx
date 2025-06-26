@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { uploadQueue, type UploadStatus } from "@/lib/upload-queue";
 import { recordingQualityManager } from "@/lib/recording-quality";
-import { multiMonitorDetector, type MonitorConfiguration } from "@/lib/multi-monitor-detection";
+import { multiMonitorDetector, type MonitorConfiguration } from "@/lib/multi-monitor-detection-fixed";
 import { applicationMonitor, type ApplicationActivity } from "@/lib/application-monitor";
 import { advancedLockdownManager, type SecurityViolation } from "@/lib/advanced-lockdown";
 
@@ -516,17 +516,15 @@ export default function ProctoringManager({
         }
       });
 
-      // Validate current configuration
-      const validation = multiMonitorDetector.validateConfiguration();
-      if (!validation.isValid) {
-        validation.violations.forEach(violation => {
-          reportViolation({
-            type: 'critical',
-            category: 'monitor_violation',
-            description: violation
-          });
+      // Check for monitor warnings
+      const warnings = multiMonitorDetector.getMonitorWarnings();
+      warnings.forEach((warning: string) => {
+        reportViolation({
+          type: 'major',
+          category: 'monitor_warning',
+          description: warning
         });
-      }
+      });
 
       console.log('Multi-monitor detection initialized:', config);
     } catch (error) {

@@ -149,7 +149,9 @@ class UploadQueue {
   private startPeriodicSync(): void {
     setInterval(() => {
       if (navigator.onLine && this.queue.length > 0) {
-        this.processQueue();
+        this.processQueue().catch(error => {
+          console.error('Queue processing error:', error);
+        });
       }
     }, 30000);
   }
