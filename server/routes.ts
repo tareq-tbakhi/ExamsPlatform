@@ -186,6 +186,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       const submission = await storage.createSubmission(submissionWithScore);
+      
+      // Associate session-based videos with this submission
+      if (submissionData.sessionId) {
+        try {
+          const proctoringDir = 'uploads/proctoring';
+          if (fs.existsSync(proctoringDir)) {
+            const sessionFiles = fs.readdirSync(proctoringDir)
+              .filter(file => file.includes(`_${submissionData.sessionId}_`));
+            
+            // Rename session-based files to include submission ID
+            for (const oldFile of sessionFiles) {
+              const newFile = oldFile.replace(`_${submissionData.sessionId}_`, `_${submission.id}_`);
+              const oldPath = path.join(proctoringDir, oldFile);
+              const newPath = path.join(proctoringDir, newFile);
+              
+              if (fs.existsSync(oldPath)) {
+                fs.renameSync(oldPath, newPath);
+                console.log(`Renamed ${oldFile} to ${newFile}`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error associating session videos with submission:', error);
+        }
+      }
+      
       res.json(submission);
     } catch (error) {
       res.status(400).json({ message: "Invalid submission data", error: (error as Error).message });
@@ -601,9 +627,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const proctoringVideos = fs.existsSync(proctoringDir) ? 
         fs.readdirSync(proctoringDir)
           .filter((file: string) => {
-            // Match patterns: _submissionId_, _examId_session_, and _examId_unknown_ for recent uploads
-            return file.includes(`_${submissionId}_`) || 
-                   (examId && (file.includes(`_${examId}_session_`) || file.includes(`_${examId}_unknown_`)));
+            // Only match videos specifically for this submission
+            return file.includes(`_${submissionId}_`);
           })
           .map((file: string) => ({
             filename: file,
