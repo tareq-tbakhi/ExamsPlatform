@@ -21,7 +21,7 @@ export default function ExamList() {
   const userId = 1;
 
   const { data: exams = [], isLoading } = useQuery<ExamWithStats[]>({
-    queryKey: ["/api/exams/creator", userId],
+    queryKey: [`/api/exams/creator/${userId}`],
   });
 
   const deleteExamMutation = useMutation({
