@@ -212,6 +212,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get detailed submission with questions and answers
+  app.get("/api/submissions/:id/details", async (req, res) => {
+    try {
+      const submissionId = parseInt(req.params.id);
+      const submission = await storage.getSubmission(submissionId);
+      
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      const exam = await storage.getExamWithQuestions(submission.examId);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+
+      res.json({
+        submission,
+        exam,
+        answers: submission.answers
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch submission details", error: (error as Error).message });
+    }
+  });
+
   app.put("/api/submissions/:id/score", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
