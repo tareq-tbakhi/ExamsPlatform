@@ -627,8 +627,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const proctoringVideos = fs.existsSync(proctoringDir) ? 
         fs.readdirSync(proctoringDir)
           .filter((file: string) => {
-            // Only match videos specifically for this submission
-            return file.includes(`_${submissionId}_`);
+            // Match videos for this submission ID, or session-based videos for this exam
+            if (file.includes(`_${submissionId}_`)) {
+              return true;
+            }
+            // Also check for session-based videos that should belong to this submission
+            if (submission?.sessionId && file.includes(`_${submission.sessionId}_`)) {
+              return true;
+            }
+            // For backwards compatibility with old exam videos, match exam pattern only for recent submissions
+            if (examId && file.includes(`_${examId}_session_`) && parseInt(submissionId) >= 10) {
+              return true;
+            }
+            return false;
           })
           .map((file: string) => ({
             filename: file,
@@ -650,7 +661,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             timestamp: fs.statSync(path.join(videosDir, file)).mtime
           })) : [];
       
-      console.log(`Found ${proctoringVideos.length} proctoring videos for submission ${submissionId} (exam ${examId})`);
+      console.log(`Found ${proctoringVideos.length} proctoring videos for submission ${submissionId} (exam ${examId}), sessionId: ${submission?.sessionId}`);
       
       res.json({ 
         proctoringVideos,
