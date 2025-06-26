@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, CheckCircle, XCircle, FileText, Video, Mic, Brain } from "lucide-react";
+import { AlertTriangle, CheckCircle, XCircle, FileText, Video, Mic, Brain, Eye, User } from "lucide-react";
 
 interface ViolationAnalysis {
   severity: 'critical' | 'major' | 'minor';
@@ -18,6 +18,22 @@ interface ViolationAnalysis {
   description: string;
   recommendations: string[];
   suspiciousActivities: string[];
+  facialRecognition?: {
+    identityVerification: {
+      faceVisibilityPercentage: number; // 0-100
+      identityConfidenceScore: number; // 0-100
+      multipleFacesDetected: boolean;
+      photoSpoofingDetected: boolean;
+      consistentIdentity: boolean;
+    };
+    eyeTracking: {
+      gazeDirection: string;
+      lookingAwayDuration: number; // seconds
+      screenFocusPercentage: number; // 0-100
+      suspiciousGazePatterns: string[];
+      attentionScore: number; // 0-100
+    };
+  };
   behaviorAnalysis?: {
     emotionDetection: {
       stress: number; // 0-100
@@ -396,8 +412,8 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                       <span className="font-medium text-blue-700 dark:text-blue-300">Enhanced AI Analysis Active</span>
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-300">
-                      This analysis includes comprehensive behavioral psychology, emotion detection, movement analysis, 
-                      micro-expressions, voice pattern matching, and audio anomaly detection.
+                      Advanced AI analysis with facial recognition, identity verification, eye tracking, gaze detection, 
+                      behavioral psychology, emotion analysis, micro-expressions, voice pattern matching, and audio anomaly detection.
                     </p>
                   </div>
                   
@@ -422,6 +438,74 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                             <span className="text-sm">Confidence: {Math.round(violation.confidence * 100)}%</span>
                           </div>
                           <p className="text-sm mb-2">{violation.description}</p>
+                          
+                          {/* Facial Recognition & Eye Tracking Section */}
+                          {violation.facialRecognition && (
+                            <div className="mb-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                              <div className="flex items-center gap-2 mb-2">
+                                <User className="w-4 h-4 text-green-600" />
+                                <span className="font-medium text-green-700 dark:text-green-300">Facial Recognition & Eye Tracking</span>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                <div>
+                                  <p className="font-medium text-gray-600 dark:text-gray-300">Identity Verification:</p>
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between">
+                                      <span>Face Visibility:</span>
+                                      <span className="text-green-600">{violation.facialRecognition.identityVerification.faceVisibilityPercentage}%</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Identity Score:</span>
+                                      <span className="text-blue-600">{violation.facialRecognition.identityVerification.identityConfidenceScore}%</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Multiple Faces:</span>
+                                      <span className={violation.facialRecognition.identityVerification.multipleFacesDetected ? "text-red-600" : "text-green-600"}>
+                                        {violation.facialRecognition.identityVerification.multipleFacesDetected ? "Yes" : "No"}
+                                      </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Photo Spoofing:</span>
+                                      <span className={violation.facialRecognition.identityVerification.photoSpoofingDetected ? "text-red-600" : "text-green-600"}>
+                                        {violation.facialRecognition.identityVerification.photoSpoofingDetected ? "Detected" : "None"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-gray-600 dark:text-gray-300 mb-1">
+                                    <Eye className="w-3 h-3 inline mr-1" />
+                                    Eye Tracking:
+                                  </p>
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between">
+                                      <span>Screen Focus:</span>
+                                      <span className="text-blue-600">{violation.facialRecognition.eyeTracking.screenFocusPercentage}%</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Attention Score:</span>
+                                      <span className="text-purple-600">{violation.facialRecognition.eyeTracking.attentionScore}%</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Looking Away:</span>
+                                      <span className="text-orange-600">{violation.facialRecognition.eyeTracking.lookingAwayDuration}s</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span>Gaze Direction:</span>
+                                      <span className="capitalize">{violation.facialRecognition.eyeTracking.gazeDirection}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              {violation.facialRecognition.eyeTracking.suspiciousGazePatterns.length > 0 && (
+                                <div className="mt-2 p-2 bg-orange-100 dark:bg-orange-900/30 rounded">
+                                  <p className="text-xs font-medium text-orange-800 dark:text-orange-200">
+                                    Suspicious Gaze: {violation.facialRecognition.eyeTracking.suspiciousGazePatterns.join(', ')}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
                           
                           {/* Behavioral Analysis Section */}
                           {violation.behaviorAnalysis && (

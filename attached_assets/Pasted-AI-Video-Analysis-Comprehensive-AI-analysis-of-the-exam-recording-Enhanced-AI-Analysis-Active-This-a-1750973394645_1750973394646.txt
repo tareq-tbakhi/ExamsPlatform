@@ -1,0 +1,34 @@
+AI Video Analysis
+Comprehensive AI analysis of the exam recording
+Enhanced AI Analysis Active
+This analysis includes comprehensive behavioral psychology, emotion detection, movement analysis, micro-expressions, voice pattern matching, and audio anomaly detection.
+
+Overall Suspicion Level
+0.78%
+AI-Detected Violations
+CRITICAL
+Confidence: 95%
+The student opened a new browser tab and navigated to a known search engine (google.com) at approximately 02:05:42 into the recording. A search query directly related to the exam subject ('الفكر الاسلامي المعاصر') was observed on the screen, indicating a high likelihood of unauthorized external resource consultation.
+
+Activities: New browser tab opened, Navigation to search engine domain, Specific search query detected
+Recommendations: Flag this submission for immediate manual review by a proctor., Cross-reference the exact timestamp of the search with the exam question being answered for direct correlation., Implement stricter browser lockdown policies or allow-list only for future exam sessions to prevent unauthorized tab opening and navigation.
+MAJOR
+Confidence: 85%
+Frequent and rapid switching between the exam browser and an unknown application was detected between 02:04:27 and 02:04:52 into the recording. Within this period, a pattern consistent with a copy-paste operation was observed (rapid text selection followed by a shift in application focus), suggesting content may have been transferred from an external source.
+
+Activities: Frequent window switching, Rapid application focus changes, Copy/paste keystroke/selection patterns
+Recommendations: Review specific screen captures during the switching events to identify the other application., Investigate if copy-paste functionality can be disabled or monitored more strictly during exams., Educate students on the explicit prohibition of switching applications or using copy/paste during exams.
+CRITICAL
+Confidence: 90%
+A communication application window (e.g., Discord, Microsoft Teams, or similar) was briefly visible on screen at approximately 02:07:12 during a rapid application switch. Although the full content of the window could not be clearly discerned due to its transient nature, its presence during the exam constitutes a critical breach of proctoring protocol, indicating potential external communication.
+
+Activities: Unauthorized application detection, Brief display of communication software interface
+Recommendations: If live proctoring, the proctor should have intervened immediately upon detection., Ensure all communication applications are explicitly closed and verified before students begin the exam., Implement a stricter application monitoring policy that flags or blocks known communication software.
+MINOR
+Confidence: 60%
+Minor desktop exposure occurred at approximately 02:06:42 into the recording, likely due to accidental window minimization. Additionally, a system notification ('Low Disk Space') briefly appeared at 02:03:57. While generally low-risk, these events indicate potential distractions or non-exam related activity.
+
+Activities: Accidental window minimization, System notification pop-up
+Recommendations: Advise students to close all non-essential applications and background processes before starting the exam., Recommend that students check and adjust their system notification settings to prevent pop-ups during exams., Note these as minor occurrences for general monitoring purposes, typically not requiring direct intervention unless repetitive or prolonged.
+Analysis Summary
+The screen recording shows several suspicious activities during the exam, including frequent application switching, suspected use of external resources via search engines, and brief access to a communication application. These activities suggest potential attempts to gain an unfair advantage or communicate externally, warranting a thorough review.

@@ -10,6 +10,22 @@ export interface ViolationAnalysis {
   description: string;
   recommendations: string[];
   suspiciousActivities: string[];
+  facialRecognition?: {
+    identityVerification: {
+      faceVisibilityPercentage: number; // 0-100
+      identityConfidenceScore: number; // 0-100
+      multipleFacesDetected: boolean;
+      photoSpoofingDetected: boolean;
+      consistentIdentity: boolean;
+    };
+    eyeTracking: {
+      gazeDirection: string;
+      lookingAwayDuration: number; // seconds
+      screenFocusPercentage: number; // 0-100
+      suspiciousGazePatterns: string[];
+      attentionScore: number; // 0-100
+    };
+  };
   behaviorAnalysis?: {
     emotionDetection: {
       stress: number; // 0-100
@@ -320,41 +336,56 @@ export async function analyzeVideoRecording(videoPath: string, examContext: stri
     }
 
     const prompt = `
-    You are an advanced AI proctoring system with expertise in behavioral psychology, biometric analysis, and voice pattern recognition.
-    Analyze this exam video footage for comprehensive security violations, behavioral patterns, and audio anomalies.
+    You are an advanced AI proctoring system with expertise in facial recognition, behavioral psychology, biometric analysis, eye tracking, and voice pattern recognition.
+    Analyze this exam video footage for comprehensive identity verification, behavioral patterns, and security violations.
     
     Exam Context: ${examContext}
     
     COMPREHENSIVE ANALYSIS REQUIRED:
     
-    1. BEHAVIORAL ANALYSIS:
+    1. ADVANCED FACIAL RECOGNITION & IDENTITY VERIFICATION:
+    - Continuous identity matching throughout the video (face consistency analysis)
+    - Multiple face detection (unauthorized persons present)
+    - Face visibility percentage (how much of the exam the face is clearly visible)
+    - Photo spoofing detection (signs of fake images or masks)
+    - Identity confidence score (0-100) based on facial consistency
+    - Reference face establishment and comparison throughout session
+    
+    2. EYE TRACKING & GAZE DETECTION:
+    - Real-time eye tracking analysis and gaze direction patterns
+    - Looking away detection with duration measurements
+    - Gaze direction analysis (screen-focused vs off-screen looking)
+    - Reading pattern analysis and attention monitoring
+    - Eye movement consistency with exam progression
+    - Suspicious gaze patterns (looking at unauthorized materials)
+    
+    3. BEHAVIORAL ANALYSIS & EMOTION DETECTION:
     - Emotion Detection: Analyze facial expressions for stress (0-100), anxiety (0-100), frustration (0-100), confidence (0-100)
-    - Movement Analysis: Detect suspicious movements, posture compliance (0-100), head movement patterns, eye gaze direction
-    - Micro-expressions: Identify brief involuntary facial expressions indicating deception or stress
+    - Micro-expression analysis: Brief involuntary expressions indicating deception, stress, or cognitive load
+    - Movement Analysis: Suspicious movements, posture compliance (0-100), head movement patterns
+    - Body language stress indicators and posture monitoring for compliance
+    - Behavioral pattern changes throughout exam duration
     
-    2. AUDIO & VOICE ANALYSIS:
-    - Multiple speaker detection (are there other voices?)
-    - Background voice detection (conversations, coaching)
-    - Whispering detection (low-volume communication attempts)
-    - Voice pattern matching (consistency throughout exam)
-    - Audio anomalies (unusual sounds, technology usage)
-    - Ambient noise analysis (environment assessment)
+    4. VOICE & AUDIO ANALYSIS:
+    - Multiple speaker detection (other voices present)
+    - Background voice detection (conversations, coaching attempts)
+    - Whispering detection (low-volume communication)
+    - Voice pattern matching (speaker consistency throughout exam)
+    - Audio anomalies (technology sounds, communication devices)
+    - Ambient noise analysis and environment assessment
     
-    3. TRADITIONAL VIOLATIONS:
-    - Student behavior patterns and suspicious activities
-    - Face detection and identity verification throughout recording
+    5. TRADITIONAL SECURITY VIOLATIONS:
     - Unauthorized materials or technology usage detection
-    - Multiple people in frame or communication attempts
-    - Gaze patterns, looking away from screen, suspicious eye movements
-    - Hand movements suggesting cheating (writing notes, using devices)
-    - Environmental security (lighting, background, location suitability)
-    - Overall compliance with exam protocols
+    - Communication attempts and suspicious activities
+    - Hand movements suggesting note-taking or device usage
+    - Environmental security assessment
+    - Overall exam protocol compliance
     
-    Provide comprehensive analysis with:
-    - overallSuspicion: number 0-100 (0=no issues, 100=definite cheating)
-    - violations: array of detailed violation objects with severity, confidence, description, recommendations, suspiciousActivities, behaviorAnalysis, and audioAnalysis
-    - timeline: chronological array of significant events with timestamps and severity
-    - summary: comprehensive overview including behavioral and audio insights
+    Provide comprehensive analysis with identity verification, behavioral psychology insights, and security assessment:
+    - overallSuspicion: number 0-100 (comprehensive risk assessment)
+    - violations: detailed objects with severity, confidence, description, recommendations, suspiciousActivities, behaviorAnalysis, and audioAnalysis
+    - timeline: chronological events with timestamps and severity levels
+    - summary: comprehensive overview including identity verification, behavioral insights, and security assessment
     `;
 
     const contents = [
