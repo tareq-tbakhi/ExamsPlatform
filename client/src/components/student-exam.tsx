@@ -51,7 +51,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
   const { toast } = useToast();
 
   const { data: exam, isLoading, error } = useQuery<ExamWithQuestions>({
-    queryKey: ["/api/exams", examId],
+    queryKey: [`/api/exams/${examId}`],
     enabled: !!examId,
   });
 

@@ -102,6 +102,8 @@ The application uses four main entities:
 Changelog:
 - June 26, 2025. Initial setup with in-memory storage
 - June 26, 2025. Added PostgreSQL database integration with Drizzle ORM
+- June 26, 2025. Fixed exam-taking page routing and query issues
+- June 26, 2025. Successfully tested AI question generation with Arabic content
 ```
 
 ## User Preferences
