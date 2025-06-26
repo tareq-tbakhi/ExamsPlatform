@@ -1,4 +1,5 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
+import { UploadedFile } from "express-fileupload";
 import { createServer, type Server } from "http";
 import * as fs from "fs";
 import * as path from "path";
@@ -274,10 +275,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/upload-proctoring-video", async (req, res) => {
     try {
-      const { examId, submissionId, videoData, chunkIndex = 0 } = req.body;
+      // Handle both FormData and JSON requests
+      let examId, submissionId, videoBuffer, type, chunkIndex = 0;
       
-      if (!videoData || !examId) {
-        return res.status(400).json({ message: "Video data and exam ID required" });
+      if (req.is('multipart/form-data')) {
+        // Handle FormData from frontend
+        examId = req.body.examId;
+        submissionId = req.body.submissionId;
+        type = req.body.type || 'camera';
+        
+        if (!req.files || !req.files.video || !examId) {
+          return res.status(400).json({ message: "Video file and exam ID required" });
+        }
+        
+        const videoFile = Array.isArray(req.files.video) ? req.files.video[0] : req.files.video;
+        videoBuffer = videoFile.data;
+        
+      } else {
+        // Handle JSON with base64 data (legacy)
+        const { videoData } = req.body;
+        examId = req.body.examId;
+        submissionId = req.body.submissionId;
+        type = 'camera';
+        
+        if (!videoData || !examId) {
+          return res.status(400).json({ message: "Video data and exam ID required" });
+        }
+        
+        const base64Data = videoData.includes(',') ? videoData.split(',')[1] : videoData;
+        videoBuffer = Buffer.from(base64Data, 'base64');
       }
 
       // Ensure upload directory exists
@@ -288,23 +314,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create filename with timestamp and chunk index
       const timestamp = Date.now();
-      const filename = `proctoring_${examId}_${submissionId || 'unknown'}_${timestamp}_chunk${chunkIndex}.webm`;
+      const filename = `${type}_${examId}_${submissionId || 'unknown'}_${timestamp}_chunk${chunkIndex}.webm`;
       const filePath = path.join(uploadDir, filename);
       
-      // Convert base64 to buffer and save
-      const base64Data = videoData.includes(',') ? videoData.split(',')[1] : videoData;
-      const buffer = Buffer.from(base64Data, 'base64');
-      fs.writeFileSync(filePath, buffer);
+      // Save video buffer to file
+      fs.writeFileSync(filePath, videoBuffer);
       
       const videoUrl = `/api/videos/proctoring/${filename}`;
+      
+      console.log(`Saved proctoring video: ${filename} (${videoBuffer.length} bytes)`);
       
       res.json({ 
         videoUrl, 
         filename,
         message: "Proctoring video uploaded successfully",
-        size: buffer.length 
+        size: videoBuffer.length 
       });
     } catch (error) {
+      console.error('Video upload error:', error);
       res.status(500).json({ message: "Failed to upload video", error: (error as Error).message });
     }
   });
