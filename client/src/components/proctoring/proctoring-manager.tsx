@@ -445,7 +445,8 @@ export default function ProctoringManager({
     if (videoChunksRef.current.length === 0) return;
 
     const blob = new Blob(videoChunksRef.current, { type: 'video/webm' });
-    const filename = `camera_${examId}_${submissionId || 'unknown'}_${Date.now()}_chunk${Math.floor(Date.now() / 40000)}.webm`;
+    const uniqueId = submissionId || sessionIdRef.current;
+    const filename = `camera_${examId}_${uniqueId}_${Date.now()}_chunk${Math.floor(Date.now() / 40000)}.webm`;
     
     // Track storage usage for quality optimization
     recordingQualityManager.updateStorageUsage(blob.size);
@@ -463,7 +464,8 @@ export default function ProctoringManager({
     if (screenChunksRef.current.length === 0) return;
 
     const blob = new Blob(screenChunksRef.current, { type: 'video/webm' });
-    const filename = `screen_${examId}_${submissionId || 'unknown'}_${Date.now()}_chunk${Math.floor(Date.now() / 40000)}.webm`;
+    const uniqueId = submissionId || sessionIdRef.current;
+    const filename = `screen_${examId}_${uniqueId}_${Date.now()}_chunk${Math.floor(Date.now() / 40000)}.webm`;
     
     // Track storage usage for quality optimization
     recordingQualityManager.updateStorageUsage(blob.size);
