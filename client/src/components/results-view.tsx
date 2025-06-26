@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ClipboardList, Users, TrendingUp, Medal, Eye, Brain } from "lucide-react";
 import AIAnalysisDashboard from "@/components/ai-analysis-dashboard";
+import SubmissionDetails from "@/components/submission-details";
 import type { SubmissionWithExam } from "@shared/schema";
 
 export default function ResultsView() {
