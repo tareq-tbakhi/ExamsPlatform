@@ -413,6 +413,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const analysis = await analyzeVideoRecording(videoPath, examContext || "Exam proctoring session");
+      
+      // Store analysis results in database if violations found
+      if (analysis.violations && analysis.violations.length > 0) {
+        try {
+          // Extract submission ID from video path for database storage
+          const filename = videoPath.split('/').pop() || '';
+          const pathParts = filename.replace('.webm', '').split('_');
+          let submissionId = null;
+          
+          if (pathParts.length >= 3 && pathParts[2] !== 'unknown') {
+            submissionId = parseInt(pathParts[2]);
+          } else if (pathParts.length >= 2) {
+            // Try to find recent submission for this exam
+            const examId = parseInt(pathParts[1]);
+            const recentSubmissions = await storage.getSubmissionsByExam(examId);
+            if (recentSubmissions.length > 0) {
+              // Use the most recent submission
+              submissionId = recentSubmissions[recentSubmissions.length - 1].id;
+            }
+          }
+          
+          if (submissionId) {
+            // Store each violation in database
+            for (const violation of analysis.violations) {
+              await storage.createProctoringViolation({
+                submissionId: submissionId,
+                type: violation.severity as 'critical' | 'major' | 'minor',
+                description: violation.description,
+                timestamp: new Date(),
+                evidence: {
+                  videoPath: videoPath,
+                  confidence: violation.confidence,
+                  recommendations: violation.recommendations,
+                  suspiciousActivities: violation.suspiciousActivities,
+                  analysisMethod: videoPath.includes('screen_') ? 'screen_metadata_analysis' : 'ai_video_analysis',
+                  overallSuspicion: analysis.overallSuspicion,
+                  timeline: analysis.timeline
+                }
+              });
+            }
+            console.log(`Stored ${analysis.violations.length} violations for submission ${submissionId} in database`);
+          }
+        } catch (dbError) {
+          console.error('Failed to store analysis in database:', dbError);
+          // Continue anyway - analysis still successful
+        }
+      }
+      
       res.json(analysis);
     } catch (error) {
       res.status(500).json({ message: "Failed to analyze video recording", error: (error as Error).message });
