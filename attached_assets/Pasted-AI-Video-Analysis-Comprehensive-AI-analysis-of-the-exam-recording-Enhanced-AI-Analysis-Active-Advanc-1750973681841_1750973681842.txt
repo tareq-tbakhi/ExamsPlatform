@@ -1,0 +1,46 @@
+AI Video Analysis
+Comprehensive AI analysis of the exam recording
+Enhanced AI Analysis Active
+Advanced AI analysis with facial recognition, identity verification, eye tracking, gaze detection, behavioral psychology, emotion analysis, micro-expressions, voice pattern matching, and audio anomaly detection.
+
+Overall Suspicion Level
+0.92%
+AI-Detected Violations
+CRITICAL
+Confidence: 95%
+The student opened a new browser tab and accessed a search engine (google.com) during the exam. A specific search query related to the exam topic was observed, indicating an attempt to find answers or information.
+
+Activities: New browser tab navigation to search engine domain (google.com)., Input of keywords into search bar ('الفكر الاسلامي المعاصر تعريف')., Rapid tab switching back to exam window after search activity.
+Recommendations: Review browser history and search queries for the duration of the exam., Compare search queries with exam questions to identify potential direct answer retrieval., Consider invalidating the exam submission based on clear unauthorized resource usage.
+CRITICAL
+Confidence: 90%
+Multiple browser tabs were active and frequently switched between, suggesting the student was managing more than just the exam interface. One tab was specifically identified as a Wikipedia page relevant to the exam's subject matter.
+
+Activities: Persistent presence of multiple browser tabs (more than one active tab in focus)., Observation of non-exam related URLs (e.g., wikipedia.org) during tab cycling., Frequent and rapid transitions between different browser tabs.
+Recommendations: Investigate the URLs and content of all open tabs during the detected activity., Verify if any external websites are permitted as resources for this specific exam., Implement stricter browser lockdown settings for future exams.
+MAJOR
+Confidence: 80%
+The student engaged in frequent and rapid window switching between the exam browser and other unidentified applications or the desktop. This pattern is commonly associated with attempts to access external notes, applications, or communicate covertly.
+
+Activities: High frequency of Alt+Tab or Cmd+Tab keypress events logged., Repeated instances of the exam window losing and regaining focus., Brief flashes of the desktop or other application windows.
+Recommendations: Analyze the exact applications or windows that were brought into focus during these switches., Correlate with other suspicious activities (e.g., copy/paste, communication app usage) to establish context., Increase proctor vigilance for window focus changes in future sessions.
+MAJOR
+Confidence: 75%
+An attempt to copy content from an external source (clipboard activity detected) was observed while the exam window was not in focus. Although a paste action on the exam page was not definitively captured, this behavior is a strong indicator of unauthorized information transfer.
+
+Activities: Detection of Ctrl+C or Cmd+C keystrokes., Sudden change in clipboard content immediately after a window switch., Focus on a non-exam application (e.g., document, web page) preceding copy command.
+Recommendations: Examine the exam submission for any text that appears unusually formatted or matches external sources., If available, review system clipboard history for the duration of the exam., Implement stricter controls to prevent clipboard access during exams.
+CRITICAL
+Confidence: 85%
+A communication application (e.g., Discord, WhatsApp, Telegram) was detected running in the background, exhibiting active processes or notification pop-ups. This suggests potential unauthorized communication or background distractions.
+
+Activities: Presence of a known communication application process in background system scan., Brief visibility of application specific overlays or notification banners., Potential sound cues from the application (if audio analysis is available).
+Recommendations: Review system process lists and network activity logs for active communication applications and outgoing connections., Investigate any associated pop-up notifications or activity visible on the screen recording., Recommend explicit instructions to close all non-essential applications prior to exam start.
+MINOR
+Confidence: 40%
+The student briefly minimized the exam window, exposing the desktop. While this could be accidental, it creates an opportunity for accessing unauthorized resources without proper monitoring.
+
+Activities: Exam application losing foreground focus to the desktop background., Rapid minimization and subsequent restoration of the exam window.
+Recommendations: Monitor for repeated occurrences or longer durations of desktop exposure., Correlate with other suspicious activities that might occur immediately after desktop exposure., Provide clear instructions to students to avoid minimizing the exam window.
+Analysis Summary
+The screen recording analysis reveals multiple instances of highly suspicious activity. The student was observed navigating to external search engines, maintaining multiple active browser tabs, and had a communication application running in the background. Frequent window switching and an attempted copy/paste operation further indicate potential academic misconduct during the exam session.
