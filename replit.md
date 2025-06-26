@@ -44,7 +44,7 @@ The application uses four main entities:
 - **AIGenerator**: Interface for AI-powered question generation
 
 ### Backend Services
-- **Storage Layer**: Abstracted storage interface with in-memory implementation (designed for future database integration)
+- **Storage Layer**: PostgreSQL database with Drizzle ORM using DatabaseStorage implementation
 - **OpenAI Service**: Question generation using GPT-4o with structured prompts
 - **RESTful API**: Complete CRUD operations for exams, questions, and submissions
 
@@ -100,7 +100,8 @@ The application uses four main entities:
 
 ```
 Changelog:
-- June 26, 2025. Initial setup
+- June 26, 2025. Initial setup with in-memory storage
+- June 26, 2025. Added PostgreSQL database integration with Drizzle ORM
 ```
 
 ## User Preferences

@@ -1,4 +1,6 @@
 import { users, exams, questions, submissions, type User, type InsertUser, type Exam, type InsertExam, type Question, type InsertQuestion, type Submission, type InsertSubmission, type ExamWithQuestions, type ExamWithStats, type SubmissionWithExam } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -29,66 +31,47 @@ export interface IStorage {
   updateSubmissionScore(id: number, score: number): Promise<Submission | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private exams: Map<number, Exam>;
-  private questions: Map<number, Question>;
-  private submissions: Map<number, Submission>;
-  private currentUserId: number;
-  private currentExamId: number;
-  private currentQuestionId: number;
-  private currentSubmissionId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.exams = new Map();
-    this.questions = new Map();
-    this.submissions = new Map();
-    this.currentUserId = 1;
-    this.currentExamId = 1;
-    this.currentQuestionId = 1;
-    this.currentSubmissionId = 1;
-  }
-
-  // Users
+export class DatabaseStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
     return user;
   }
 
-  // Exams
   async createExam(insertExam: InsertExam): Promise<Exam> {
-    const id = this.currentExamId++;
-    const exam: Exam = { 
-      ...insertExam, 
-      id, 
-      createdAt: new Date() 
-    };
-    this.exams.set(id, exam);
+    const [exam] = await db
+      .insert(exams)
+      .values(insertExam)
+      .returning();
     return exam;
   }
 
   async getExam(id: number): Promise<Exam | undefined> {
-    return this.exams.get(id);
+    const [exam] = await db.select().from(exams).where(eq(exams.id, id));
+    return exam || undefined;
   }
 
   async getExamWithQuestions(id: number): Promise<ExamWithQuestions | undefined> {
-    const exam = this.exams.get(id);
+    const exam = await this.getExam(id);
     if (!exam) return undefined;
 
-    const examQuestions = Array.from(this.questions.values())
-      .filter(q => q.examId === id)
-      .sort((a, b) => a.order - b.order);
+    const examQuestions = await db
+      .select()
+      .from(questions)
+      .where(eq(questions.examId, id))
+      .orderBy(questions.order);
 
     return {
       ...exam,
@@ -97,140 +80,151 @@ export class MemStorage implements IStorage {
   }
 
   async getExamsByCreator(createdBy: number): Promise<ExamWithStats[]> {
-    const userExams = Array.from(this.exams.values())
-      .filter(exam => exam.createdBy === createdBy)
-      .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+    const userExams = await db
+      .select()
+      .from(exams)
+      .where(eq(exams.createdBy, createdBy))
+      .orderBy(exams.createdAt);
 
-    return userExams.map(exam => {
-      const questionsCount = Array.from(this.questions.values())
-        .filter(q => q.examId === exam.id).length;
-      
-      const examSubmissions = Array.from(this.submissions.values())
-        .filter(s => s.examId === exam.id);
-      
-      const submissionsCount = examSubmissions.length;
-      const averageScore = submissionsCount > 0 
-        ? examSubmissions.reduce((sum, s) => sum + (s.score || 0), 0) / submissionsCount 
-        : undefined;
+    const examStats = await Promise.all(
+      userExams.map(async (exam) => {
+        const questionsCount = await db
+          .select({ count: questions.id })
+          .from(questions)
+          .where(eq(questions.examId, exam.id));
 
-      return {
-        ...exam,
-        questionsCount,
-        submissionsCount,
-        averageScore
-      };
-    });
+        const examSubmissions = await db
+          .select()
+          .from(submissions)
+          .where(eq(submissions.examId, exam.id));
+
+        const submissionsCount = examSubmissions.length;
+        const averageScore = submissionsCount > 0 
+          ? examSubmissions.reduce((sum, s) => sum + (s.score || 0), 0) / submissionsCount 
+          : undefined;
+
+        return {
+          ...exam,
+          questionsCount: questionsCount.length,
+          submissionsCount,
+          averageScore
+        };
+      })
+    );
+
+    return examStats;
   }
 
   async updateExam(id: number, updateData: Partial<InsertExam>): Promise<Exam | undefined> {
-    const exam = this.exams.get(id);
-    if (!exam) return undefined;
-
-    const updatedExam = { ...exam, ...updateData };
-    this.exams.set(id, updatedExam);
-    return updatedExam;
+    const [exam] = await db
+      .update(exams)
+      .set(updateData)
+      .where(eq(exams.id, id))
+      .returning();
+    return exam || undefined;
   }
 
   async deleteExam(id: number): Promise<boolean> {
-    const deleted = this.exams.delete(id);
-    if (deleted) {
-      // Also delete related questions and submissions
-      await this.deleteQuestionsByExam(id);
-      Array.from(this.submissions.entries())
-        .filter(([, submission]) => submission.examId === id)
-        .forEach(([submissionId]) => this.submissions.delete(submissionId));
-    }
-    return deleted;
+    // Delete related questions and submissions first
+    await this.deleteQuestionsByExam(id);
+    await db.delete(submissions).where(eq(submissions.examId, id));
+    
+    const result = await db.delete(exams).where(eq(exams.id, id));
+    return (result.rowCount || 0) > 0;
   }
 
-  // Questions
   async createQuestion(insertQuestion: InsertQuestion): Promise<Question> {
-    const id = this.currentQuestionId++;
-    const question: Question = { ...insertQuestion, id };
-    this.questions.set(id, question);
+    const [question] = await db
+      .insert(questions)
+      .values(insertQuestion)
+      .returning();
     return question;
   }
 
   async getQuestionsByExam(examId: number): Promise<Question[]> {
-    return Array.from(this.questions.values())
-      .filter(q => q.examId === examId)
-      .sort((a, b) => a.order - b.order);
+    return await db
+      .select()
+      .from(questions)
+      .where(eq(questions.examId, examId))
+      .orderBy(questions.order);
   }
 
   async updateQuestion(id: number, updateData: Partial<InsertQuestion>): Promise<Question | undefined> {
-    const question = this.questions.get(id);
-    if (!question) return undefined;
-
-    const updatedQuestion = { ...question, ...updateData };
-    this.questions.set(id, updatedQuestion);
-    return updatedQuestion;
+    const [question] = await db
+      .update(questions)
+      .set(updateData)
+      .where(eq(questions.id, id))
+      .returning();
+    return question || undefined;
   }
 
   async deleteQuestion(id: number): Promise<boolean> {
-    return this.questions.delete(id);
+    const result = await db.delete(questions).where(eq(questions.id, id));
+    return (result.rowCount || 0) > 0;
   }
 
   async deleteQuestionsByExam(examId: number): Promise<boolean> {
-    const questionIds = Array.from(this.questions.entries())
-      .filter(([, question]) => question.examId === examId)
-      .map(([id]) => id);
-    
-    questionIds.forEach(id => this.questions.delete(id));
-    return questionIds.length > 0;
+    const result = await db.delete(questions).where(eq(questions.examId, examId));
+    return (result.rowCount || 0) > 0;
   }
 
-  // Submissions
   async createSubmission(insertSubmission: InsertSubmission): Promise<Submission> {
-    const id = this.currentSubmissionId++;
-    const submission: Submission = { 
-      ...insertSubmission, 
-      id, 
-      submittedAt: new Date() 
-    };
-    this.submissions.set(id, submission);
+    const [submission] = await db
+      .insert(submissions)
+      .values(insertSubmission)
+      .returning();
     return submission;
   }
 
   async getSubmission(id: number): Promise<Submission | undefined> {
-    return this.submissions.get(id);
+    const [submission] = await db.select().from(submissions).where(eq(submissions.id, id));
+    return submission || undefined;
   }
 
   async getSubmissionsByExam(examId: number): Promise<SubmissionWithExam[]> {
-    const examSubmissions = Array.from(this.submissions.values())
-      .filter(s => s.examId === examId)
-      .sort((a, b) => new Date(b.submittedAt!).getTime() - new Date(a.submittedAt!).getTime());
+    const examSubmissions = await db
+      .select({
+        submission: submissions,
+        examTitle: exams.title
+      })
+      .from(submissions)
+      .leftJoin(exams, eq(submissions.examId, exams.id))
+      .where(eq(submissions.examId, examId))
+      .orderBy(submissions.submittedAt);
 
-    const exam = this.exams.get(examId);
-    const examTitle = exam?.title || "Unknown Exam";
-
-    return examSubmissions.map(submission => ({
+    return examSubmissions.map(({ submission, examTitle }) => ({
       ...submission,
-      examTitle
+      examTitle: examTitle || "Unknown Exam"
     }));
   }
 
   async getRecentSubmissions(limit: number = 10): Promise<SubmissionWithExam[]> {
-    const allSubmissions = Array.from(this.submissions.values())
-      .sort((a, b) => new Date(b.submittedAt!).getTime() - new Date(a.submittedAt!).getTime())
-      .slice(0, limit);
+    const recentSubmissions = await db
+      .select({
+        submission: submissions,
+        examTitle: exams.title
+      })
+      .from(submissions)
+      .leftJoin(exams, eq(submissions.examId, exams.id))
+      .orderBy(submissions.submittedAt)
+      .limit(limit);
 
-    return allSubmissions.map(submission => {
-      const exam = this.exams.get(submission.examId);
-      return {
-        ...submission,
-        examTitle: exam?.title || "Unknown Exam"
-      };
-    });
+    return recentSubmissions.map(({ submission, examTitle }) => ({
+      ...submission,
+      examTitle: examTitle || "Unknown Exam"
+    }));
   }
 
   async updateSubmissionScore(id: number, score: number): Promise<Submission | undefined> {
-    const submission = this.submissions.get(id);
-    if (!submission) return undefined;
-
-    const updatedSubmission = { ...submission, score };
-    this.submissions.set(id, updatedSubmission);
-    return updatedSubmission;
+    const [submission] = await db
+      .update(submissions)
+      .set({ score })
+      .where(eq(submissions.id, id))
+      .returning();
+    return submission || undefined;
   }
 }
 
-export const storage = new MemStorage();
+
+
+export const storage = new DatabaseStorage();
