@@ -1,8 +1,14 @@
-# ExamCraft - AI-Powered Exam Creation Platform
+# ExamCraft - AI-Powered Exam Creation Platform with Advanced Proctoring
 
 ## Overview
 
-ExamCraft is a modern web application for creating, managing, and taking exams with AI-powered question generation capabilities. The platform allows educators to create comprehensive exams with multiple question types and provides students with an intuitive exam-taking experience.
+ExamCraft is a comprehensive web application for creating, managing, and taking exams with AI-powered question generation and advanced proctoring capabilities. The platform features:
+
+- **AI Question Generation**: OpenAI GPT-4o integration for automatic question creation
+- **Comprehensive Proctoring**: Real-time video recording, screen monitoring, face detection, and browser lockdown
+- **Arabic Voice Transcription**: Advanced speech-to-text for Arabic language video responses
+- **Security Violations**: Automated detection and reporting of cheating attempts
+- **Multi-modal Exam Types**: Traditional questions plus video responses with voice transcription
 
 ## System Architecture
 
@@ -30,23 +36,32 @@ ExamCraft is a modern web application for creating, managing, and taking exams w
 ## Key Components
 
 ### Database Schema
-The application uses four main entities:
+The application uses eight main entities:
 - **Users**: Basic user management with username/password authentication
-- **Exams**: Exam metadata including title, subject, duration, and settings
+- **Exams**: Exam metadata including title, subject, duration, settings, and proctoring configuration
 - **Questions**: Individual questions with support for multiple choice, short answer, essay, and true/false types
-- **Submissions**: Student responses and scoring data
+- **Submissions**: Student responses, scoring data, and proctoring violation records
+- **ProctoringViolations**: Security violation tracking with timestamps, evidence, and severity levels
+- **VideoQuestions**: Video-based questions with Arabic speech transcription support
+- **VideoAnswers**: Student video responses with automated transcription and confidence scoring
 
 ### Frontend Components
 - **ExamPlatform**: Main dashboard with tabbed interface for creating, managing, and viewing results
-- **ExamCreator**: Form-based exam creation with AI question generation
-- **StudentExam**: Exam-taking interface with timer, navigation, and submission handling
+- **ExamCreator**: Form-based exam creation with AI question generation and proctoring configuration
+- **StudentExam**: Exam-taking interface with timer, navigation, submission handling, and integrated proctoring
 - **QuestionForms**: Dynamic question creation forms supporting multiple question types
 - **AIGenerator**: Interface for AI-powered question generation
+- **ProctoringManager**: Real-time monitoring system with video recording, screen capture, and face detection
+- **ProctoringSetup**: Permission setup and system compatibility checking for secure exam environment
+- **VideoQuestion**: Arabic voice transcription interface for video-based responses
+- **ProctoringSettings**: Configuration panel for exam creators to enable and customize proctoring features
 
 ### Backend Services
 - **Storage Layer**: PostgreSQL database with Drizzle ORM using DatabaseStorage implementation
 - **OpenAI Service**: Question generation using GPT-4o with structured prompts
-- **RESTful API**: Complete CRUD operations for exams, questions, and submissions
+- **RESTful API**: Complete CRUD operations for exams, questions, submissions, and proctoring data
+- **Proctoring API**: Video upload endpoints, violation tracking, and security monitoring
+- **Video Processing**: Video answer upload and storage with transcription support
 
 ## Data Flow
 
@@ -96,6 +111,26 @@ The application uses four main entities:
 - **Production Start**: `npm run start` - Runs compiled application
 - **Database**: `npm run db:push` - Pushes schema changes to database
 
+## Proctoring Features
+
+### AI-Powered Monitoring System
+- **Continuous Video Recording**: 40-second chunks with automatic upload and storage
+- **Screen Recording**: Full desktop capture with tab switching detection
+- **Face Detection**: Real-time monitoring using computer vision for identity verification
+- **Browser Lockdown**: Prevents copy/paste, developer tools, right-click, and other cheating attempts
+- **Violation Detection**: Automated classification of security violations (Critical, Major, Minor)
+
+### Video Questions with Arabic Transcription
+- **Voice-to-Text**: Real-time Arabic speech recognition and transcription
+- **Video Recording**: High-quality video capture for oral responses
+- **Confidence Scoring**: Transcription accuracy measurement
+- **Multi-language Support**: Optimized for Arabic language with fallback support
+
+### Security Violation Categories
+- **Critical**: No face detected, multiple faces, identity mismatch, camera access denied
+- **Major**: Tab switching, copy/paste attempts, developer tools access, window focus loss
+- **Minor**: Right-click attempts, brief face loss, keyboard shortcuts, text selection
+
 ## Changelog
 
 ```
@@ -104,6 +139,12 @@ Changelog:
 - June 26, 2025. Added PostgreSQL database integration with Drizzle ORM
 - June 26, 2025. Fixed exam-taking page routing and query issues
 - June 26, 2025. Successfully tested AI question generation with Arabic content
+- June 26, 2025. Implemented comprehensive AI proctoring system with:
+  * Real-time video and screen recording
+  * Face detection and identity verification
+  * Browser lockdown and violation detection
+  * Arabic voice transcription for video questions
+  * Advanced security monitoring and reporting
 ```
 
 ## User Preferences
