@@ -124,25 +124,72 @@ class AdvancedLockdownManager {
     console.log('Advanced lockdown deactivated');
   }
 
-  // Force fullscreen mode
-  private enterFullscreen(): void {
+  // Force fullscreen mode with better permission handling
+  private async enterFullscreen(): Promise<void> {
     try {
       if (!document.fullscreenElement) {
         const element = document.documentElement;
         
+        // Try modern fullscreen API first
         if (element.requestFullscreen) {
-          element.requestFullscreen();
+          await element.requestFullscreen();
         } else if ((element as any).webkitRequestFullscreen) {
-          (element as any).webkitRequestFullscreen();
+          await (element as any).webkitRequestFullscreen();
         } else if ((element as any).msRequestFullscreen) {
-          (element as any).msRequestFullscreen();
+          await (element as any).msRequestFullscreen();
         } else if ((element as any).mozRequestFullScreen) {
-          (element as any).mozRequestFullScreen();
+          await (element as any).mozRequestFullScreen();
+        } else {
+          throw new Error('Fullscreen API not supported');
         }
+        
+        console.log('Fullscreen mode activated');
       }
     } catch (error) {
       console.error('Failed to enter fullscreen:', error);
+      
+      // Report fullscreen permission issue
+      this.reportViolation({
+        type: 'escape_attempt',
+        timestamp: Date.now(),
+        details: `Fullscreen permission denied: ${error}`,
+        severity: 'critical'
+      });
+      
+      // Show user guidance for fullscreen permission
+      this.showFullscreenGuidance();
     }
+  }
+
+  // Show guidance for fullscreen permission
+  private showFullscreenGuidance(): void {
+    const guidance = document.createElement('div');
+    guidance.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #dc2626;
+      color: white;
+      padding: 12px;
+      text-align: center;
+      z-index: 999999;
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+    `;
+    guidance.innerHTML = `
+      🚨 FULLSCREEN REQUIRED: Press F11 or allow fullscreen permission to continue the exam
+      <button onclick="this.parentElement.remove()" style="margin-left: 20px; background: white; color: #dc2626; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">×</button>
+    `;
+    
+    document.body.appendChild(guidance);
+    
+    // Auto-remove after 10 seconds
+    setTimeout(() => {
+      if (guidance.parentElement) {
+        guidance.remove();
+      }
+    }, 10000);
   }
 
   // Exit fullscreen
