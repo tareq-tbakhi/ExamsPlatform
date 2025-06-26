@@ -47,6 +47,12 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
     queryFn: () => fetch(`/api/violations/${submissionId}`).then(res => res.json())
   });
 
+  // Fetch recorded videos for this submission
+  const { data: videos, isLoading: videosLoading } = useQuery({
+    queryKey: ['/api/videos/submission', submissionId],
+    queryFn: () => fetch(`/api/videos/submission/${submissionId}`).then(res => res.json())
+  });
+
   // Generate violation report mutation
   const generateReportMutation = useMutation({
     mutationFn: async () => {
@@ -150,9 +156,10 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
       </div>
 
       <Tabs defaultValue="violations" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="violations">Violations</TabsTrigger>
-          <TabsTrigger value="analysis">Video Analysis</TabsTrigger>
+          <TabsTrigger value="videos">Recordings</TabsTrigger>
+          <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="report">AI Report</TabsTrigger>
         </TabsList>
@@ -196,6 +203,133 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
                   No violations detected
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="videos" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recorded Videos</CardTitle>
+              <CardDescription>
+                View and analyze proctoring recordings and video answers
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {videosLoading ? (
+                <div className="text-center py-8">Loading videos...</div>
+              ) : videos && (videos.proctoringVideos?.length > 0 || videos.answerVideos?.length > 0) ? (
+                <div className="space-y-6">
+                  {videos.proctoringVideos?.length > 0 && (
+                    <div>
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <Video className="h-4 w-4" />
+                        Proctoring Recordings ({videos.proctoringVideos.length})
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {videos.proctoringVideos.map((video: any, index: number) => (
+                          <Card key={index} className="p-4">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium">Chunk {index + 1}</span>
+                                <Badge variant="secondary">
+                                  {Math.round(video.size / 1024)}KB
+                                </Badge>
+                              </div>
+                              <video 
+                                controls 
+                                className="w-full rounded-lg"
+                                style={{ maxHeight: '200px' }}
+                              >
+                                <source src={video.url} type="video/webm" />
+                                Your browser does not support video playback.
+                              </video>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => analyzeVideoMutation.mutate(video.url)}
+                                  disabled={analyzeVideoMutation.isPending}
+                                >
+                                  <Brain className="h-3 w-3 mr-1" />
+                                  Analyze with AI
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => window.open(video.url, '_blank')}
+                                >
+                                  <Video className="h-3 w-3 mr-1" />
+                                  Open Full Size
+                                </Button>
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {videos.answerVideos?.length > 0 && (
+                    <div>
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <Mic className="h-4 w-4" />
+                        Video Answers ({videos.answerVideos.length})
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {videos.answerVideos.map((video: any, index: number) => (
+                          <Card key={index} className="p-4">
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-medium">Answer {index + 1}</span>
+                                <Badge variant="secondary">
+                                  {Math.round(video.size / 1024)}KB
+                                </Badge>
+                              </div>
+                              <video 
+                                controls 
+                                className="w-full rounded-lg"
+                                style={{ maxHeight: '200px' }}
+                              >
+                                <source src={video.url} type="video/webm" />
+                                Your browser does not support video playback.
+                              </video>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  // Analyze Arabic audio if applicable
+                                  fetch('/api/analyze/arabic-audio', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ audioData: video.url })
+                                  }).then(res => res.json()).then(result => {
+                                    toast({
+                                      title: "Audio Analysis Complete",
+                                      description: `Confidence: ${Math.round(result.confidence * 100)}%`
+                                    });
+                                  });
+                                }}
+                              >
+                                <Mic className="h-3 w-3 mr-1" />
+                                Analyze Audio
+                              </Button>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Video className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No recorded videos found for this submission</p>
+                  <p className="text-sm mt-2">
+                    Videos will appear here when proctoring is active during exams
+                  </p>
                 </div>
               )}
             </CardContent>
