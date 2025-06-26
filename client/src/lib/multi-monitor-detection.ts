@@ -46,12 +46,12 @@ class MultiMonitorDetector {
         orientation: screenWidth > screenHeight ? 'landscape' : 'portrait'
       };
 
-      const secondaryMonitors = displays.slice(1).map((display, index) => ({
+      const secondaryMonitors: MonitorInfo[] = displays.slice(1).map((display, index) => ({
         id: `secondary_${index + 1}`,
         width: display.width || screenWidth,
         height: display.height || screenHeight,
         isPrimary: false,
-        orientation: (display.width || screenWidth) > (display.height || screenHeight) ? 'landscape' : 'portrait'
+        orientation: (display.width || screenWidth) > (display.height || screenHeight) ? 'landscape' as const : 'portrait' as const
       }));
 
       const config: MonitorConfiguration = {
