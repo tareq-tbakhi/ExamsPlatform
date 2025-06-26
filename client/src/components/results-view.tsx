@@ -10,6 +10,7 @@ import AIAnalysisDashboard from "@/components/ai-analysis-dashboard";
 import type { SubmissionWithExam } from "@shared/schema";
 
 export default function ResultsView() {
+  const [selectedSubmission, setSelectedSubmission] = useState<SubmissionWithExam | null>(null);
   const { data: stats } = useQuery({
     queryKey: ["/api/stats"],
   });
@@ -200,14 +201,42 @@ export default function ResultsView() {
                         {formatTimeAgo(submission.submittedAt!)}
                       </TableCell>
                       <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled
-                          title="View Details (Coming Soon)"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled
+                            title="View Details (Coming Soon)"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="AI Proctoring Analysis"
+                                onClick={() => setSelectedSubmission(submission)}
+                              >
+                                <Brain className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                              <DialogHeader>
+                                <DialogTitle>AI Proctoring Analysis</DialogTitle>
+                                <DialogDescription>
+                                  Gemini AI analysis for {submission.studentName}'s submission
+                                </DialogDescription>
+                              </DialogHeader>
+                              {selectedSubmission && (
+                                <AIAnalysisDashboard 
+                                  submissionId={selectedSubmission.id}
+                                  examTitle={selectedSubmission.examTitle}
+                                />
+                              )}
+                            </DialogContent>
+                          </Dialog>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
