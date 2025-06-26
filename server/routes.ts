@@ -1,5 +1,9 @@
-import type { Express, Request } from "express";
-import { UploadedFile } from "express-fileupload";
+import type { Express } from "express";
+import type { UploadedFile } from "express-fileupload";
+
+interface RequestWithFiles extends Express.Request {
+  files?: { [key: string]: UploadedFile | UploadedFile[] };
+}
 import { createServer, type Server } from "http";
 import * as fs from "fs";
 import * as path from "path";
@@ -273,7 +277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/upload-proctoring-video", async (req, res) => {
+  app.post("/api/upload-proctoring-video", async (req: RequestWithFiles, res) => {
     try {
       // Handle both FormData and JSON requests
       let examId, submissionId, videoBuffer, type, chunkIndex = 0;
