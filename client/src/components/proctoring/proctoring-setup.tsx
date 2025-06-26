@@ -22,13 +22,15 @@ interface PermissionStatus {
   camera: 'granted' | 'denied' | 'prompt' | 'unknown';
   microphone: 'granted' | 'denied' | 'prompt' | 'unknown';
   screen: 'granted' | 'denied' | 'prompt' | 'unknown';
+  fullscreen: 'granted' | 'denied' | 'prompt' | 'unknown';
 }
 
 export default function ProctoringSetup({ onSetupComplete, examTitle }: ProctoringSetupProps) {
   const [permissions, setPermissions] = useState<PermissionStatus>({
     camera: 'unknown',
     microphone: 'unknown',
-    screen: 'unknown'
+    screen: 'unknown',
+    fullscreen: 'unknown'
   });
   const [isChecking, setIsChecking] = useState(false);
   const [systemCheck, setSystemCheck] = useState({
@@ -76,10 +78,11 @@ export default function ProctoringSetup({ onSetupComplete, examTitle }: Proctori
         }));
       }
 
-      // Screen share permission is handled differently
+      // Screen share and fullscreen permissions are handled differently
       setPermissions(prev => ({
         ...prev,
-        screen: 'prompt' // Always prompt for screen share
+        screen: 'prompt', // Always prompt for screen share
+        fullscreen: 'prompt' // Always prompt for fullscreen
       }));
     } catch (error) {
       console.error('Permission check failed:', error);
@@ -87,7 +90,8 @@ export default function ProctoringSetup({ onSetupComplete, examTitle }: Proctori
       setPermissions({
         camera: 'prompt',
         microphone: 'prompt',
-        screen: 'prompt'
+        screen: 'prompt',
+        fullscreen: 'prompt'
       });
     }
   };
@@ -145,10 +149,34 @@ export default function ProctoringSetup({ onSetupComplete, examTitle }: Proctori
     }
   };
 
+  const requestFullscreenPermission = async () => {
+    setIsChecking(true);
+    try {
+      await document.documentElement.requestFullscreen();
+      
+      // Exit fullscreen immediately after getting permission
+      await document.exitFullscreen();
+      
+      setPermissions(prev => ({
+        ...prev,
+        fullscreen: 'granted'
+      }));
+    } catch (error) {
+      console.error('Fullscreen permission denied:', error);
+      setPermissions(prev => ({
+        ...prev,
+        fullscreen: 'denied'
+      }));
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
   const allPermissionsGranted = () => {
     return permissions.camera === 'granted' && 
            permissions.microphone === 'granted' && 
-           permissions.screen === 'granted';
+           permissions.screen === 'granted' &&
+           permissions.fullscreen === 'granted';
   };
 
   const getPermissionIcon = (status: string) => {
