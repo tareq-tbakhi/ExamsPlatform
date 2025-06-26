@@ -43,12 +43,21 @@ interface ProctoringState {
   advancedBlocking: boolean;
 }
 
+// Generate unique session ID for each exam attempt
+const generateSessionId = () => {
+  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+};
+
 export default function ProctoringManager({ 
   isActive, 
   onViolation, 
   examId, 
   submissionId 
 }: ProctoringManagerProps) {
+  // Generate unique session ID for this proctoring session
+  const sessionIdRef = useRef<string>(generateSessionId());
+  const { toast } = useToast();
+  
   const [state, setState] = useState<ProctoringState>({
     videoRecording: false,
     screenRecording: false,
@@ -86,8 +95,6 @@ export default function ProctoringManager({
   const faceDetectionIntervalRef = useRef<number | null>(null);
   const videoChunksRef = useRef<Blob[]>([]);
   const screenChunksRef = useRef<Blob[]>([]);
-
-  const { toast } = useToast();
 
   // Initialize proctoring when exam starts
   useEffect(() => {
