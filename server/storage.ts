@@ -88,8 +88,8 @@ export class DatabaseStorage implements IStorage {
 
     const examStats = await Promise.all(
       userExams.map(async (exam) => {
-        const questionsCount = await db
-          .select({ count: questions.id })
+        const questionsList = await db
+          .select()
           .from(questions)
           .where(eq(questions.examId, exam.id));
 
@@ -105,7 +105,7 @@ export class DatabaseStorage implements IStorage {
 
         return {
           ...exam,
-          questionsCount: questionsCount.length,
+          questionsCount: questionsList.length,
           submissionsCount,
           averageScore
         };

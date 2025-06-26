@@ -31,6 +31,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Default route for exam creator (uses default user ID 1)
+  app.get("/api/exams/creator", async (req, res) => {
+    try {
+      const createdBy = 1; // Default user ID for demo purposes
+      const exams = await storage.getExamsByCreator(createdBy);
+      res.json(exams);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch exams", error: (error as Error).message });
+    }
+  });
+
   app.get("/api/exams/creator/:createdBy", async (req, res) => {
     try {
       const createdBy = parseInt(req.params.createdBy);
