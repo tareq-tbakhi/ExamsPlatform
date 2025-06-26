@@ -1,8 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertExamSchema, insertQuestionSchema, insertSubmissionSchema } from "@shared/schema";
+import { insertExamSchema, insertQuestionSchema, insertSubmissionSchema, insertProctoringViolationSchema } from "@shared/schema";
 import { generateQuestions, type GenerateQuestionsRequest } from "./services/openai";
+import { analyzeViolationImage, analyzeVideoRecording, generateViolationReport, analyzeArabicAudioTranscription } from "./services/gemini";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -325,6 +326,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(videoQuestions);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch video questions", error: (error as Error).message });
+    }
+  });
+
+  // Gemini AI Analysis routes
+  app.post("/api/analyze/violation-image", async (req, res) => {
+    try {
+      const { imagePath, context } = req.body;
+      if (!imagePath) {
+        return res.status(400).json({ message: "Image path required" });
+      }
+      
+      const analysis = await analyzeViolationImage(imagePath, context || "Exam proctoring footage");
+      res.json(analysis);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to analyze violation image", error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/analyze/video-recording", async (req, res) => {
+    try {
+      const { videoPath, examContext } = req.body;
+      if (!videoPath) {
+        return res.status(400).json({ message: "Video path required" });
+      }
+      
+      const analysis = await analyzeVideoRecording(videoPath, examContext || "Exam proctoring session");
+      res.json(analysis);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to analyze video recording", error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/analyze/generate-report", async (req, res) => {
+    try {
+      const { submissionId } = req.body;
+      if (!submissionId) {
+        return res.status(400).json({ message: "Submission ID required" });
+      }
+      
+      // Get violations for this submission
+      const violations = await storage.getViolationsBySubmission(submissionId);
+      const submission = await storage.getSubmission(submissionId);
+      
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+      
+      const examInfo = {
+        title: "Exam", // In real app, get from exam table
+        duration: 60,
+        studentName: submission.studentName
+      };
+      
+      const report = await generateViolationReport(violations, examInfo);
+      res.json({ report });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to generate violation report", error: (error as Error).message });
+    }
+  });
+
+  app.post("/api/analyze/arabic-audio", async (req, res) => {
+    try {
+      const { audioData } = req.body;
+      if (!audioData) {
+        return res.status(400).json({ message: "Audio data required" });
+      }
+      
+      const analysis = await analyzeArabicAudioTranscription(audioData);
+      res.json(analysis);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to analyze Arabic audio", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/violations/:submissionId", async (req, res) => {
+    try {
+      const submissionId = parseInt(req.params.submissionId);
+      const violations = await storage.getViolationsBySubmission(submissionId);
+      res.json(violations);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch violations", error: (error as Error).message });
     }
   });
 
