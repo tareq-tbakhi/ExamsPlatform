@@ -1,5 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import * as fs from "fs";
+import * as path from "path";
 import { storage } from "./storage";
 import { insertExamSchema, insertQuestionSchema, insertSubmissionSchema, insertProctoringViolationSchema } from "@shared/schema";
 import { generateQuestions, type GenerateQuestionsRequest } from "./services/openai";
@@ -278,14 +280,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Video data and exam ID required" });
       }
 
+      // Ensure upload directory exists
+      const uploadDir = 'uploads/proctoring';
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
       // Create filename with timestamp and chunk index
       const timestamp = Date.now();
       const filename = `proctoring_${examId}_${submissionId || 'unknown'}_${timestamp}_chunk${chunkIndex}.webm`;
-      const filePath = `uploads/proctoring/${filename}`;
+      const filePath = path.join(uploadDir, filename);
       
       // Convert base64 to buffer and save
-      const buffer = Buffer.from(videoData.split(',')[1], 'base64');
-      require('fs').writeFileSync(filePath, buffer);
+      const base64Data = videoData.includes(',') ? videoData.split(',')[1] : videoData;
+      const buffer = Buffer.from(base64Data, 'base64');
+      fs.writeFileSync(filePath, buffer);
       
       const videoUrl = `/api/videos/proctoring/${filename}`;
       
@@ -433,16 +442,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/videos/proctoring/:filename", (req, res) => {
     try {
       const filename = req.params.filename;
-      const filePath = `uploads/proctoring/${filename}`;
+      const filePath = path.join('uploads/proctoring', filename);
       
-      if (!require('fs').existsSync(filePath)) {
+      if (!fs.existsSync(filePath)) {
         return res.status(404).json({ message: "Video not found" });
       }
       
       res.setHeader('Content-Type', 'video/webm');
       res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
       
-      const fileStream = require('fs').createReadStream(filePath);
+      const fileStream = fs.createReadStream(filePath);
       fileStream.pipe(res);
     } catch (error) {
       res.status(500).json({ message: "Error serving video", error: (error as Error).message });
@@ -452,16 +461,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/videos/answers/:filename", (req, res) => {
     try {
       const filename = req.params.filename;
-      const filePath = `uploads/videos/${filename}`;
+      const filePath = path.join('uploads/videos', filename);
       
-      if (!require('fs').existsSync(filePath)) {
+      if (!fs.existsSync(filePath)) {
         return res.status(404).json({ message: "Video not found" });
       }
       
       res.setHeader('Content-Type', 'video/webm');
       res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
       
-      const fileStream = require('fs').createReadStream(filePath);
+      const fileStream = fs.createReadStream(filePath);
       fileStream.pipe(res);
     } catch (error) {
       res.status(500).json({ message: "Error serving video", error: (error as Error).message });
@@ -475,24 +484,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const proctoringDir = 'uploads/proctoring';
       const videosDir = 'uploads/videos';
       
-      const proctoringVideos = require('fs').existsSync(proctoringDir) ? 
-        require('fs').readdirSync(proctoringDir)
+      const proctoringVideos = fs.existsSync(proctoringDir) ? 
+        fs.readdirSync(proctoringDir)
           .filter((file: string) => file.includes(`_${submissionId}_`))
           .map((file: string) => ({
             filename: file,
             url: `/api/videos/proctoring/${file}`,
             type: 'proctoring',
-            size: require('fs').statSync(`${proctoringDir}/${file}`).size
+            size: fs.statSync(path.join(proctoringDir, file)).size
           })) : [];
       
-      const answerVideos = require('fs').existsSync(videosDir) ? 
-        require('fs').readdirSync(videosDir)
+      const answerVideos = fs.existsSync(videosDir) ? 
+        fs.readdirSync(videosDir)
           .filter((file: string) => file.includes(`_${submissionId}_`))
           .map((file: string) => ({
             filename: file,
             url: `/api/videos/answers/${file}`,
             type: 'answer',
-            size: require('fs').statSync(`${videosDir}/${file}`).size
+            size: fs.statSync(path.join(videosDir, file)).size
           })) : [];
       
       res.json({ 
