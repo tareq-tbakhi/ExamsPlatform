@@ -42,6 +42,37 @@ export const submissions = pgTable("submissions", {
   totalPoints: integer("total_points").notNull(),
   submittedAt: timestamp("submitted_at").defaultNow(),
   timeSpent: integer("time_spent"), // minutes
+  proctoringData: jsonb("proctoring_data").default({}), // stores video urls, violations, etc
+});
+
+export const proctoringViolations = pgTable("proctoring_violations", {
+  id: serial("id").primaryKey(),
+  submissionId: integer("submission_id").notNull(),
+  type: text("type").notNull(), // critical, major, minor
+  category: text("category").notNull(), // no_face, multiple_faces, tab_switch, copy_paste, etc
+  description: text("description").notNull(),
+  timestamp: timestamp("timestamp").defaultNow(),
+  evidence: jsonb("evidence").default({}), // screenshot, audio data, etc
+});
+
+export const videoQuestions = pgTable("video_questions", {
+  id: serial("id").primaryKey(),
+  examId: integer("exam_id").notNull(),
+  question: text("question").notNull(),
+  maxDuration: integer("max_duration").notNull(), // seconds
+  order: integer("order").notNull(),
+  points: integer("points").notNull(),
+});
+
+export const videoAnswers = pgTable("video_answers", {
+  id: serial("id").primaryKey(),
+  submissionId: integer("submission_id").notNull(),
+  videoQuestionId: integer("video_question_id").notNull(),
+  videoUrl: text("video_url"),
+  transcript: text("transcript"),
+  confidence: integer("confidence"), // transcription confidence 0-100
+  duration: integer("duration"), // seconds
+  submittedAt: timestamp("submitted_at").defaultNow(),
 });
 
 // Insert schemas
@@ -90,4 +121,33 @@ export type ExamWithStats = Exam & {
 
 export type SubmissionWithExam = Submission & {
   examTitle: string;
+};
+
+// New proctoring types
+export const insertProctoringViolationSchema = createInsertSchema(proctoringViolations).omit({
+  id: true,
+  timestamp: true,
+});
+
+export const insertVideoQuestionSchema = createInsertSchema(videoQuestions).omit({
+  id: true,
+});
+
+export const insertVideoAnswerSchema = createInsertSchema(videoAnswers).omit({
+  id: true,
+  submittedAt: true,
+});
+
+export type ProctoringViolation = typeof proctoringViolations.$inferSelect;
+export type InsertProctoringViolation = z.infer<typeof insertProctoringViolationSchema>;
+
+export type VideoQuestion = typeof videoQuestions.$inferSelect;
+export type InsertVideoQuestion = z.infer<typeof insertVideoQuestionSchema>;
+
+export type VideoAnswer = typeof videoAnswers.$inferSelect;
+export type InsertVideoAnswer = z.infer<typeof insertVideoAnswerSchema>;
+
+export type ExamWithVideoQuestions = Exam & {
+  questions: Question[];
+  videoQuestions: VideoQuestion[];
 };
