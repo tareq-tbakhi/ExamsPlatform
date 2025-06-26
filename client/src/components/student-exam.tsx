@@ -77,6 +77,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
     },
     onSuccess: (result) => {
       setSubmissionResult(result);
+      setSubmissionId(result.id);
       setExamSubmitted(true);
       toast({
         title: "Exam Submitted!",
@@ -91,6 +92,39 @@ export default function StudentExam({ examId }: StudentExamProps) {
       });
     },
   });
+
+  // Handle proctoring violations
+  const handleViolation = async (violation: any) => {
+    setViolations(prev => [...prev, violation]);
+    
+    // Report violation to backend if submission exists
+    if (submissionId) {
+      try {
+        await apiRequest("POST", "/api/proctoring/violation", {
+          submissionId,
+          type: violation.type,
+          category: violation.category,
+          description: violation.description,
+          evidence: violation.evidence
+        });
+      } catch (error) {
+        console.error("Failed to report violation:", error);
+      }
+    }
+
+    // Handle critical violations
+    if (violation.type === 'critical') {
+      const criticalCount = violations.filter(v => v.type === 'critical').length;
+      if (criticalCount >= 3) {
+        toast({
+          title: "Exam Terminated",
+          description: "Too many critical violations detected. Your exam has been automatically submitted.",
+          variant: "destructive"
+        });
+        handleSubmitExam();
+      }
+    }
+  };
 
   // Timer effect
   useEffect(() => {
@@ -113,6 +147,18 @@ export default function StudentExam({ examId }: StudentExamProps) {
   const startExam = (studentData: StudentInfo) => {
     setStudentInfo(studentData);
     setTimeRemaining((exam?.duration || 60) * 60); // Convert minutes to seconds
+    
+    // Check if proctoring is enabled for this exam
+    const examSettings = exam?.settings as any;
+    if (examSettings?.proctoringEnabled) {
+      setProctoringEnabled(true);
+    } else {
+      setExamStarted(true);
+    }
+  };
+
+  const handleProctoringSetupComplete = () => {
+    setProctoringSetupComplete(true);
     setExamStarted(true);
   };
 
@@ -164,6 +210,16 @@ export default function StudentExam({ examId }: StudentExamProps) {
   };
 
   const currentQuestion = exam?.questions[currentQuestionIndex];
+
+  // Show proctoring setup if enabled and not completed
+  if (proctoringEnabled && !proctoringSetupComplete && !examStarted) {
+    return (
+      <ProctoringSetup 
+        onSetupComplete={handleProctoringSetupComplete}
+        examTitle={exam?.title || "Exam"}
+      />
+    );
+  }
 
   if (isLoading) {
     return (
@@ -333,7 +389,35 @@ export default function StudentExam({ examId }: StudentExamProps) {
   // Main exam interface
   return (
     <div className="min-h-screen bg-gray-50 py-8">
+      {/* Proctoring Manager - AI Monitoring System */}
+      {proctoringEnabled && examStarted && (
+        <ProctoringManager
+          isActive={examStarted && !examSubmitted}
+          onViolation={handleViolation}
+          examId={examId}
+          submissionId={submissionId}
+        />
+      )}
+      
       <div className="max-w-4xl mx-auto px-4">
+        {/* Proctoring Status Indicator */}
+        {proctoringEnabled && examStarted && (
+          <div className="mb-4">
+            <div className="bg-red-100 border-l-4 border-red-500 p-4 rounded">
+              <div className="flex items-center">
+                <Shield className="h-5 w-5 text-red-600 mr-2" />
+                <div>
+                  <p className="text-red-800 font-medium">AI Proctored Exam Active</p>
+                  <p className="text-red-700 text-sm">
+                    Video recording, screen sharing, and face detection are active. 
+                    Violations: {violations.length} recorded
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Exam Header */}
         <Card className="mb-6">
           <CardContent className="pt-6">
