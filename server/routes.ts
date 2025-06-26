@@ -599,9 +599,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const proctoringVideos = fs.existsSync(proctoringDir) ? 
         fs.readdirSync(proctoringDir)
           .filter((file: string) => {
-            // Match both patterns: _submissionId_ and _examId_unknown_ for recent uploads
+            // Match patterns: _submissionId_, _examId_session_, and _examId_unknown_ for recent uploads
             return file.includes(`_${submissionId}_`) || 
-                   (examId && file.includes(`_${examId}_unknown_`));
+                   (examId && (file.includes(`_${examId}_session_`) || file.includes(`_${examId}_unknown_`)));
           })
           .map((file: string) => ({
             filename: file,
