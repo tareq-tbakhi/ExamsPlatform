@@ -349,8 +349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const identifier = submissionId || sessionId || 'unknown';
       const filename = `${type}_${examId}_${identifier}_${timestamp}_chunk${chunkIndex}.webm`;
       
-      // Debug logging
-      console.log(`Backend received: examId=${examId}, submissionId=${submissionId}, sessionId=${sessionId}, type=${type}, identifier=${identifier}`);
+      console.log(`Creating video file: ${filename} (sessionId: ${sessionId})`);
       const filePath = path.join(uploadDir, filename);
       
       // Save video buffer to file

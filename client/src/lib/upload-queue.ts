@@ -106,15 +106,12 @@ class UploadQueue {
     }
     formData.append('type', upload.type);
     
-    // Debug logging
-    console.log(`Uploading: ${upload.filename}, examId: ${upload.examId}, submissionId: ${upload.submissionId}, sessionId: ${upload.sessionId}, type: ${upload.type}`);
+    console.log(`Uploading: ${upload.filename} with sessionId: ${upload.sessionId}`);
 
     const response = await fetch('/api/upload-proctoring-video', {
       method: 'POST',
       body: formData,
     });
-    
-    console.log(`Upload response status: ${response.status}`);
 
     if (!response.ok) {
       throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
