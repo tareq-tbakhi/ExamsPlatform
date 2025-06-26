@@ -10,6 +10,33 @@ export interface ViolationAnalysis {
   description: string;
   recommendations: string[];
   suspiciousActivities: string[];
+  behaviorAnalysis?: {
+    emotionDetection: {
+      stress: number; // 0-100
+      anxiety: number;
+      frustration: number;
+      confidence: number;
+    };
+    movementAnalysis: {
+      suspiciousMovements: string[];
+      postureCompliance: number; // 0-100
+      headMovementPattern: string;
+      eyeGazeDirection: string;
+    };
+    microExpressions: {
+      detected: boolean;
+      type: string[];
+      suspicionLevel: number;
+    };
+  };
+  audioAnalysis?: {
+    multipleSpeakers: boolean;
+    backgroundVoices: boolean;
+    whisperingDetected: boolean;
+    voicePatternMatch: number; // consistency score
+    audioAnomalies: string[];
+    ambientNoise: string;
+  };
 }
 
 export interface VideoAnalysis {
@@ -28,24 +55,35 @@ export async function analyzeViolationImage(imagePath: string, context: string):
     const imageBytes = fs.readFileSync(imagePath);
 
     const prompt = `
-    You are an expert proctoring AI analyzing exam security footage. Analyze this image for potential violations.
+    You are an advanced AI proctoring analyst with expertise in behavioral psychology, biometric analysis, and voice pattern recognition. 
+    Analyze this exam monitoring image for comprehensive behavioral patterns, violations, and psychological indicators.
     
     Context: ${context}
     
-    Look for:
-    1. Multiple people in frame
-    2. No face visible or face turned away
-    3. Suspicious hand movements (writing, using devices)
-    4. Unauthorized materials (books, phones, notes)
-    5. Looking away from screen for extended periods
-    6. Signs of communication with others
+    COMPREHENSIVE ANALYSIS REQUIRED:
     
-    Provide analysis in JSON format with:
-    - severity: "critical", "major", or "minor"
-    - confidence: number 0-1
-    - description: brief description of what you see
-    - recommendations: array of suggested actions
-    - suspiciousActivities: array of specific activities detected
+    1. BEHAVIORAL ANALYSIS:
+    - Emotion Detection: Analyze facial expressions for stress (0-100), anxiety (0-100), frustration (0-100), confidence (0-100)
+    - Movement Analysis: Detect suspicious movements, posture compliance (0-100), head movement patterns, eye gaze direction
+    - Micro-expressions: Identify brief involuntary facial expressions indicating deception or stress
+    
+    2. TRADITIONAL VIOLATIONS:
+    - Multiple people detection and identity verification
+    - Face visibility and orientation analysis
+    - Suspicious hand movements and device usage
+    - Unauthorized materials (books, phones, notes, secondary devices)
+    - Gaze patterns and attention tracking
+    - Communication signs with others
+    
+    3. POSTURE & COMPLIANCE:
+    - Sitting posture analysis and exam compliance
+    - Head positioning stability and focus indicators
+    - Body language stress indicators
+    - Attention and engagement assessment
+    
+    Provide detailed JSON with: severity ("critical", "major", "minor"), confidence (0-1), description, 
+    recommendations array, suspiciousActivities array, and comprehensive behaviorAnalysis object with 
+    emotionDetection, movementAnalysis, and microExpressions fields.
     `;
 
     const contents = [
@@ -69,7 +107,38 @@ export async function analyzeViolationImage(imagePath: string, context: string):
             confidence: { type: "number" },
             description: { type: "string" },
             recommendations: { type: "array", items: { type: "string" } },
-            suspiciousActivities: { type: "array", items: { type: "string" } }
+            suspiciousActivities: { type: "array", items: { type: "string" } },
+            behaviorAnalysis: {
+              type: "object",
+              properties: {
+                emotionDetection: {
+                  type: "object",
+                  properties: {
+                    stress: { type: "number" },
+                    anxiety: { type: "number" },
+                    frustration: { type: "number" },
+                    confidence: { type: "number" }
+                  }
+                },
+                movementAnalysis: {
+                  type: "object",
+                  properties: {
+                    suspiciousMovements: { type: "array", items: { type: "string" } },
+                    postureCompliance: { type: "number" },
+                    headMovementPattern: { type: "string" },
+                    eyeGazeDirection: { type: "string" }
+                  }
+                },
+                microExpressions: {
+                  type: "object",
+                  properties: {
+                    detected: { type: "boolean" },
+                    type: { type: "array", items: { type: "string" } },
+                    suspicionLevel: { type: "number" }
+                  }
+                }
+              }
+            }
           },
           required: ["severity", "confidence", "description", "recommendations", "suspiciousActivities"]
         }
@@ -251,23 +320,41 @@ export async function analyzeVideoRecording(videoPath: string, examContext: stri
     }
 
     const prompt = `
-    You are an expert exam proctoring AI analyzing a video recording of a student taking an exam.
+    You are an advanced AI proctoring system with expertise in behavioral psychology, biometric analysis, and voice pattern recognition.
+    Analyze this exam video footage for comprehensive security violations, behavioral patterns, and audio anomalies.
     
     Exam Context: ${examContext}
     
-    Analyze this video for:
-    1. Student behavior patterns
-    2. Potential cheating activities
-    3. Unauthorized materials or devices
-    4. Communication attempts
-    5. Suspicious movements or actions
-    6. Adherence to exam protocols
+    COMPREHENSIVE ANALYSIS REQUIRED:
     
-    Provide detailed analysis in JSON format with:
-    - overallSuspicion: number 0-100 (overall suspicion level)
-    - violations: array of violation objects
-    - timeline: array of timestamped activities
-    - summary: comprehensive summary of findings
+    1. BEHAVIORAL ANALYSIS:
+    - Emotion Detection: Analyze facial expressions for stress (0-100), anxiety (0-100), frustration (0-100), confidence (0-100)
+    - Movement Analysis: Detect suspicious movements, posture compliance (0-100), head movement patterns, eye gaze direction
+    - Micro-expressions: Identify brief involuntary facial expressions indicating deception or stress
+    
+    2. AUDIO & VOICE ANALYSIS:
+    - Multiple speaker detection (are there other voices?)
+    - Background voice detection (conversations, coaching)
+    - Whispering detection (low-volume communication attempts)
+    - Voice pattern matching (consistency throughout exam)
+    - Audio anomalies (unusual sounds, technology usage)
+    - Ambient noise analysis (environment assessment)
+    
+    3. TRADITIONAL VIOLATIONS:
+    - Student behavior patterns and suspicious activities
+    - Face detection and identity verification throughout recording
+    - Unauthorized materials or technology usage detection
+    - Multiple people in frame or communication attempts
+    - Gaze patterns, looking away from screen, suspicious eye movements
+    - Hand movements suggesting cheating (writing notes, using devices)
+    - Environmental security (lighting, background, location suitability)
+    - Overall compliance with exam protocols
+    
+    Provide comprehensive analysis with:
+    - overallSuspicion: number 0-100 (0=no issues, 100=definite cheating)
+    - violations: array of detailed violation objects with severity, confidence, description, recommendations, suspiciousActivities, behaviorAnalysis, and audioAnalysis
+    - timeline: chronological array of significant events with timestamps and severity
+    - summary: comprehensive overview including behavioral and audio insights
     `;
 
     const contents = [
