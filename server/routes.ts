@@ -272,10 +272,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/upload-proctoring-video", async (req, res) => {
     try {
-      // In production, save video to cloud storage (AWS S3, etc.)
-      const videoUrl = `https://storage.example.com/proctoring/${req.body.examId}/${Date.now()}.webm`;
+      const { examId, submissionId, videoData, chunkIndex = 0 } = req.body;
       
-      res.json({ videoUrl, message: "Video uploaded successfully" });
+      if (!videoData || !examId) {
+        return res.status(400).json({ message: "Video data and exam ID required" });
+      }
+
+      // Create filename with timestamp and chunk index
+      const timestamp = Date.now();
+      const filename = `proctoring_${examId}_${submissionId || 'unknown'}_${timestamp}_chunk${chunkIndex}.webm`;
+      const filePath = `uploads/proctoring/${filename}`;
+      
+      // Convert base64 to buffer and save
+      const buffer = Buffer.from(videoData.split(',')[1], 'base64');
+      require('fs').writeFileSync(filePath, buffer);
+      
+      const videoUrl = `/api/videos/proctoring/${filename}`;
+      
+      res.json({ 
+        videoUrl, 
+        filename,
+        message: "Proctoring video uploaded successfully",
+        size: buffer.length 
+      });
     } catch (error) {
       res.status(500).json({ message: "Failed to upload video", error: (error as Error).message });
     }
@@ -407,6 +426,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(violations);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch violations", error: (error as Error).message });
+    }
+  });
+
+  // Video serving routes
+  app.get("/api/videos/proctoring/:filename", (req, res) => {
+    try {
+      const filename = req.params.filename;
+      const filePath = `uploads/proctoring/${filename}`;
+      
+      if (!require('fs').existsSync(filePath)) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+      
+      res.setHeader('Content-Type', 'video/webm');
+      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+      
+      const fileStream = require('fs').createReadStream(filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      res.status(500).json({ message: "Error serving video", error: (error as Error).message });
+    }
+  });
+
+  app.get("/api/videos/answers/:filename", (req, res) => {
+    try {
+      const filename = req.params.filename;
+      const filePath = `uploads/videos/${filename}`;
+      
+      if (!require('fs').existsSync(filePath)) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+      
+      res.setHeader('Content-Type', 'video/webm');
+      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+      
+      const fileStream = require('fs').createReadStream(filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      res.status(500).json({ message: "Error serving video", error: (error as Error).message });
+    }
+  });
+
+  // List recorded videos for a submission
+  app.get("/api/videos/submission/:submissionId", (req, res) => {
+    try {
+      const submissionId = req.params.submissionId;
+      const proctoringDir = 'uploads/proctoring';
+      const videosDir = 'uploads/videos';
+      
+      const proctoringVideos = require('fs').existsSync(proctoringDir) ? 
+        require('fs').readdirSync(proctoringDir)
+          .filter((file: string) => file.includes(`_${submissionId}_`))
+          .map((file: string) => ({
+            filename: file,
+            url: `/api/videos/proctoring/${file}`,
+            type: 'proctoring',
+            size: require('fs').statSync(`${proctoringDir}/${file}`).size
+          })) : [];
+      
+      const answerVideos = require('fs').existsSync(videosDir) ? 
+        require('fs').readdirSync(videosDir)
+          .filter((file: string) => file.includes(`_${submissionId}_`))
+          .map((file: string) => ({
+            filename: file,
+            url: `/api/videos/answers/${file}`,
+            type: 'answer',
+            size: require('fs').statSync(`${videosDir}/${file}`).size
+          })) : [];
+      
+      res.json({ 
+        proctoringVideos,
+        answerVideos,
+        totalVideos: proctoringVideos.length + answerVideos.length
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Error listing videos", error: (error as Error).message });
     }
   });
 
