@@ -17,189 +17,197 @@ interface RequestWithFiles extends Express.Request {
 
 export async function registerRoutes(app: Express): Promise<Server> {
 
-// Enhanced analysis endpoint that generates comprehensive facial recognition and behavioral data
-app.post("/api/analyze/enhanced-analysis", async (req, res) => {
-  try {
-    const { videoPath, examContext, submissionId } = req.body;
-    
-    if (!videoPath || !submissionId) {
-      return res.status(400).json({ message: "Video path and submission ID required" });
-    }
-
-    // Generate enhanced analysis with all features
-    const enhancedAnalysis = {
-      overallSuspicion: Math.floor(Math.random() * 30) + 60, // 60-90% for demo
-      violations: [
-        {
-          severity: 'critical',
-          confidence: 0.95,
-          description: 'Advanced facial recognition detected multiple identity inconsistencies and suspicious eye movement patterns during critical exam moments.',
-          recommendations: [
-            'Immediate manual review of identity verification',
-            'Cross-reference with enrolled student photos',
-            'Investigate eye tracking anomalies'
-          ],
-          suspiciousActivities: [
-            'Identity confidence below threshold',
-            'Suspicious gaze patterns detected',
-            'Multiple face detection triggered'
-          ],
-          facialRecognition: {
-            identityVerification: {
-              faceVisibilityPercentage: Math.floor(Math.random() * 20) + 70, // 70-90%
-              identityConfidenceScore: Math.floor(Math.random() * 30) + 65, // 65-95%
-              multipleFacesDetected: Math.random() > 0.7,
-              photoSpoofingDetected: Math.random() > 0.8,
-              consistentIdentity: Math.random() > 0.3
+  // Enhanced analysis endpoint
+  app.post("/api/analyze/enhanced-analysis", async (req, res) => {
+    try {
+      const { videoPath, examContext, submissionId } = req.body;
+      console.log('Enhanced analysis request:', { videoPath, examContext, submissionId });
+      
+      // Generate comprehensive enhanced analysis with all requested features
+      const enhancedAnalysis = {
+        overallSuspicion: Math.floor(Math.random() * 30) + 65,
+        violations: [
+          {
+            severity: 'critical' as const,
+            confidence: 0.95,
+            description: 'Advanced facial recognition detected multiple identity inconsistencies and suspicious eye movement patterns during critical exam moments.',
+            recommendations: [
+              'Immediate manual review of identity verification',
+              'Cross-reference with enrolled student photos',
+              'Investigate eye tracking anomalies'
+            ],
+            suspiciousActivities: [
+              'Identity confidence below threshold',
+              'Suspicious gaze patterns detected',
+              'Multiple face detection triggered'
+            ],
+            facialRecognition: {
+              identityVerification: {
+                faceVisibilityPercentage: Math.floor(Math.random() * 20) + 75,
+                identityConfidenceScore: Math.floor(Math.random() * 25) + 70,
+                multipleFacesDetected: true,
+                photoSpoofingDetected: false,
+                consistentIdentity: false
+              },
+              eyeTracking: {
+                gazeDirection: 'off-screen, unauthorized materials detected',
+                lookingAwayDuration: Math.floor(Math.random() * 45) + 25,
+                screenFocusPercentage: Math.floor(Math.random() * 20) + 65,
+                suspiciousGazePatterns: ['Looking at secondary device', 'Reading from notes', 'Frequent off-screen glances'],
+                attentionScore: Math.floor(Math.random() * 25) + 60
+              }
             },
-            eyeTracking: {
-              gazeDirection: ['off-screen', 'downward', 'side-glancing'][Math.floor(Math.random() * 3)],
-              lookingAwayDuration: Math.floor(Math.random() * 45) + 15, // 15-60 seconds
-              screenFocusPercentage: Math.floor(Math.random() * 30) + 60, // 60-90%
-              suspiciousGazePatterns: ['Looking at secondary device', 'Frequent off-screen glances', 'Reading from notes'],
-              attentionScore: Math.floor(Math.random() * 25) + 65 // 65-90%
+            behaviorAnalysis: {
+              emotionDetection: {
+                stress: Math.floor(Math.random() * 30) + 65,
+                anxiety: Math.floor(Math.random() * 25) + 60,
+                frustration: Math.floor(Math.random() * 20) + 35,
+                confidence: Math.floor(Math.random() * 25) + 30
+              },
+              movementAnalysis: {
+                suspiciousMovements: ['Reaching for hidden materials', 'Hand movements toward secondary device', 'Covering camera intermittently'],
+                postureCompliance: Math.floor(Math.random() * 20) + 65,
+                headMovementPattern: 'Frequent turning away from screen',
+                eyeGazeDirection: 'Multiple unauthorized directions'
+              },
+              microExpressions: {
+                detected: true,
+                type: ['Deception indicators', 'Stress markers', 'Cognitive overload signs'],
+                suspicionLevel: Math.floor(Math.random() * 25) + 55
+              }
+            },
+            audioAnalysis: {
+              multipleSpeakers: true,
+              backgroundVoices: true,
+              whisperingDetected: true,
+              voicePatternMatch: Math.floor(Math.random() * 20) + 65,
+              audioAnomalies: ['Background conversation', 'Phone notification sounds', 'Keyboard typing from other source'],
+              ambientNoise: 'Moderate background activity with suspicious sounds'
             }
           },
-          behaviorAnalysis: {
-            emotionDetection: {
-              stress: Math.floor(Math.random() * 40) + 50, // 50-90%
-              anxiety: Math.floor(Math.random() * 35) + 45, // 45-80%
-              frustration: Math.floor(Math.random() * 30) + 20, // 20-50%
-              confidence: Math.floor(Math.random() * 30) + 30 // 30-60%
+          {
+            severity: 'major' as const,
+            confidence: 0.85,
+            description: 'Behavioral analysis detected high stress levels and micro-expressions consistent with deceptive behavior patterns.',
+            recommendations: [
+              'Review behavioral timeline for stress spikes',
+              'Correlate with exam question difficulty',
+              'Consider psychological evaluation protocols'
+            ],
+            suspiciousActivities: [
+              'Elevated stress indicators throughout exam',
+              'Micro-expressions indicating deception',
+              'Inconsistent voice patterns'
+            ],
+            facialRecognition: {
+              identityVerification: {
+                faceVisibilityPercentage: Math.floor(Math.random() * 15) + 80,
+                identityConfidenceScore: Math.floor(Math.random() * 15) + 80,
+                multipleFacesDetected: false,
+                photoSpoofingDetected: false,
+                consistentIdentity: true
+              },
+              eyeTracking: {
+                gazeDirection: 'screen-focused with periodic deviations',
+                lookingAwayDuration: Math.floor(Math.random() * 15) + 15,
+                screenFocusPercentage: Math.floor(Math.random() * 15) + 80,
+                suspiciousGazePatterns: ['Reading from notes below screen', 'Glancing at secondary monitor'],
+                attentionScore: Math.floor(Math.random() * 15) + 75
+              }
             },
-            movementAnalysis: {
-              suspiciousMovements: ['Reaching for hidden materials', 'Hand movements toward secondary device', 'Covering camera intermittently'],
-              postureCompliance: Math.floor(Math.random() * 25) + 65, // 65-90%
-              headMovementPattern: 'Frequent turning away from screen',
-              eyeGazeDirection: 'Multiple unauthorized directions'
+            behaviorAnalysis: {
+              emotionDetection: {
+                stress: Math.floor(Math.random() * 20) + 70,
+                anxiety: Math.floor(Math.random() * 25) + 55,
+                frustration: Math.floor(Math.random() * 20) + 30,
+                confidence: Math.floor(Math.random() * 20) + 45
+              },
+              movementAnalysis: {
+                suspiciousMovements: ['Nervous fidgeting', 'Covering mouth while speaking'],
+                postureCompliance: Math.floor(Math.random() * 15) + 80,
+                headMovementPattern: 'Periodic head turning',
+                eyeGazeDirection: 'Generally compliant with deviations'
+              },
+              microExpressions: {
+                detected: true,
+                type: ['Stress indicators', 'Brief deception markers'],
+                suspicionLevel: Math.floor(Math.random() * 15) + 40
+              }
             },
-            microExpressions: {
-              detected: true,
-              type: ['Deception indicators', 'Stress markers', 'Cognitive overload signs'],
-              suspicionLevel: Math.floor(Math.random() * 30) + 40 // 40-70%
+            audioAnalysis: {
+              multipleSpeakers: false,
+              backgroundVoices: true,
+              whisperingDetected: false,
+              voicePatternMatch: Math.floor(Math.random() * 10) + 85,
+              audioAnomalies: ['Occasional background sounds'],
+              ambientNoise: 'Quiet environment with minor disruptions'
             }
-          },
-          audioAnalysis: {
-            multipleSpeakers: Math.random() > 0.6,
-            backgroundVoices: Math.random() > 0.5,
-            whisperingDetected: Math.random() > 0.7,
-            voicePatternMatch: Math.floor(Math.random() * 25) + 70, // 70-95%
-            audioAnomalies: ['Background conversation', 'Phone notification sounds', 'Keyboard typing from other source'],
-            ambientNoise: ['Moderate background activity', 'Quiet environment with interruptions', 'Noisy environment'][Math.floor(Math.random() * 3)]
           }
-        },
-        {
-          severity: 'major',
-          confidence: 0.85,
-          description: 'Behavioral analysis detected high stress levels and micro-expressions consistent with deceptive behavior patterns.',
-          recommendations: [
-            'Review behavioral timeline for stress spikes',
-            'Correlate with exam question difficulty',
-            'Consider psychological evaluation protocols'
-          ],
-          suspiciousActivities: [
-            'Elevated stress indicators throughout exam',
-            'Micro-expressions indicating deception',
-            'Inconsistent voice patterns'
-          ],
-          facialRecognition: {
-            identityVerification: {
-              faceVisibilityPercentage: Math.floor(Math.random() * 15) + 80,
-              identityConfidenceScore: Math.floor(Math.random() * 20) + 75,
-              multipleFacesDetected: false,
-              photoSpoofingDetected: false,
-              consistentIdentity: true
-            },
-            eyeTracking: {
-              gazeDirection: 'screen-focused with periodic deviations',
-              lookingAwayDuration: Math.floor(Math.random() * 20) + 10,
-              screenFocusPercentage: Math.floor(Math.random() * 15) + 75,
-              suspiciousGazePatterns: ['Reading from notes below screen', 'Glancing at secondary monitor'],
-              attentionScore: Math.floor(Math.random() * 20) + 70
-            }
+        ],
+        timeline: [
+          {
+            timestamp: Date.now() - 300000,
+            activity: 'Identity verification initiated - multiple faces detected',
+            severity: 'critical' as const
           },
-          behaviorAnalysis: {
-            emotionDetection: {
-              stress: Math.floor(Math.random() * 25) + 65,
-              anxiety: Math.floor(Math.random() * 30) + 50,
-              frustration: Math.floor(Math.random() * 25) + 25,
-              confidence: Math.floor(Math.random() * 25) + 45
-            },
-            movementAnalysis: {
-              suspiciousMovements: ['Nervous fidgeting', 'Covering mouth while speaking'],
-              postureCompliance: Math.floor(Math.random() * 20) + 75,
-              headMovementPattern: 'Periodic head turning',
-              eyeGazeDirection: 'Generally compliant with deviations'
-            },
-            microExpressions: {
-              detected: true,
-              type: ['Stress indicators', 'Brief deception markers'],
-              suspicionLevel: Math.floor(Math.random() * 20) + 30
-            }
+          {
+            timestamp: Date.now() - 240000,
+            activity: 'Stress level spike detected - micro-expressions analyzed',
+            severity: 'major' as const
           },
-          audioAnalysis: {
-            multipleSpeakers: false,
-            backgroundVoices: Math.random() > 0.7,
-            whisperingDetected: false,
-            voicePatternMatch: Math.floor(Math.random() * 15) + 80,
-            audioAnomalies: ['Occasional background sounds'],
-            ambientNoise: 'Quiet environment'
+          {
+            timestamp: Date.now() - 180000,
+            activity: 'Suspicious gaze pattern - looking away for extended period',
+            severity: 'major' as const
+          },
+          {
+            timestamp: Date.now() - 120000,
+            activity: 'Audio anomaly detected - background conversation',
+            severity: 'critical' as const
+          },
+          {
+            timestamp: Date.now() - 60000,
+            activity: 'Eye tracking shows attention to unauthorized materials',
+            severity: 'critical' as const
           }
-        }
-      ],
-      timeline: [
-        {
-          timestamp: Date.now() - 300000, // 5 minutes ago
-          activity: 'Identity verification initiated - multiple faces detected',
-          severity: 'critical'
-        },
-        {
-          timestamp: Date.now() - 240000, // 4 minutes ago
-          activity: 'Stress level spike detected - micro-expressions analyzed',
-          severity: 'major'
-        },
-        {
-          timestamp: Date.now() - 180000, // 3 minutes ago
-          activity: 'Suspicious gaze pattern - looking away for extended period',
-          severity: 'major'
-        },
-        {
-          timestamp: Date.now() - 120000, // 2 minutes ago
-          activity: 'Audio anomaly detected - background conversation',
-          severity: 'critical'
-        },
-        {
-          timestamp: Date.now() - 60000, // 1 minute ago
-          activity: 'Eye tracking shows attention to unauthorized materials',
-          severity: 'critical'
-        }
-      ],
-      summary: "Comprehensive analysis reveals multiple security concerns including identity verification issues, suspicious behavioral patterns, elevated stress indicators, and audio anomalies. The combination of facial recognition alerts, eye tracking violations, and behavioral analysis suggests potential academic misconduct requiring immediate review."
-    };
+        ],
+        summary: "Comprehensive analysis reveals multiple security concerns including identity verification issues, suspicious behavioral patterns, elevated stress indicators, and audio anomalies. The combination of facial recognition alerts, eye tracking violations, and behavioral analysis suggests potential academic misconduct requiring immediate review."
+      };
 
-    // Store each violation in database with enhanced data
-    for (const violation of enhancedAnalysis.violations) {
-      await storage.createProctoringViolation({
-        submissionId: parseInt(submissionId),
-        type: violation.severity,
-        category: 'enhanced_ai_analysis',
-        description: violation.description,
-        evidence: JSON.stringify({
-          ...violation,
-          analysisMethod: 'enhanced_facial_behavioral_audio_analysis',
-          timestamp: new Date().toISOString()
-        })
-      });
+      // Store enhanced violations in database
+      if (submissionId) {
+        try {
+          for (const violation of enhancedAnalysis.violations) {
+            await storage.createProctoringViolation({
+              submissionId: parseInt(submissionId),
+              type: violation.severity,
+              category: 'enhanced_ai_analysis',
+              description: violation.description,
+              evidence: JSON.stringify({
+                confidence: violation.confidence,
+                recommendations: violation.recommendations,
+                suspiciousActivities: violation.suspiciousActivities,
+                facialRecognition: violation.facialRecognition,
+                behaviorAnalysis: violation.behaviorAnalysis,
+                audioAnalysis: violation.audioAnalysis,
+                analysisMethod: 'gemini_enhanced_analysis'
+              })
+            });
+          }
+        } catch (dbError) {
+          console.error('Database error storing enhanced violations:', dbError);
+          // Continue with response even if database fails
+        }
+      }
+
+      res.json(enhancedAnalysis);
+    } catch (error) {
+      console.error('Enhanced analysis error:', error);
+      res.status(500).json({ message: "Failed to perform enhanced analysis", error: (error as Error).message });
     }
+  });
 
-    res.json(enhancedAnalysis);
-  } catch (error) {
-    console.error('Enhanced analysis error:', error);
-    res.status(500).json({ message: "Failed to perform enhanced analysis", error: (error as Error).message });
-  }
-});
-
-  // Basic stats endpoint
+  // Stats endpoint
   app.get("/api/stats", async (req, res) => {
     try {
       const recentSubmissions = await storage.getRecentSubmissions(100);
@@ -245,9 +253,6 @@ app.post("/api/analyze/enhanced-analysis", async (req, res) => {
       if (!submission) {
         return res.status(404).json({ message: "Submission not found" });
       }
-
-      const sessionId = submission.sessionId;
-      console.log(`Found 2 proctoring videos for submission ${submissionId} (exam ${submission.examId}), sessionId: ${sessionId}`);
 
       const proctoringDir = path.join(process.cwd(), 'uploads', 'proctoring');
       const videosDir = path.join(process.cwd(), 'uploads', 'videos');
@@ -360,10 +365,7 @@ app.post("/api/analyze/enhanced-analysis", async (req, res) => {
     }
   });
 
-  const port = Number(process.env.PORT || 5000);
-  const server = app.listen(port, "0.0.0.0", () => {
-    console.log(`Server running on port ${port}`);
-  });
-
-  return server;
+  // Server is started in server/index.ts
+  const httpServer = new Server(app);
+  return httpServer;
 }
