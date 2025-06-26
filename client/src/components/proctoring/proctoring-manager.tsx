@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { uploadQueue, type UploadStatus } from "@/lib/upload-queue";
+import { recordingQualityManager } from "@/lib/recording-quality";
 
 interface ProctoringManagerProps {
   isActive: boolean;
@@ -21,6 +23,9 @@ interface ProctoringState {
   faceDetection: boolean;
   browserLocked: boolean;
   violations: ViolationData[];
+  uploadStatus: UploadStatus;
+  recordingQuality: string;
+  networkStatus: 'online' | 'offline' | 'poor';
 }
 
 export default function ProctoringManager({ 
@@ -34,7 +39,15 @@ export default function ProctoringManager({
     screenRecording: false,
     faceDetection: false,
     browserLocked: false,
-    violations: []
+    violations: [],
+    uploadStatus: {
+      isOnline: true,
+      isUploading: false,
+      queueSize: 0,
+      lastSync: Date.now()
+    },
+    recordingQuality: 'auto',
+    networkStatus: 'online'
   });
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -54,6 +67,7 @@ export default function ProctoringManager({
     if (isActive) {
       initializeProctoring();
       enableBrowserLockdown();
+      setupUploadMonitoring();
     } else {
       stopProctoring();
       disableBrowserLockdown();
@@ -64,6 +78,19 @@ export default function ProctoringManager({
       disableBrowserLockdown();
     };
   }, [isActive]);
+
+  // Setup upload queue monitoring
+  const setupUploadMonitoring = () => {
+    const unsubscribe = uploadQueue.onStatusChange((status) => {
+      setState(prev => ({
+        ...prev,
+        uploadStatus: status,
+        networkStatus: status.isOnline ? 'online' : 'offline'
+      }));
+    });
+
+    return unsubscribe;
+  };
 
   const initializeProctoring = async () => {
     try {
