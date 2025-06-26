@@ -3,6 +3,8 @@ import type { UploadedFile } from "express-fileupload";
 
 interface RequestWithFiles extends Express.Request {
   files?: { [key: string]: UploadedFile | UploadedFile[] };
+  body: any;
+  is: (type: string) => boolean;
 }
 import { createServer, type Server } from "http";
 import * as fs from "fs";
@@ -277,7 +279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/upload-proctoring-video", async (req: RequestWithFiles, res) => {
+  app.post("/api/upload-proctoring-video", async (req: any, res) => {
     try {
       // Handle both FormData and JSON requests
       let examId, submissionId, videoBuffer, type, chunkIndex = 0;
@@ -509,21 +511,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // List recorded videos for a submission
-  app.get("/api/videos/submission/:submissionId", (req, res) => {
+  app.get("/api/videos/submission/:submissionId", async (req, res) => {
     try {
       const submissionId = req.params.submissionId;
       const proctoringDir = 'uploads/proctoring';
       const videosDir = 'uploads/videos';
       
+      // Get submission details to find associated exam
+      const submission = await storage.getSubmission(parseInt(submissionId));
+      const examId = submission?.examId;
+      
       const proctoringVideos = fs.existsSync(proctoringDir) ? 
         fs.readdirSync(proctoringDir)
-          .filter((file: string) => file.includes(`_${submissionId}_`))
+          .filter((file: string) => {
+            // Match both patterns: _submissionId_ and _examId_unknown_ for recent uploads
+            return file.includes(`_${submissionId}_`) || 
+                   (examId && file.includes(`_${examId}_unknown_`));
+          })
           .map((file: string) => ({
             filename: file,
             url: `/api/videos/proctoring/${file}`,
-            type: 'proctoring',
-            size: fs.statSync(path.join(proctoringDir, file)).size
-          })) : [];
+            type: file.startsWith('camera_') ? 'camera' : file.startsWith('screen_') ? 'screen' : 'proctoring',
+            size: fs.statSync(path.join(proctoringDir, file)).size,
+            timestamp: fs.statSync(path.join(proctoringDir, file)).mtime
+          }))
+          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) : [];
       
       const answerVideos = fs.existsSync(videosDir) ? 
         fs.readdirSync(videosDir)
@@ -532,8 +544,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             filename: file,
             url: `/api/videos/answers/${file}`,
             type: 'answer',
-            size: fs.statSync(path.join(videosDir, file)).size
+            size: fs.statSync(path.join(videosDir, file)).size,
+            timestamp: fs.statSync(path.join(videosDir, file)).mtime
           })) : [];
+      
+      console.log(`Found ${proctoringVideos.length} proctoring videos for submission ${submissionId} (exam ${examId})`);
       
       res.json({ 
         proctoringVideos,
@@ -541,6 +556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalVideos: proctoringVideos.length + answerVideos.length
       });
     } catch (error) {
+      console.error('Error listing videos:', error);
       res.status(500).json({ message: "Error listing videos", error: (error as Error).message });
     }
   });
