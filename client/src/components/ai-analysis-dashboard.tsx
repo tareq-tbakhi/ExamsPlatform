@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, CheckCircle, XCircle, FileText, Video, Mic } from "lucide-react";
+import { AlertTriangle, CheckCircle, XCircle, FileText, Video, Mic, Brain } from "lucide-react";
 
 interface ViolationAnalysis {
   severity: 'critical' | 'major' | 'minor';
@@ -146,8 +146,18 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
             Generate Report
           </Button>
           <Button
-            onClick={() => analyzeVideoMutation.mutate('/mock/video/path.mp4')}
-            disabled={analyzeVideoMutation.isPending}
+            onClick={() => {
+              if (videos?.proctoringVideos?.length > 0) {
+                analyzeVideoMutation.mutate(videos.proctoringVideos[0].url);
+              } else {
+                toast({
+                  title: "No Videos Found",
+                  description: "No proctoring videos available for analysis",
+                  variant: "destructive"
+                });
+              }
+            }}
+            disabled={analyzeVideoMutation.isPending || !videos?.proctoringVideos?.length}
           >
             <Video className="h-4 w-4 mr-2" />
             Analyze Recording
