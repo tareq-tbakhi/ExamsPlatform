@@ -1,7 +1,7 @@
 import { 
   users, exams, questions, submissions, proctoringViolations, videoQuestions, videoAnswers,
   aiAnalysisResults, analysisViolations, analysisTimeline, aiReports,
-  questionGrades, codingTestCases, codingSubmissions,
+  questionGrades, codingTestCases, codingSubmissions, examInvitations,
   type User, type InsertUser, type UpsertUser, type Exam, type InsertExam, type Question, type InsertQuestion, 
   type Submission, type InsertSubmission, type ExamWithQuestions, type ExamWithStats, 
   type SubmissionWithExam, type ProctoringViolation, type InsertProctoringViolation,
@@ -9,7 +9,8 @@ import {
   type AiAnalysisResult, type InsertAiAnalysisResult, type AnalysisViolation, 
   type InsertAnalysisViolation, type AnalysisTimeline, type InsertAnalysisTimeline,
   type AiReport, type InsertAiReport, type QuestionGrade, type InsertQuestionGrade,
-  type CodingTestCase, type InsertCodingTestCase, type CodingSubmission, type InsertCodingSubmission
+  type CodingTestCase, type InsertCodingTestCase, type CodingSubmission, type InsertCodingSubmission,
+  type ExamInvitation, type InsertExamInvitation
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -527,6 +528,52 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(codingSubmissions)
       .where(eq(codingSubmissions.submissionId, submissionId));
+  }
+
+  // Exam Invitations methods
+  async createExamInvitation(insertInvitation: InsertExamInvitation): Promise<ExamInvitation> {
+    const [invitation] = await db
+      .insert(examInvitations)
+      .values(insertInvitation)
+      .returning();
+    return invitation;
+  }
+
+  async createBulkExamInvitations(insertInvitations: InsertExamInvitation[]): Promise<ExamInvitation[]> {
+    return await db
+      .insert(examInvitations)
+      .values(insertInvitations)
+      .returning();
+  }
+
+  async getExamInvitations(examId: number): Promise<ExamInvitation[]> {
+    return await db
+      .select()
+      .from(examInvitations)
+      .where(eq(examInvitations.examId, examId))
+      .orderBy(desc(examInvitations.createdAt));
+  }
+
+  async updateInvitationStatus(id: number, status: string, accessedAt?: Date): Promise<ExamInvitation | undefined> {
+    const updateData: any = { inviteStatus: status, updatedAt: new Date() };
+    if (accessedAt) {
+      updateData.accessedAt = accessedAt;
+    }
+
+    const [updated] = await db
+      .update(examInvitations)
+      .set(updateData)
+      .where(eq(examInvitations.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getInvitationByToken(token: string): Promise<ExamInvitation | undefined> {
+    const [invitation] = await db
+      .select()
+      .from(examInvitations)
+      .where(eq(examInvitations.inviteToken, token));
+    return invitation;
   }
 }
 
