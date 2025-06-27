@@ -17,7 +17,7 @@ interface SubmissionWithAnalysis extends SubmissionWithExam {
     criticalViolations: number;
     majorViolations: number;
     minorViolations: number;
-    facialRecognitionScore: number;
+    screenActivityScore: number;
     behavioralScore: number;
     audioScore: number;
     summary: string;
@@ -41,6 +41,7 @@ export default function ResultsView() {
 
   const { data: recentSubmissions = [], isLoading: submissionsLoading } = useQuery<SubmissionWithExam[]>({
     queryKey: ["/api/submissions/recent"],
+    refetchInterval: 5000, // Refetch every 5 seconds to show latest submissions
   });
 
   // Generate AI analysis summary for submission
@@ -51,19 +52,19 @@ export default function ResultsView() {
     const minorViolations = Math.floor(Math.random() * 6);
     const overallSuspicion = Math.max(20, Math.min(95, 30 + (criticalViolations * 25) + (majorViolations * 10) + (minorViolations * 3)));
     
-    const facialRecognitionScore = Math.floor(Math.random() * 30) + 70;
+    const screenActivityScore = Math.floor(Math.random() * 30) + 70;
     const behavioralScore = Math.floor(Math.random() * 25) + 75;
     const audioScore = Math.floor(Math.random() * 20) + 80;
     
     let summary = "AI Analysis: ";
     if (overallSuspicion > 80) {
-      summary += "High risk detected - Multiple critical violations including identity inconsistencies and suspicious behavioral patterns.";
+      summary += "High risk detected - Multiple critical violations including unauthorized application usage and suspicious screen activity patterns.";
     } else if (overallSuspicion > 60) {
-      summary += "Moderate risk - Several violations detected requiring manual review for behavioral and eye tracking anomalies.";
+      summary += "Moderate risk - Several violations detected requiring manual review for screen monitoring and behavioral anomalies.";
     } else if (overallSuspicion > 40) {
-      summary += "Low risk - Minor violations detected but overall compliance acceptable with normal behavioral patterns.";
+      summary += "Low risk - Minor violations detected but overall compliance acceptable with normal screen activity patterns.";
     } else {
-      summary += "Minimal risk - Excellent compliance with consistent identity verification and normal behavioral patterns.";
+      summary += "Minimal risk - Excellent compliance with consistent screen monitoring and normal behavioral patterns.";
     }
 
     return {
@@ -71,7 +72,7 @@ export default function ResultsView() {
       criticalViolations,
       majorViolations,
       minorViolations,
-      facialRecognitionScore,
+      screenActivityScore,
       behavioralScore,
       audioScore,
       summary
@@ -367,7 +368,7 @@ export default function ResultsView() {
                                         </Badge>
                                       ) : null}
                                       <span className="text-gray-500">
-                                        Face: {submission.aiAnalysis?.facialRecognitionScore}%
+                                        Screen: {submission.aiAnalysis?.screenActivityScore}%
                                       </span>
                                       <span className="text-gray-500">
                                         Behavior: {submission.aiAnalysis?.behavioralScore}%
