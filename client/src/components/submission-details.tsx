@@ -191,7 +191,7 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
                           </div>
                           {videoAnswer.transcript && (
                             <div className="text-sm">
-                              <strong>Transcription:</strong> {videoAnswer.transcript}
+                              <strong>Student Answer:</strong> {videoAnswer.transcript}
                             </div>
                           )}
                           {videoAnswer.score && (
@@ -254,7 +254,7 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
               {videoAnswers.map((answer, index) => (
                 <div key={index} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium">Question {answer.questionId}</h4>
+                    <h4 className="font-medium">Question {answer.videoQuestionId}</h4>
                     <Badge variant="outline">
                       Score: {answer.score || 'Pending'}
                     </Badge>
@@ -269,7 +269,7 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
                   )}
                   {answer.transcript && (
                     <div className="mt-3">
-                      <p className="text-sm font-medium text-gray-700 mb-2">Transcription:</p>
+                      <p className="text-sm font-medium text-gray-700 mb-2">Student Answer:</p>
                       <div className="p-3 bg-gray-50 rounded text-sm">
                         {answer.transcript}
                       </div>
