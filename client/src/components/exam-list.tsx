@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Eye, Edit, Share, Trash2, Search, Grid3X3, List, BookOpen, Send, Users, Clock, FileText } from "lucide-react";
+import { Eye, Edit, Share, Trash2, Search, Grid3X3, List, BookOpen, Send, Users, Clock, FileText, TrendingUp } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { ExamWithStats } from "@shared/schema";
@@ -298,7 +298,7 @@ export default function ExamList() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-600">Created {formatDate(exam.createdAt!)}</span>
+                          <span className="text-gray-600">Created {formatDate(exam.createdAt?.toString() || '')}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <TrendingUp className="h-4 w-4 text-gray-400" />
