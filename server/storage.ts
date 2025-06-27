@@ -14,7 +14,7 @@ import {
   type ExamAssignment, type InsertExamAssignment
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, or, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -200,11 +200,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getExamsByCreator(createdBy: string): Promise<ExamWithStats[]> {
+    // Only get exams created by this specific user (role-based ownership)
     const userExams = await db
       .select()
       .from(exams)
       .where(eq(exams.createdBy, createdBy))
-      .orderBy(exams.createdAt);
+      .orderBy(desc(exams.createdAt));
 
     const examStats = await Promise.all(
       userExams.map(async (exam) => {
@@ -654,7 +655,129 @@ export class DatabaseStorage implements IStorage {
 
   async deleteUserInvitation(id: number): Promise<boolean> {
     const result = await db.delete(userInvitations).where(eq(userInvitations.id, id));
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Exam Assignment Methods
+  async createExamAssignment(insertAssignment: InsertExamAssignment): Promise<ExamAssignment> {
+    const [assignment] = await db
+      .insert(examAssignments)
+      .values(insertAssignment)
+      .returning();
+    return assignment;
+  }
+
+  async getExamAssignmentsByUser(userId: string): Promise<ExamAssignment[]> {
+    return await db
+      .select()
+      .from(examAssignments)
+      .where(eq(examAssignments.assignedTo, userId))
+      .orderBy(desc(examAssignments.assignedAt));
+  }
+
+  async getExamAssignmentsByExam(examId: number): Promise<ExamAssignment[]> {
+    return await db
+      .select()
+      .from(examAssignments)
+      .where(eq(examAssignments.examId, examId))
+      .orderBy(desc(examAssignments.assignedAt));
+  }
+
+  async deleteExamAssignment(id: number): Promise<boolean> {
+    const result = await db.delete(examAssignments).where(eq(examAssignments.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async getAccessibleExams(userId: string): Promise<ExamWithStats[]> {
+    // Get user's role first
+    const user = await this.getUser(userId);
+    if (!user) return [];
+
+    // Super admin can see all exams
+    if (user.role === 'super_admin') {
+      const allExams = await db.select().from(exams).orderBy(desc(exams.createdAt));
+      return Promise.all(
+        allExams.map(async (exam) => {
+          const questionsList = await db
+            .select()
+            .from(questions)
+            .where(eq(questions.examId, exam.id));
+
+          const examSubmissions = await db
+            .select()
+            .from(submissions)
+            .where(eq(submissions.examId, exam.id));
+
+          const submissionsCount = examSubmissions.length;
+          const averageScore = submissionsCount > 0 
+            ? examSubmissions.reduce((sum, s) => sum + (s.score || 0), 0) / submissionsCount 
+            : undefined;
+
+          return {
+            ...exam,
+            questionsCount: questionsList.length,
+            submissionsCount,
+            averageScore
+          };
+        })
+      );
+    }
+
+    // For other roles: get own exams + assigned exams
+    const ownExams = await this.getExamsByCreator(userId);
+    
+    // Get exams assigned to this user
+    const assignments = await this.getExamAssignmentsByUser(userId);
+    const assignedExamIds = assignments.map(a => a.examId);
+    
+    if (assignedExamIds.length === 0) {
+      return ownExams;
+    }
+
+    const assignedExams: ExamWithStats[] = [];
+    
+    for (const examId of assignedExamIds) {
+      const exam = await this.getExam(examId);
+      if (!exam) continue;
+
+      const questionsList = await db
+        .select()
+        .from(questions)
+        .where(eq(questions.examId, exam.id));
+
+      const examSubmissions = await db
+        .select()
+        .from(submissions)
+        .where(eq(submissions.examId, exam.id));
+
+      const submissionsCount = examSubmissions.length;
+      const averageScore = submissionsCount > 0 
+        ? examSubmissions.reduce((sum, s) => sum + (s.score || 0), 0) / submissionsCount 
+        : undefined;
+
+      assignedExams.push({
+        ...exam,
+        questionsCount: questionsList.length,
+        submissionsCount,
+        averageScore
+      });
+    }
+
+    // Combine own exams and assigned exams, removing duplicates
+    const allAccessibleExams = [...ownExams];
+    
+    for (const assignedExam of assignedExams) {
+      const isDuplicate = allAccessibleExams.some(exam => exam.id === assignedExam.id);
+      if (!isDuplicate) {
+        allAccessibleExams.push(assignedExam);
+      }
+    }
+
+    return allAccessibleExams.sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    });
   }
 }
 
