@@ -29,13 +29,16 @@ interface ProctoringState {
   uploadStatus: UploadStatus;
   recordingQuality: string;
   networkStatus: 'online' | 'offline' | 'poor';
-  // Phase 2: Advanced Monitoring
+  // Device Detection
+  isMobile: boolean;
+  deviceOrientation: 'portrait' | 'landscape';
+  // Phase 2: Advanced Monitoring (adapted for mobile)
   monitorConfiguration: MonitorConfiguration | null;
   applicationMonitoring: boolean;
   audioMonitoring: boolean;
   multiMonitorDetected: boolean;
   applicationSwitches: number;
-  // Phase 3: Complete Browser Lockdown
+  // Phase 3: Browser Lockdown (mobile-friendly)
   fullscreenLocked: boolean;
   kioskModeActive: boolean;
   securityViolations: number;
@@ -59,6 +62,10 @@ export default function ProctoringManager({
   const sessionIdRef = useRef<string>(generateSessionId());
   const { toast } = useToast();
   
+  // Detect mobile device
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                   !!(navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+
   const [state, setState] = useState<ProctoringState>({
     videoRecording: false,
     screenRecording: false,
@@ -72,13 +79,16 @@ export default function ProctoringManager({
     },
     recordingQuality: 'auto',
     networkStatus: 'online',
+    // Device Detection
+    isMobile: isMobile,
+    deviceOrientation: window.innerWidth > window.innerHeight ? 'landscape' : 'portrait',
     // Phase 2: Advanced Monitoring
     monitorConfiguration: null,
     applicationMonitoring: false,
     audioMonitoring: false,
     multiMonitorDetected: false,
     applicationSwitches: 0,
-    // Phase 3: Complete Browser Lockdown
+    // Phase 3: Browser Lockdown (adapted for mobile)
     fullscreenLocked: false,
     kioskModeActive: false,
     securityViolations: 0,
@@ -130,33 +140,42 @@ export default function ProctoringManager({
   };
 
   const initializeProctoring = async () => {
-    console.log(`Starting proctoring for exam ${examId} with session ${sessionIdRef.current}`);
+    console.log(`Starting ${isMobile ? 'mobile' : 'desktop'} proctoring for exam ${examId} with session ${sessionIdRef.current}`);
     try {
-      // Phase 1: Core Recording Features (Face detection removed - focusing on screen activity)
+      // Phase 1: Core Recording Features (adapted for mobile)
       await startVideoRecording();
-      await startScreenRecording();
       
-      // Phase 2: Advanced Monitoring
-      await initializeMultiMonitorDetection();
-      startApplicationMonitoring();
+      if (isMobile) {
+        // Mobile: Skip screen recording, focus on front camera and orientation monitoring
+        console.log("Mobile device detected - using mobile-optimized proctoring");
+        await startMobileMonitoring();
+      } else {
+        // Desktop: Full screen recording
+        await startScreenRecording();
+        // Phase 2: Advanced Monitoring
+        await initializeMultiMonitorDetection();
+        startApplicationMonitoring();
+        // Phase 3: Complete Browser Lockdown
+        activateAdvancedLockdown();
+      }
+      
       startEnhancedAudioMonitoring();
-      
-      // Phase 3: Complete Browser Lockdown
-      activateAdvancedLockdown();
       
       setState(prev => ({
         ...prev,
         browserLocked: true,
-        applicationMonitoring: true,
+        applicationMonitoring: !isMobile, // Disable for mobile
         audioMonitoring: true,
-        fullscreenLocked: true,
-        kioskModeActive: true,
-        advancedBlocking: true
+        fullscreenLocked: !isMobile, // Disable for mobile
+        kioskModeActive: !isMobile, // Disable for mobile
+        advancedBlocking: !isMobile // Disable for mobile
       }));
 
       toast({
-        title: "Complete Proctoring System Active",
-        description: "All 3 phases enabled: Screen recording, advanced monitoring, and complete browser lockdown."
+        title: isMobile ? "Mobile Proctoring Active" : "Complete Proctoring System Active",
+        description: isMobile ? 
+          "Camera recording and audio monitoring enabled for mobile exam." :
+          "All 3 phases enabled: Screen recording, advanced monitoring, and complete browser lockdown."
       });
     } catch (error) {
       console.error("Failed to initialize proctoring:", error);
