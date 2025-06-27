@@ -922,7 +922,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const videoFile = req.files.video as UploadedFile;
-      const { questionId, transcript, confidence, duration } = req.body;
+      const { questionId, transcript, confidence, duration, submissionId } = req.body;
+
+      console.log("Video answer upload request:", { questionId, submissionId, transcript: transcript?.substring(0, 50) + "..." });
 
       // Create upload directory if it doesn't exist
       const uploadDir = path.join(process.cwd(), 'uploads', 'videos');
@@ -937,10 +939,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Save the file
       await videoFile.mv(filePath);
 
+      const videoUrl = `/api/videos/answers/${filename}`;
+
+      // Save video answer to database if submissionId is provided
+      let videoAnswer = null;
+      if (submissionId) {
+        try {
+          videoAnswer = await storage.createVideoAnswer({
+            submissionId: parseInt(submissionId),
+            questionId: parseInt(questionId),
+            videoUrl,
+            transcription: transcript || null,
+            confidence: confidence ? parseFloat(confidence) : null,
+            duration: duration ? parseInt(duration) : null,
+            score: null // Will be set during grading
+          });
+          console.log("Video answer saved to database:", videoAnswer.id);
+        } catch (dbError) {
+          console.error("Failed to save video answer to database:", dbError);
+          // Continue without failing the upload
+        }
+      }
+
       res.json({ 
         success: true, 
-        videoUrl: `/api/videos/answers/${filename}`,
-        filename 
+        videoUrl,
+        filename,
+        videoAnswer
       });
     } catch (error) {
       console.error("Failed to upload video answer:", error);
