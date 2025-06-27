@@ -115,7 +115,7 @@ export default function Dashboard() {
   });
 
   const { data: exams = [], isLoading: examsLoading } = useQuery<ExamWithStats[]>({
-    queryKey: [`/api/exams/creator/1`],
+    queryKey: ["/api/exams"],
   });
 
   const formatDate = (dateString: string) => {

@@ -215,6 +215,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Exam Assignment Routes for Team Management
+  app.post("/api/exams/:examId/assign", isAuthenticated, requireSupervisor, async (req, res) => {
+    try {
+      const { examId } = req.params;
+      const { assignedTo, canEdit, canViewResults } = req.body;
+      const currentUser = req.user as any;
+      const assignedBy = currentUser.claims.sub;
+
+      // Verify the exam belongs to the current user
+      const exam = await storage.getExam(parseInt(examId));
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+
+      if (exam.createdBy !== assignedBy && currentUser.role !== 'super_admin') {
+        return res.status(403).json({ message: "You can only assign your own exams" });
+      }
+
+      // Verify the assignee exists
+      const assignee = await storage.getUser(assignedTo);
+      if (!assignee) {
+        return res.status(404).json({ message: "Assignee not found" });
+      }
+
+      // Check if assignment already exists
+      const existingAssignments = await storage.getExamAssignmentsByExam(parseInt(examId));
+      const alreadyAssigned = existingAssignments.find(a => a.assignedTo === assignedTo);
+      
+      if (alreadyAssigned) {
+        return res.status(400).json({ message: "Exam already assigned to this user" });
+      }
+
+      const assignment = await storage.createExamAssignment({
+        examId: parseInt(examId),
+        assignedTo,
+        assignedBy,
+        canEdit: canEdit || false,
+        canViewResults: canViewResults !== false
+      });
+
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error assigning exam:", error);
+      res.status(500).json({ message: "Failed to assign exam" });
+    }
+  });
+
+  app.get("/api/exams/:examId/assignments", isAuthenticated, requireSupervisor, async (req, res) => {
+    try {
+      const { examId } = req.params;
+      const currentUser = req.user as any;
+
+      // Verify the exam belongs to the current user or user is super admin
+      const exam = await storage.getExam(parseInt(examId));
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+
+      if (exam.createdBy !== currentUser.claims.sub && currentUser.role !== 'super_admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const assignments = await storage.getExamAssignmentsByExam(parseInt(examId));
+      
+      // Get user details for each assignment
+      const assignmentsWithUsers = await Promise.all(
+        assignments.map(async (assignment) => {
+          const user = await storage.getUser(assignment.assignedTo);
+          return {
+            ...assignment,
+            assignedUser: user ? {
+              id: user.id,
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              role: user.role
+            } : null
+          };
+        })
+      );
+
+      res.json(assignmentsWithUsers);
+    } catch (error) {
+      console.error("Error fetching exam assignments:", error);
+      res.status(500).json({ message: "Failed to fetch assignments" });
+    }
+  });
+
+  app.delete("/api/exam-assignments/:assignmentId", isAuthenticated, requireSupervisor, async (req, res) => {
+    try {
+      const { assignmentId } = req.params;
+      const currentUser = req.user as any;
+
+      // Get the assignment to verify ownership
+      const assignments = await storage.getExamAssignmentsByUser(currentUser.claims.sub);
+      const assignment = assignments.find(a => a.id === parseInt(assignmentId));
+      
+      if (!assignment && currentUser.role !== 'super_admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const success = await storage.deleteExamAssignment(parseInt(assignmentId));
+      
+      if (!success) {
+        return res.status(404).json({ message: "Assignment not found" });
+      }
+
+      res.json({ message: "Assignment removed successfully" });
+    } catch (error) {
+      console.error("Error removing exam assignment:", error);
+      res.status(500).json({ message: "Failed to remove assignment" });
+    }
+  });
+
   // Enhanced analysis endpoint
   app.post("/api/analyze/enhanced-analysis", isAuthenticated, async (req, res) => {
     try {
@@ -1073,10 +1187,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get exams by creator
-  app.get("/api/exams/creator/:userId", async (req, res) => {
+  // Get exams accessible to current user (own exams + assigned exams)
+  app.get("/api/exams", isAuthenticated, async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
+      const user = req.user as any;
+      const userId = user.claims.sub;
+      const exams = await storage.getAccessibleExams(userId);
+      res.json(exams);
+    } catch (error) {
+      console.error("Failed to fetch accessible exams:", error);
+      res.status(500).json({ message: "Failed to fetch exams" });
+    }
+  });
+
+  // Get exams by creator
+  app.get("/api/exams/creator/:userId", isAuthenticated, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const currentUser = req.user as any;
+      
+      // Super admin can see anyone's exams, others can only see their own
+      if (currentUser.claims.sub !== userId && currentUser.role !== 'super_admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
       const exams = await storage.getExamsByCreator(userId);
       res.json(exams);
     } catch (error) {
