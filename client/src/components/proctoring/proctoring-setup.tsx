@@ -37,7 +37,8 @@ export default function ProctoringSetup({ onSetupComplete, examTitle }: Proctori
     browserSupported: false,
     mediaDevicesSupported: false,
     speechRecognitionSupported: false,
-    screenShareSupported: false
+    screenShareSupported: false,
+    isMobile: false
   });
 
   useEffect(() => {
@@ -48,7 +49,7 @@ export default function ProctoringSetup({ onSetupComplete, examTitle }: Proctori
   const checkSystemCompatibility = () => {
     // Detect mobile device
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                     (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+                     !!(navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
     
     const checks = {
       browserSupported: !!navigator.mediaDevices,
@@ -56,7 +57,7 @@ export default function ProctoringSetup({ onSetupComplete, examTitle }: Proctori
       speechRecognitionSupported: !!(window as any).SpeechRecognition || !!(window as any).webkitSpeechRecognition,
       // Screen sharing is limited on mobile, so we adapt
       screenShareSupported: isMobile ? true : !!navigator.mediaDevices?.getDisplayMedia,
-      isMobile
+      isMobile: !!isMobile
     };
     
     setSystemCheck(checks);
@@ -179,8 +180,16 @@ export default function ProctoringSetup({ onSetupComplete, examTitle }: Proctori
   };
 
   const allPermissionsGranted = () => {
-    return permissions.camera === 'granted' && 
-           permissions.microphone === 'granted' && 
+    const basicPermissions = permissions.camera === 'granted' && 
+                           permissions.microphone === 'granted';
+    
+    // On mobile, only require camera and microphone
+    if (systemCheck.isMobile) {
+      return basicPermissions;
+    }
+    
+    // On desktop, require all permissions including screen share and fullscreen
+    return basicPermissions && 
            permissions.screen === 'granted' &&
            permissions.fullscreen === 'granted';
   };
@@ -302,30 +311,45 @@ export default function ProctoringSetup({ onSetupComplete, examTitle }: Proctori
               </div>
             </div>
 
-            {/* Screen Share */}
-            <div className={`p-4 rounded-lg border ${getPermissionColor(permissions.screen)}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Monitor className="h-6 w-6" />
-                  <div>
-                    <h4 className="font-medium">Screen Sharing</h4>
-                    <p className="text-sm text-gray-600">Required for screen recording and tab switching detection</p>
+            {/* Screen Share - Mobile Adaptive */}
+            {!systemCheck.isMobile && (
+              <div className={`p-4 rounded-lg border ${getPermissionColor(permissions.screen)}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <Monitor className="h-6 w-6" />
+                    <div>
+                      <h4 className="font-medium">Screen Sharing</h4>
+                      <p className="text-sm text-gray-600">Required for screen recording and tab switching detection</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {getPermissionIcon(permissions.screen)}
+                    {permissions.screen !== 'granted' && (
+                      <Button 
+                        onClick={requestScreenPermission} 
+                        disabled={isChecking}
+                        size="sm"
+                      >
+                        Grant Access
+                      </Button>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  {getPermissionIcon(permissions.screen)}
-                  {permissions.screen !== 'granted' && (
-                    <Button 
-                      onClick={requestScreenPermission} 
-                      disabled={isChecking}
-                      size="sm"
-                    >
-                      Grant Access
-                    </Button>
-                  )}
+              </div>
+            )}
+
+            {/* Mobile Device Notice */}
+            {systemCheck.isMobile && (
+              <div className="p-4 rounded-lg border border-blue-200 bg-blue-50">
+                <div className="flex items-center space-x-3">
+                  <Monitor className="h-6 w-6 text-blue-600" />
+                  <div>
+                    <h4 className="font-medium text-blue-800">Mobile Device Detected</h4>
+                    <p className="text-sm text-blue-700">Mobile-optimized proctoring enabled. Camera recording and app monitoring will be active.</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 
