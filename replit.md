@@ -236,6 +236,15 @@ Changelog:
   * Built grading dashboard with overview, question details, breakdown, and analytics tabs
   * Integrated auto-grading API endpoints with complete database persistence
   * Enhanced results view with dedicated grading interface alongside AI proctoring analysis
+- June 27, 2025. Added complete JavaScript transcription support for video and audio questions:
+  * Implemented Gemini AI-powered transcription service for audio and video files
+  * Added comprehensive audio analysis with confidence scoring, sentiment analysis, and quality assessment
+  * Built video audio extraction and transcription with keyword detection and content analysis
+  * Integrated transcription grading with automatic scoring based on content relevance and completeness
+  * Added API endpoints for audio/video transcription with multiple format support (.mp3, .wav, .webm, .mp4, .avi, .mov)
+  * Enhanced grading service to automatically process video_response and audio_response question types
+  * Implemented detailed feedback system with transcription confidence, audio quality metrics, and content evaluation
+  * Added Arabic language support with multi-language transcription capabilities
 ```
 
 ## User Preferences
