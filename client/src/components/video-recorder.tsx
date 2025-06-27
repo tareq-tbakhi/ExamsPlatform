@@ -293,79 +293,65 @@ export function VideoRecorder({
     setIsProcessing(true);
     
     try {
-      // First, transcribe the recording
-      const formData = new FormData();
-      const fieldName = questionType === "video_response" ? "video" : "audio";
-      formData.append(fieldName, blob, `question_${questionId}_${Date.now()}.webm`);
-      formData.append('questionId', questionId.toString());
-      formData.append('submissionId', submissionId.toString());
-      formData.append('type', questionType);
+      // Use JavaScript transcription instead of server-side processing
+      const finalTranscript = transcriberRef.current?.getFullTranscript() || '';
+      const confidence = 0.85; // JavaScript speech recognition typical confidence
+      
+      console.log(`JavaScript transcription completed: "${finalTranscript}"`);
+      
+      setTranscription(finalTranscript);
+      onRecordingComplete(finalTranscript, confidence);
 
-      const endpoint = questionType === "video_response" 
-        ? '/api/transcribe/video'
-        : '/api/transcribe/audio';
+      // Upload the video file to be stored as an answer
+      const videoFormData = new FormData();
+      videoFormData.append('video', blob, `answer_${questionId}_${Date.now()}.webm`);
+      videoFormData.append('questionId', questionId.toString());
+      videoFormData.append('submissionId', submissionId.toString());
+      videoFormData.append('transcript', finalTranscript);
+      videoFormData.append('confidence', confidence.toString());
+      videoFormData.append('duration', recordingTime.toString());
 
-      const transcriptionRes = await fetch(endpoint, {
-        method: 'POST',
-        body: formData
-      });
-      const transcriptionResponse = await transcriptionRes.json();
-
-      if (transcriptionResponse.transcription) {
-        setTranscription(transcriptionResponse.transcription);
-        onRecordingComplete(transcriptionResponse.transcription, transcriptionResponse.confidence || 0.8);
-
-        // Upload the video file to be stored as an answer
-        const videoFormData = new FormData();
-        videoFormData.append('video', blob, `answer_${questionId}_${Date.now()}.webm`);
-        videoFormData.append('questionId', questionId.toString());
-        videoFormData.append('submissionId', submissionId.toString());
-        videoFormData.append('transcript', transcriptionResponse.transcription);
-        videoFormData.append('confidence', (transcriptionResponse.confidence || 0.8).toString());
-        videoFormData.append('duration', recordingTime.toString());
-
-        try {
-          const uploadRes = await fetch('/api/upload-video-answer', {
-            method: 'POST',
-            body: videoFormData
-          });
-          const uploadResponse = await uploadRes.json();
-          console.log('Video answer uploaded successfully:', uploadResponse);
-        } catch (uploadError) {
-          console.error('Failed to upload video answer:', uploadError);
-        }
-
-        // Now validate the answer using OpenAI
-        const validationRes = await fetch('/api/validate-answer', {
+      try {
+        const uploadRes = await fetch('/api/upload-video-answer', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            questionId,
-            submissionId,
-            transcription: transcriptionResponse.transcription,
-            questionType
-          })
+          body: videoFormData
         });
-        const validationResponse = await validationRes.json();
+        const uploadResponse = await uploadRes.json();
+        console.log('Video answer uploaded successfully:', uploadResponse);
+      } catch (uploadError) {
+        console.error('Failed to upload video answer:', uploadError);
+      }
 
-        if (validationResponse.isValid !== undefined) {
-          const validation = {
-            isValid: validationResponse.isValid,
-            feedback: validationResponse.feedback || "Answer processed successfully",
-            score: validationResponse.score || 0,
-            completed: true
-          };
-          
-          setValidationStatus(validation);
-          
-          onValidationComplete(
-            validation.isValid,
-            validation.feedback,
-            validation.score
-          );
-        }
+      // Now validate the answer using OpenAI
+      const validationRes = await fetch('/api/validate-answer', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          questionId,
+          submissionId,
+          transcription: finalTranscript,
+          questionType
+        })
+      });
+      const validationResponse = await validationRes.json();
+
+      if (validationResponse.isValid !== undefined) {
+        const validation = {
+          isValid: validationResponse.isValid,
+          feedback: validationResponse.feedback || "Answer processed successfully",
+          score: validationResponse.score || 0,
+          completed: true
+        };
+        
+        setValidationStatus(validation);
+        
+        onValidationComplete(
+          validation.isValid,
+          validation.feedback,
+          validation.score
+        );
       }
 
       toast({
