@@ -216,6 +216,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Upload proctoring video chunks
+  app.post("/api/upload-proctoring-video", async (req: RequestWithFiles, res) => {
+    try {
+      if (!req.files || !req.files.video) {
+        return res.status(400).json({ message: "No video file provided" });
+      }
+
+      const videoFile = req.files.video as UploadedFile;
+      const { examId, submissionId, sessionId, type } = req.body;
+      
+      console.log(`Uploading proctoring video: ${videoFile.name}, Type: ${type}, Exam: ${examId}, Session: ${sessionId}`);
+
+      // Create upload directory if it doesn't exist
+      const uploadDir = path.join(process.cwd(), 'uploads', 'proctoring');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      // Generate unique filename
+      const filename = videoFile.name || `${type}_${examId}_${submissionId || sessionId}_${Date.now()}.webm`;
+      const filePath = path.join(uploadDir, filename);
+
+      // Save the file
+      await videoFile.mv(filePath);
+      
+      console.log(`Proctoring video saved: ${filePath} (${(videoFile.size / 1024 / 1024).toFixed(2)}MB)`);
+
+      res.json({ 
+        success: true, 
+        filename,
+        url: `/api/videos/proctoring/${filename}`,
+        size: videoFile.size 
+      });
+    } catch (error) {
+      console.error("Failed to upload proctoring video:", error);
+      res.status(500).json({ message: "Failed to upload video", error: (error as Error).message });
+    }
+  });
+
+  // Upload video answer
+  app.post("/api/upload-video-answer", async (req: RequestWithFiles, res) => {
+    try {
+      if (!req.files || !req.files.video) {
+        return res.status(400).json({ message: "No video file provided" });
+      }
+
+      const videoFile = req.files.video as UploadedFile;
+      const { questionId, transcript, confidence, duration } = req.body;
+
+      // Create upload directory if it doesn't exist
+      const uploadDir = path.join(process.cwd(), 'uploads', 'videos');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      // Generate unique filename
+      const filename = videoFile.name || `answer_${questionId}_${Date.now()}.webm`;
+      const filePath = path.join(uploadDir, filename);
+
+      // Save the file
+      await videoFile.mv(filePath);
+
+      res.json({ 
+        success: true, 
+        videoUrl: `/api/videos/answers/${filename}`,
+        filename 
+      });
+    } catch (error) {
+      console.error("Failed to upload video answer:", error);
+      res.status(500).json({ message: "Failed to upload video answer", error: (error as Error).message });
+    }
+  });
+
   // Create submission
   app.post("/api/submissions", async (req, res) => {
     try {
