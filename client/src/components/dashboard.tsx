@@ -104,28 +104,21 @@ function PublishExamButton({ examId }: { examId: number }) {
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview");
-  const [showCreateExam, setShowCreateExam] = useState(false);
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
 
-  // Mock user ID - in real app this would come from authentication
-  const userId = 1;
-
-  const { data: stats = {} as any } = useQuery({
+  const { data: stats } = useQuery({
     queryKey: ["/api/stats"],
   });
 
   const { data: exams = [], isLoading: examsLoading } = useQuery<ExamWithStats[]>({
-    queryKey: [`/api/exams/creator/${userId}`],
+    queryKey: [`/api/exams/creator/1`],
   });
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'No date';
+  const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
       month: 'short',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      year: 'numeric'
     });
   };
 
@@ -151,59 +144,6 @@ export default function Dashboard() {
       .slice(0, 8);
   };
 
-  const sidebarItems = [
-    { id: "overview", label: "Dashboard", icon: Home },
-    { id: "exams", label: "All Exams", icon: BookOpen },
-    { id: "upcoming", label: "Upcoming", icon: Calendar },
-    { id: "results", label: "Analytics", icon: BarChart3 },
-  ];
-
-  if (showCreateExam) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
-        <div className="flex">
-          {/* Enhanced Sidebar - Always Visible */}
-          <div className="w-80 bg-white shadow-xl min-h-screen relative border-r border-gray-200">
-            <div className="p-8 border-b bg-gradient-to-r from-purple-50 to-blue-50">
-              <div className="flex items-center gap-4">
-                <img 
-                  src={logoImage} 
-                  alt="ExamCraft Logo" 
-                  className="h-14 w-auto"
-                />
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  ExamCraft
-                </h1>
-              </div>
-              <p className="text-sm text-gray-600 mt-2 ml-18">AI-Powered Exam Platform</p>
-            </div>
-            <nav className="p-6">
-              <Button 
-                variant="ghost" 
-                onClick={() => setShowCreateExam(false)}
-                className="w-full justify-start mb-6 text-lg font-semibold py-4 px-6 rounded-xl hover:bg-gray-100"
-              >
-                <Home className="h-6 w-6 mr-4" />
-                Back to Dashboard
-              </Button>
-            </nav>
-          </div>
-
-          {/* Main Content */}
-          <div className="flex-1 p-8">
-            <div className="max-w-7xl mx-auto">
-              <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Create New Exam</h1>
-                <p className="text-gray-600">Design and configure your exam with AI assistance</p>
-              </div>
-              <ExamCreator />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
       <div className="flex">
@@ -224,72 +164,67 @@ export default function Dashboard() {
           </div>
           
           <nav className="p-6 space-y-3">
-            {sidebarItems.map((item) => {
+            {[
+              { id: "overview", label: "Dashboard", icon: Home },
+              { id: "create", label: "Create Exam", icon: Plus },
+              { id: "exams", label: "My Exams", icon: BookOpen },
+              { id: "results", label: "All Results", icon: BarChart3 },
+              { id: "analytics", label: "Analytics", icon: TrendingUp },
+              { id: "student", label: "Take Exam", icon: GraduationCap },
+            ].map((item) => {
               const Icon = item.icon;
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl transition-all text-left ${
+                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl transition-all duration-200 text-left font-medium ${
                     activeTab === item.id
-                      ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg transform scale-105'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg scale-105"
+                      : "text-gray-700 hover:bg-gray-100 hover:scale-102"
                   }`}
                 >
-                  <Icon className="h-6 w-6" />
-                  <span className="font-semibold text-lg">{item.label}</span>
+                  <Icon className="h-6 w-6 flex-shrink-0" />
+                  <span className="text-lg">{item.label}</span>
                 </button>
               );
             })}
+            
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <Button 
+                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+                onClick={() => setActiveTab("create")}
+              >
+                <Plus className="h-5 w-5 mr-3" />
+                Create New Exam
+              </Button>
+            </div>
           </nav>
-          
-          <div className="absolute bottom-6 left-6 right-6">
-            <Button
-              onClick={() => setShowCreateExam(true)}
-              className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white shadow-xl py-4 text-lg font-semibold rounded-xl"
-            >
-              <Plus className="h-5 w-5 mr-3" />
-              Create New Exam
-            </Button>
-          </div>
         </div>
 
         {/* Main Content */}
         <div className="flex-1 p-8">
           <div className="max-w-7xl mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                  {activeTab === "overview" && "Dashboard Overview"}
-                  {activeTab === "exams" && "All Exams"}
-                  {activeTab === "upcoming" && "Upcoming Exams"}
-                  {activeTab === "results" && "Analytics & Results"}
-                </h1>
-                <p className="text-gray-600">
-                  {activeTab === "overview" && "Welcome back! Here's your exam management overview"}
-                  {activeTab === "exams" && "Manage and review all your created exams"}
-                  {activeTab === "upcoming" && "Keep track of your scheduled exams"}
-                  {activeTab === "results" && "Analyze performance and view detailed results"}
-                </p>
-              </div>
-              
-              <div className="flex items-center gap-4">
-                <Button variant="outline" size="sm">
-                  <Search className="h-4 w-4 mr-2" />
-                  Search
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Bell className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Tabbed Interface */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">ExamCraft Platform</h1>
+                  <p className="text-gray-600">Comprehensive exam management with AI-powered features</p>
+                </div>
+                
+                <div className="flex items-center gap-4">
+                  <Button variant="outline" size="sm">
+                    <Search className="h-4 w-4 mr-2" />
+                    Search
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <Bell className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="sm">
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
               <TabsList className="grid w-full grid-cols-6 bg-white shadow-sm rounded-xl p-2">
                 <TabsTrigger value="overview" className="flex items-center gap-2 text-sm font-medium">
                   <Home className="h-4 w-4" />
@@ -318,8 +253,6 @@ export default function Dashboard() {
               </TabsList>
 
               <TabsContent value="overview" className="space-y-8">
-                {/* Dashboard Overview Content */}
-              <div className="space-y-8">
                 {/* Enhanced Stats Cards - Inspired by Figma Design */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                   <Card className="bg-white border-0 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
@@ -368,11 +301,11 @@ export default function Dashboard() {
                             <TrendingUp className="h-8 w-8 text-white" />
                           </div>
                           <div className="text-4xl font-bold text-gray-900 mb-2">
-                            {stats?.averageScore ? `${stats.averageScore.toFixed(1)}%` : '0%'}
+                            {stats?.averageScore ? Math.round(stats.averageScore) : 0}%
                           </div>
                           <div className="text-gray-600 font-medium">Average Score</div>
                           <div className="text-sm text-blue-500 mt-2 font-semibold">
-                            +2.3% improvement
+                            +5% improvement
                           </div>
                         </div>
                       </div>
@@ -384,14 +317,14 @@ export default function Dashboard() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mb-6">
-                            <CheckCircle className="h-8 w-8 text-white" />
+                            <Clock className="h-8 w-8 text-white" />
                           </div>
                           <div className="text-4xl font-bold text-gray-900 mb-2">
-                            {stats?.passRate ? `${stats.passRate.toFixed(1)}%` : '85%'}
+                            {getUpcomingExams().length}
                           </div>
-                          <div className="text-gray-600 font-medium">Pass Rate</div>
-                          <div className="text-sm text-green-500 mt-2 font-semibold">
-                            Above target 80%
+                          <div className="text-gray-600 font-medium">Upcoming Exams</div>
+                          <div className="text-sm text-orange-500 mt-2 font-semibold">
+                            Next 7 days
                           </div>
                         </div>
                       </div>
@@ -399,291 +332,108 @@ export default function Dashboard() {
                   </Card>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Recent Exams - Enhanced Design */}
-                  <Card className="shadow-xl border-0 rounded-2xl bg-white hover:shadow-2xl transition-all duration-300">
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
-                          <Clock className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-xl text-gray-900">Recent Exams</CardTitle>
-                          <CardDescription className="text-gray-500">Your latest created exams</CardDescription>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {examsLoading ? (
-                        <div className="space-y-4">
-                          {[...Array(3)].map((_, i) => (
-                            <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
-                          ))}
-                        </div>
-                      ) : getRecentExams().length > 0 ? (
-                        <div className="space-y-3">
-                          {getRecentExams().map((exam) => (
-                            <div key={exam.id} className="flex items-center justify-between p-5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl hover:from-blue-50 hover:to-purple-50 transition-all duration-300 border border-gray-200 hover:border-blue-200 hover:shadow-md">
-                              <div className="flex items-center gap-4 flex-1">
-                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold text-sm">
-                                  {exam.title.charAt(0)}
-                                </div>
-                                <div className="flex-1">
-                                  <div className="font-semibold text-gray-900 text-lg">{exam.title}</div>
-                                  <div className="text-sm text-gray-600 mt-1">{exam.subject}</div>
-                                  <div className="text-xs text-gray-400 mt-1">
-                                    Created {exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <div className="text-right">
-                                  <Badge variant={exam.status === 'published' ? 'default' : 'secondary'} className="mb-1">
-                                    {exam.status}
-                                  </Badge>
-                                  <div className="text-sm text-gray-500">
-                                    {exam.submissionsCount} submissions
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                          <p className="mb-4">No exams created yet</p>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setShowCreateExam(true)}
-                          >
-                            Create your first exam
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Upcoming Exams - Enhanced Design */}
-                  <Card className="shadow-xl border-0 rounded-2xl bg-white hover:shadow-2xl transition-all duration-300">
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl flex items-center justify-center">
-                          <Calendar className="h-5 w-5 text-white" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-xl text-gray-900">Upcoming Exams</CardTitle>
-                          <CardDescription className="text-gray-500">Scheduled exams by date</CardDescription>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {getUpcomingExams().length > 0 ? (
-                        <div className="space-y-3">
-                          {getUpcomingExams().map((exam) => (
-                            <div key={exam.id} className="flex items-center justify-between p-5 bg-gradient-to-r from-green-50 to-teal-50 rounded-xl hover:from-green-100 hover:to-teal-100 transition-all duration-300 border border-green-200 hover:border-green-300 hover:shadow-md">
-                              <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-teal-500 rounded-xl flex items-center justify-center">
-                                  <Calendar className="h-6 w-6 text-white" />
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-gray-900 text-lg">{exam.title}</div>
-                                  <div className="text-sm text-gray-600 mt-1">{exam.subject}</div>
-                                  <div className="text-xs text-gray-400 mt-1">
-                                    {exam.questionsCount} questions • {exam.submissionsCount} submissions
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-sm font-medium text-gray-900 mb-2">
-                                  {exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}
-                                </div>
-                                <Badge variant="outline" className="text-xs bg-white">
-                                  {exam.status}
-                                </Badge>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-gray-500">
-                          <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                          <p className="mb-4">No upcoming exams scheduled</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            )}
-
-            {activeTab === "exams" && (
-              <div className="space-y-6">
-                {examsLoading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[...Array(6)].map((_, i) => (
-                      <Card key={i} className="shadow-lg border-0">
-                        <CardContent className="pt-6">
-                          <div className="h-32 bg-gray-100 rounded animate-pulse" />
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : exams.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {exams.map((exam) => (
-                      <Card key={exam.id} className="hover:shadow-2xl transition-all duration-300 border-0 shadow-xl bg-white rounded-2xl hover:scale-105">
-                        <CardHeader className="pb-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3 flex-1">
-                              <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center text-white font-bold text-lg">
-                                {exam.title.charAt(0)}
-                              </div>
-                              <div className="flex-1">
-                                <CardTitle className="text-xl text-gray-900 mb-1">{exam.title}</CardTitle>
-                                <CardDescription className="text-gray-600">{exam.subject}</CardDescription>
-                              </div>
-                            </div>
-                            <Badge variant={exam.status === 'published' ? 'default' : 'secondary'} className="ml-2">
-                              {exam.status}
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="space-y-4">
-                            {/* Stats Grid */}
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-3 text-center">
-                                <div className="text-lg font-bold text-blue-700">{exam.questionsCount}</div>
-                                <div className="text-xs text-blue-600">Questions</div>
-                              </div>
-                              <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-3 text-center">
-                                <div className="text-lg font-bold text-green-700">{exam.submissionsCount}</div>
-                                <div className="text-xs text-green-600">Submissions</div>
-                              </div>
-                            </div>
-                            
-                            {/* Average Score with Progress Bar */}
-                            {exam.averageScore !== undefined && (
-                              <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm text-gray-600">Average Score</span>
-                                  <span className="font-semibold text-gray-900">{exam.averageScore.toFixed(1)}%</span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                  <div 
-                                    className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300" 
-                                    style={{ width: `${exam.averageScore}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* Created Date */}
-                            <div className="text-xs text-gray-400 text-center pt-2">
-                              Created {exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}
-                            </div>
-                            
-                            {/* Action Buttons */}
-                            <div className="space-y-2">
-                              {exam.status === 'published' ? (
-                                <div className="space-y-2">
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="w-full bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border-green-200 text-green-700 hover:text-green-800 font-semibold"
-                                    onClick={() => window.open(`/take-exam/${exam.id}`, '_blank')}
-                                  >
-                                    <BookOpen className="h-4 w-4 mr-2" />
-                                    Take Test
-                                  </Button>
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="w-full bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border-purple-200 text-purple-700 hover:text-purple-800 font-semibold"
-                                    onClick={() => {
-                                      setSelectedExamId(exam.id);
-                                      setActiveTab("results");
-                                    }}
-                                  >
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    View Results
-                                  </Button>
-                                </div>
-                              ) : (
-                                <PublishExamButton examId={exam.id} />
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No exams created yet</h3>
-                    <p className="text-gray-500 mb-4">Get started by creating your first exam</p>
-                    <Button onClick={() => setShowCreateExam(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Your First Exam
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeTab === "upcoming" && (
-              <div className="space-y-6">
-                {getUpcomingExams().length > 0 ? (
-                  <div className="space-y-4">
-                    {getUpcomingExams().map((exam) => (
-                      <Card key={exam.id} className="shadow-lg border-0">
-                        <CardContent className="pt-6">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                                <Calendar className="h-6 w-6 text-white" />
-                              </div>
-                              <div>
-                                <h3 className="font-semibold text-lg">{exam.title}</h3>
-                                <p className="text-gray-600">{exam.subject}</p>
-                                <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                                  <span>{exam.questionsCount} questions</span>
-                                  <span>•</span>
-                                  <span>Created {exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <Badge variant={exam.status === 'published' ? 'default' : 'secondary'}>
-                                {exam.status}
-                              </Badge>
-                              <div className="mt-2">
-                                <Button variant="outline" size="sm">
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Details
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Clock className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No upcoming exams</h3>
-                    <p className="text-gray-500 mb-4">Schedule exams to see them here</p>
-                    <Button onClick={() => setShowCreateExam(true)}>
+                {/* All Exams Section - Enhanced Cards */}
+                <div className="space-y-8">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-2xl font-bold text-gray-900">All Exams</h2>
+                    <Button onClick={() => setActiveTab("create")} className="bg-gradient-to-r from-purple-500 to-blue-500">
                       <Plus className="h-4 w-4 mr-2" />
                       Create New Exam
                     </Button>
                   </div>
-                )}
-              </div>
+
+                  {examsLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {[...Array(6)].map((_, i) => (
+                        <Card key={i} className="bg-white border-0 shadow-lg rounded-2xl">
+                          <CardContent className="p-6">
+                            <div className="animate-pulse space-y-4">
+                              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                              <div className="h-8 bg-gray-200 rounded w-full"></div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : exams.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {getRecentExams().map((exam) => (
+                        <Card key={exam.id} className="bg-white border-0 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105 overflow-hidden">
+                          <CardContent className="p-0">
+                            <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2"></div>
+                            <div className="p-6 space-y-4">
+                              <div className="flex items-start justify-between">
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold text-sm">
+                                  {exam.title.charAt(0)}
+                                </div>
+                                <Badge variant={exam.status === 'published' ? 'default' : 'secondary'} className="text-xs">
+                                  {exam.status}
+                                </Badge>
+                              </div>
+                              
+                              <div>
+                                <h3 className="font-bold text-lg text-gray-900 mb-2">{exam.title}</h3>
+                                <p className="text-sm text-gray-600 mb-1">{exam.subject}</p>
+                                <div className="flex items-center gap-4 text-xs text-gray-500">
+                                  <span>{exam.questionsCount} questions</span>
+                                  <span>{exam.submissionsCount} submissions</span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between text-xs text-gray-400">
+                                <span>Created {exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}</span>
+                              </div>
+                              
+                              {/* Action Buttons */}
+                              <div className="space-y-2">
+                                {exam.status === 'published' ? (
+                                  <div className="space-y-2">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="w-full bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border-green-200 text-green-700 hover:text-green-800 font-semibold"
+                                      onClick={() => window.open(`/take-exam/${exam.id}`, '_blank')}
+                                    >
+                                      <BookOpen className="h-4 w-4 mr-2" />
+                                      Take Test
+                                    </Button>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      className="w-full bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border-purple-200 text-purple-700 hover:text-purple-800 font-semibold"
+                                      onClick={() => {
+                                        setSelectedExamId(exam.id);
+                                        setActiveTab("results");
+                                      }}
+                                    >
+                                      <Eye className="h-4 w-4 mr-2" />
+                                      View Results
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <PublishExamButton examId={exam.id} />
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <Card className="bg-white border-0 shadow-lg rounded-2xl">
+                      <CardContent className="p-12 text-center">
+                        <FileText className="h-16 w-16 text-gray-300 mx-auto mb-6" />
+                        <h3 className="text-xl font-semibold text-gray-900 mb-3">No Exams Yet</h3>
+                        <p className="text-gray-600 mb-6">Start creating your first exam to see it here</p>
+                        <Button onClick={() => setActiveTab("create")}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create New Exam
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
               </TabsContent>
 
               <TabsContent value="create" className="space-y-6">
