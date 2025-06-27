@@ -717,6 +717,7 @@ export default function ProctoringManager({
         autoPlay 
         muted 
         playsInline 
+        data-proctoring="true"
       />
       
       {/* Hidden canvas for face detection processing */}
