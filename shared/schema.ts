@@ -366,5 +366,7 @@ export const insertUserInvitationSchema = createInsertSchema(userInvitations).om
   invitedAt: true,
 });
 
+// User schemas already defined above - removing duplicates
+
 export type UserInvitation = typeof userInvitations.$inferSelect;
 export type InsertUserInvitation = z.infer<typeof insertUserInvitationSchema>;

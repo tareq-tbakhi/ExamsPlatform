@@ -57,12 +57,29 @@ function updateUserSession(
 async function upsertUser(
   claims: any,
 ) {
+  const email = claims["email"] as string;
+  const SUPER_ADMIN_EMAIL = "mehdawiadham@gmail.com";
+  
+  let role = "student"; // Default role
+  
+  if (email === SUPER_ADMIN_EMAIL) {
+    role = "super_admin";
+  } else {
+    // Check invitation for role assignment
+    const invitation = await storage.getUserInvitationByEmail(email);
+    if (invitation && invitation.role) {
+      role = invitation.role;
+    }
+  }
+  
   await storage.upsertUser({
-    id: claims["sub"],
-    email: claims["email"],
-    firstName: claims["first_name"],
-    lastName: claims["last_name"],
-    profileImageUrl: claims["profile_image_url"],
+    id: claims["sub"] as string,
+    email: claims["email"] as string,
+    firstName: claims["first_name"] as string,
+    lastName: claims["last_name"] as string,
+    profileImageUrl: claims["profile_image_url"] as string,
+    role: role,
+    isActive: true,
   });
 }
 
@@ -78,9 +95,54 @@ export async function setupAuth(app: Express) {
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
     verified: passport.AuthenticateCallback
   ) => {
+    const claims = tokens.claims();
+    const email = claims?.email;
+    
+    if (!email) {
+      verified(new Error('Access denied: No email address provided'), false);
+      return;
+    }
+    
+    // Check if user is the designated super admin
+    const SUPER_ADMIN_EMAIL = "mehdawiadham@gmail.com";
+    
+    if (email === SUPER_ADMIN_EMAIL) {
+      // Super admin can always log in
+      const user = {};
+      updateUserSession(user, tokens);
+      await upsertUser(claims);
+      verified(null, user);
+      return;
+    }
+    
+    // Check if user has a valid invitation
+    const invitation = await storage.getUserInvitationByEmail(email);
+    if (!invitation) {
+      // No invitation found - deny access
+      verified(new Error('Access denied: No invitation found for this email address'), false);
+      return;
+    }
+    
+    if (invitation.inviteStatus !== 'pending') {
+      // Invitation already used or expired
+      verified(new Error('Access denied: Invitation has already been used or expired'), false);
+      return;
+    }
+    
+    // Check if invitation has expired
+    if (invitation.expiresAt && new Date() > invitation.expiresAt) {
+      verified(new Error('Access denied: Invitation has expired'), false);
+      return;
+    }
+    
+    // Valid invitation found - allow login and activate invitation
     const user = {};
     updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
+    await upsertUser(claims);
+    
+    // Mark invitation as accepted
+    await storage.updateUserInvitationStatus(invitation.id, 'accepted', new Date());
+    
     verified(null, user);
   };
 
