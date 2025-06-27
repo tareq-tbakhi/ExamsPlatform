@@ -10,6 +10,7 @@ class ArabicVideoTranscriber {
   recognition: any = null;
   transcript: string = '';
   isRecording: boolean = false;
+  continuousMode: boolean = true;
   onTranscriptUpdate: (finalText: string, interimText: string) => void = () => {};
 
   constructor() {
@@ -43,19 +44,24 @@ class ArabicVideoTranscriber {
 
     this.recognition.onresult = (event: any) => {
       let interimTranscript = '';
-      let finalTranscript = '';
+      let newFinalText = '';
 
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const transcript = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalTranscript += transcript + ' ';
+          newFinalText += transcript + ' ';
         } else {
           interimTranscript += transcript;
         }
       }
 
-      this.transcript = finalTranscript;
-      this.onTranscriptUpdate(finalTranscript, interimTranscript);
+      // Accumulate final text instead of overwriting
+      if (newFinalText) {
+        this.transcript += newFinalText;
+      }
+      
+      // Send both accumulated final text and current interim text
+      this.onTranscriptUpdate(this.transcript, interimTranscript);
     };
 
     this.recognition.onerror = (event: any) => {
@@ -65,6 +71,30 @@ class ArabicVideoTranscriber {
     this.recognition.onend = () => {
       console.log('Speech recognition ended');
       this.isRecording = false;
+      
+      // Auto-restart for continuous transcription if in continuous mode
+      if (this.continuousMode) {
+        setTimeout(() => {
+          if (this.recognition && this.continuousMode) {
+            try {
+              this.recognition.start();
+              console.log('Auto-restarted speech recognition for continuous transcription');
+            } catch (error) {
+              console.log('Auto-restart failed, will try again:', error);
+              // Try again after a longer delay if first attempt fails
+              setTimeout(() => {
+                if (this.recognition && this.continuousMode) {
+                  try {
+                    this.recognition.start();
+                  } catch (e) {
+                    console.log('Second auto-restart attempt failed:', e);
+                  }
+                }
+              }, 1000);
+            }
+          }
+        }, 100);
+      }
     };
   }
 
@@ -75,9 +105,24 @@ class ArabicVideoTranscriber {
   }
 
   stopTranscription() {
+    // Only stop if not in continuous mode or explicitly requested
+    if (this.recognition && this.isRecording && !this.continuousMode) {
+      this.recognition.stop();
+    }
+  }
+
+  // Force stop transcription (used when exam is completely finished)
+  forceStopTranscription() {
+    this.continuousMode = false;
     if (this.recognition && this.isRecording) {
       this.recognition.stop();
     }
+  }
+
+  // Enable continuous mode for the exam session
+  enableContinuousMode() {
+    this.continuousMode = true;
+    this.startTranscription();
   }
 
   getFullTranscript() {
@@ -124,16 +169,9 @@ export function VideoRecorder({
   
   const { toast } = useToast();
 
-  // Reset component state when question changes
+  // Initialize transcriber once and maintain across questions
   useEffect(() => {
-    setTranscription("");
-    setRecordedBlob(null);
-    setIsRecording(false);
-    setIsProcessing(false);
-    setRecordingTime(0);
-    setValidationStatus({});
-    
-    // Initialize Arabic transcriber
+    // Only initialize transcriber once, don't reset on question change
     if (!transcriberRef.current) {
       transcriberRef.current = new ArabicVideoTranscriber();
       transcriberRef.current.onTranscriptUpdate = (finalText: string, interimText: string) => {
@@ -144,7 +182,24 @@ export function VideoRecorder({
           setEditableTranscript(fullText);
         }
       };
+      
+      // Automatically start continuous transcription for the exam session
+      setTimeout(() => {
+        if (transcriberRef.current) {
+          transcriberRef.current.enableContinuousMode();
+          console.log('Started continuous Arabic transcription for exam session');
+        }
+      }, 1000); // Small delay to ensure component is ready
     }
+  }, []); // Remove questionId dependency to prevent resets
+
+  // Only reset video recording state when question changes, keep transcription
+  useEffect(() => {
+    setRecordedBlob(null);
+    setIsProcessing(false);
+    setRecordingTime(0);
+    setValidationStatus({});
+    // DON'T reset transcription or stop recording - keep it continuous
   }, [questionId]);
 
   // Request camera/microphone permissions or reuse existing stream
