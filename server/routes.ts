@@ -127,7 +127,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const emailSent = await EmailService.sendUserInvitation({
         recipientEmail: email,
-        recipientName: firstName ? `${firstName} ${lastName}`.trim() : undefined,
+        recipientName: firstName ? `${firstName} ${lastName || ''}`.trim() : undefined,
         inviterName,
         role,
         invitationToken: inviteToken
@@ -1389,10 +1389,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             console.log(`Successfully created ${createdInvitations.length} invitations for exam ${examId}`);
 
+            // Get exam details for email
+            const exam = await storage.getExam(examId);
+            if (!exam) {
+              return res.status(404).json({ message: "Exam not found" });
+            }
+
+            // Get teacher details
+            const teacherUser = await storage.getUser(exam.createdBy);
+            const teacherName = teacherUser ? `${teacherUser.firstName || ''} ${teacherUser.lastName || ''}`.trim() || teacherUser.email : 'ExamCraft Teacher';
+
+            // Send emails to all students
+            let emailsSent = 0;
+            const emailPromises = createdInvitations.map(async (invitation) => {
+              try {
+                const emailSent = await EmailService.sendExamInvitation({
+                  recipientEmail: invitation.studentEmail,
+                  studentName: invitation.studentName || 'Student',
+                  examTitle: exam.title,
+                  examSubject: exam.subject || 'General',
+                  teacherName,
+                  examDateTime: new Date().toISOString(), // Use current date as placeholder
+                  duration: exam.duration,
+                  invitationToken: invitation.inviteToken || '',
+                  examId: examId
+                });
+                if (emailSent) emailsSent++;
+                return emailSent;
+              } catch (error: any) {
+                console.error(`Failed to send email to ${invitation.studentEmail}:`, error);
+                return false;
+              }
+            });
+
+            await Promise.all(emailPromises);
+
             res.json({
               message: `Successfully uploaded ${createdInvitations.length} student invitations`,
               totalProcessed: students.length,
               successfulInvitations: createdInvitations.length,
+              emailsSent,
               errors,
               invitations: createdInvitations
             });
