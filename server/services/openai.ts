@@ -7,7 +7,7 @@ const openai = new OpenAI({
 
 export interface GenerateQuestionsRequest {
   topic: string;
-  questionType: "multiple_choice" | "short_answer" | "essay" | "true_false";
+  questionType: "multiple_choice" | "true_false" | "short_answer" | "essay" | "coding" | "video_response" | "audio_response";
   difficulty: "easy" | "medium" | "hard";
   count: number;
   subject?: string;
@@ -95,6 +95,24 @@ function createPrompt(request: GenerateQuestionsRequest): string {
 - Avoid overly obvious or trick questions
 - Indicate the correct answer (true or false)`;
       break;
+    case "coding":
+      prompt += `- Create programming problems that test algorithm and logic skills
+- Provide a clear problem statement with input/output examples
+- Include starter code template in JavaScript
+- Focus on data structures, algorithms, and problem-solving`;
+      break;
+    case "video_response":
+      prompt += `- Create questions that require verbal explanation or demonstration
+- Suitable for oral presentations, explanations, or visual demonstrations
+- Provide keywords that should be mentioned in the response
+- Focus on communication skills and practical application`;
+      break;
+    case "audio_response":
+      prompt += `- Create questions that require verbal answers or pronunciation
+- Suitable for language learning, oral explanations, or voice responses
+- Provide expected keywords for automatic transcription grading
+- Focus on speaking skills and verbal communication`;
+      break;
   }
   
   prompt += `\n\nDifficulty level "${difficulty}" means:`;
@@ -115,9 +133,16 @@ function createPrompt(request: GenerateQuestionsRequest): string {
   "questions": [
     {
       "question": "The question text",
+      "type": "${questionType}",
       "options": ["A", "B", "C", "D"], // only for multiple choice
-      "correctAnswer": "The correct answer", // for multiple choice: the letter (A,B,C,D), for others: the answer text
-      "explanation": "Brief explanation of the correct answer" // optional
+      "correctAnswer": "The correct answer", // for multiple choice: the letter (A,B,C,D), for others: the answer text or keywords
+      "explanation": "Brief explanation of the correct answer", // optional
+      "metadata": { // optional, for coding/video/audio questions
+        "keywords": ["keyword1", "keyword2"], // for video/audio questions
+        "template": "code template", // for coding questions
+        "maxDuration": 120, // for video/audio questions in seconds
+        "language": "javascript" // for coding questions
+      }
     }
   ]
 }`;
@@ -130,7 +155,10 @@ function calculatePoints(questionType: string, difficulty: string): number {
     multiple_choice: 5,
     true_false: 3,
     short_answer: 10,
-    essay: 20
+    essay: 20,
+    coding: 25,
+    video_response: 15,
+    audio_response: 12
   };
   
   const difficultyMultiplier = {
