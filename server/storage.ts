@@ -15,10 +15,15 @@ import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
-  // Users
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  // User operations (mandatory for Replit Auth)
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  
+  // Additional user management
+  getUserByEmail(email: string): Promise<User | undefined>;
+  updateUserRole(id: string, role: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
+  activateUser(id: string, isActive: boolean): Promise<User | undefined>;
 
   // Exams
   createExam(exam: InsertExam): Promise<Exam>;
@@ -90,22 +95,53 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-  async getUser(id: number): Promise<User | undefined> {
+  // User operations (mandatory for Replit Auth)
+  async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  // Additional user management
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
     return user || undefined;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async updateUserRole(id: string, role: string): Promise<User | undefined> {
     const [user] = await db
-      .insert(users)
-      .values(insertUser)
+      .update(users)
+      .set({ role, updatedAt: new Date() })
+      .where(eq(users.id, id))
       .returning();
-    return user;
+    return user || undefined;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users).orderBy(desc(users.createdAt));
+  }
+
+  async activateUser(id: string, isActive: boolean): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ isActive, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
   }
 
   async createExam(insertExam: InsertExam): Promise<Exam> {
