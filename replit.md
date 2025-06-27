@@ -207,6 +207,16 @@ Changelog:
   * Improved video association logic to match videos using session IDs from exam recordings
   * Updated video display to show preview thumbnails instead of just filenames
   * Cleaned up test data and verified system ready for proper video recording testing
+- June 27, 2025. Implemented complete AI report caching and database storage system:
+  * Added comprehensive aiReports table with metadata (violation count, suspicion level, generation timestamps)
+  * Built automatic report caching to avoid regenerating reports and save AI tokens
+  * Enhanced report generation endpoint to check for existing reports before creating new ones
+  * Added database storage methods for creating and retrieving AI reports
+  * Updated AI Analysis Dashboard to show cached report indicators and metadata
+  * Fixed database timestamp overflow error by upgrading integer to bigint for Unix timestamps
+  * Fixed JavaScript initialization error in AI Analysis Dashboard component
+  * Corrected suspicion percentage display formatting across all components (divided by 100)
+  * Implemented green "Stored in Database" indicators for cached reports with generation timestamps
 ```
 
 ## User Preferences
