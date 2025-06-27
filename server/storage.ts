@@ -6,7 +6,7 @@ import {
   type VideoQuestion, type InsertVideoQuestion, type VideoAnswer, type InsertVideoAnswer
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -219,7 +219,7 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getRecentSubmissions(limit: number = 10): Promise<SubmissionWithExam[]> {
+  async getRecentSubmissions(limit: number = 20): Promise<SubmissionWithExam[]> {
     const recentSubmissions = await db
       .select({
         submission: submissions,
@@ -227,7 +227,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(submissions)
       .leftJoin(exams, eq(submissions.examId, exams.id))
-      .orderBy(submissions.submittedAt)
+      .orderBy(desc(submissions.submittedAt))
       .limit(limit);
 
     return recentSubmissions.map(({ submission, examTitle }) => ({
