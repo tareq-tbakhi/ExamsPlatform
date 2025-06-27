@@ -373,6 +373,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get exams by creator
+  app.get("/api/exams/creator/:userId", async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const exams = await storage.getExamsByCreator(userId);
+      res.json(exams);
+    } catch (error) {
+      console.error("Failed to fetch exams by creator:", error);
+      res.status(500).json({ message: "Failed to fetch exams", error: (error as Error).message });
+    }
+  });
+
   // Server is started in server/index.ts
   const httpServer = new Server(app);
   return httpServer;
