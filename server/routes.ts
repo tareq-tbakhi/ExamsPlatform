@@ -768,8 +768,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const language = req.body.language || "ar";
       
       // Save uploaded file temporarily
-      const fs = await import("fs");
       const uploadDir = `uploads/temp`;
+      const fs = await import("fs");
       if (!fs.existsSync(uploadDir)) {
         fs.mkdirSync(uploadDir, { recursive: true });
       }
@@ -785,7 +785,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         apiKey: process.env.OPENAI_API_KEY 
       });
 
-      const fs = await import("fs");
       const audioReadStream = fs.createReadStream(uploadPath);
       
       const transcription = await client.audio.transcriptions.create({
