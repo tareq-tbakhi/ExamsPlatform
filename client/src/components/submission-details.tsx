@@ -238,46 +238,7 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
         </CardContent>
       </Card>
 
-      {/* Proctoring Videos Section */}
-      {proctoringVideos && proctoringVideos.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Proctoring Videos ({proctoringVideos.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {proctoringVideos.map((video, index) => (
-                <div key={index} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Badge variant={video.type === 'camera' ? 'default' : 'secondary'}>
-                      {video.type === 'camera' ? 'Camera Recording' : 'Screen Recording'}
-                    </Badge>
-                    <span className="text-xs text-gray-500">
-                      {new Date(video.uploadedAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="border rounded-lg overflow-hidden">
-                    <video 
-                      controls 
-                      className="w-full max-h-60"
-                      preload="metadata"
-                    >
-                      <source src={video.url} type="video/webm" />
-                      Your browser does not support the video tag.
-                    </video>
-                  </div>
-                  <p className="text-xs text-gray-600 truncate" title={video.filename}>
-                    {video.filename}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
 
       {/* Video Question Answers */}
       {videoAnswers && videoAnswers.length > 0 && (

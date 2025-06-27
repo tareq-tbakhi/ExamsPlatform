@@ -183,13 +183,20 @@ export default function ProctoringManager({
       // Phase 1: Core Recording Features (adapted for mobile)
       await startVideoRecording();
       
+      // Start screen recording for all devices (mobile and desktop)
+      try {
+        await startScreenRecording();
+        console.log("Screen recording started successfully");
+      } catch (error) {
+        console.warn("Screen recording failed, continuing with camera only:", error);
+      }
+
       if (isMobile) {
-        // Mobile: Skip screen recording, focus on front camera and orientation monitoring
+        // Mobile: Focus on front camera and orientation monitoring
         console.log("Mobile device detected - using mobile-optimized proctoring");
         await startMobileMonitoring();
       } else {
-        // Desktop: Full screen recording
-        await startScreenRecording();
+        // Desktop: Full advanced monitoring
         // Phase 2: Advanced Monitoring
         await initializeMultiMonitorDetection();
         startApplicationMonitoring();
