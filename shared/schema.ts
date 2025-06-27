@@ -24,12 +24,19 @@ export const exams = pgTable("exams", {
 export const questions = pgTable("questions", {
   id: serial("id").primaryKey(),
   examId: integer("exam_id").notNull(),
-  type: text("type").notNull(), // multiple_choice, short_answer, essay
+  type: text("type").notNull(), // multiple_choice, short_answer, essay, true_false, coding, video_response, audio_response
   question: text("question").notNull(),
   options: jsonb("options").default([]), // for multiple choice
-  correctAnswer: text("correct_answer"), // for multiple choice and short answer
+  correctAnswer: text("correct_answer"), // for multiple choice, short answer, true_false
   points: integer("points").notNull(),
   order: integer("order").notNull(),
+  // Enhanced grading settings
+  weight: real("weight").default(1.0), // Question importance weight (1.0 = normal, 2.0 = double weight)
+  autoGraded: boolean("auto_graded").default(true), // Whether question is auto-graded
+  passingScore: integer("passing_score"), // Minimum score to pass this question (percentage)
+  // Question-specific settings
+  timeLimit: integer("time_limit"), // Time limit in seconds for this question
+  metadata: jsonb("metadata").default({}), // Additional settings (test cases for coding, rubric for essays, etc)
 });
 
 export const submissions = pgTable("submissions", {
@@ -44,6 +51,13 @@ export const submissions = pgTable("submissions", {
   timeSpent: integer("time_spent"), // minutes
   proctoringData: jsonb("proctoring_data").default({}), // stores video urls, violations, etc
   sessionId: text("session_id"), // proctoring session identifier
+  // Enhanced grading data
+  weightedScore: real("weighted_score"), // Score considering question weights
+  passingStatus: text("passing_status"), // "passed", "failed", "pending"
+  gradingStatus: text("grading_status").default("pending"), // "completed", "pending", "partial"
+  autoGradedScore: integer("auto_graded_score"), // Score from auto-graded questions only
+  manualGradedScore: integer("manual_graded_score"), // Score from manually graded questions
+  scoreBreakdown: jsonb("score_breakdown").default({}), // Detailed score by question type
 });
 
 export const proctoringViolations = pgTable("proctoring_violations", {
@@ -191,6 +205,44 @@ export const aiReports = pgTable("ai_reports", {
   generatedAt: timestamp("generated_at").defaultNow().notNull(),
 });
 
+// Question-level grading results
+export const questionGrades = pgTable("question_grades", {
+  id: serial("id").primaryKey(),
+  submissionId: integer("submission_id").notNull().references(() => submissions.id, { onDelete: "cascade" }),
+  questionId: integer("question_id").notNull().references(() => questions.id, { onDelete: "cascade" }),
+  answer: jsonb("answer").notNull(), // Student's actual answer
+  score: integer("score").notNull(), // Points earned for this question
+  maxScore: integer("max_score").notNull(), // Maximum possible points
+  isCorrect: boolean("is_correct"), // For auto-graded questions
+  gradingType: text("grading_type").notNull(), // "auto", "manual", "ai"
+  feedback: text("feedback"), // Grader feedback or AI explanation
+  gradedAt: timestamp("graded_at").defaultNow(),
+  gradedBy: text("graded_by"), // "system", "ai", or grader identifier
+});
+
+// Coding challenge test cases and results
+export const codingTestCases = pgTable("coding_test_cases", {
+  id: serial("id").primaryKey(),
+  questionId: integer("question_id").notNull().references(() => questions.id, { onDelete: "cascade" }),
+  input: text("input").notNull(),
+  expectedOutput: text("expected_output").notNull(),
+  isHidden: boolean("is_hidden").default(false), // Hidden test cases for security
+  weight: real("weight").default(1.0), // Weight of this test case
+  timeLimit: integer("time_limit").default(5000), // Time limit in milliseconds
+});
+
+export const codingSubmissions = pgTable("coding_submissions", {
+  id: serial("id").primaryKey(),
+  submissionId: integer("submission_id").notNull().references(() => submissions.id, { onDelete: "cascade" }),
+  questionId: integer("question_id").notNull().references(() => questions.id, { onDelete: "cascade" }),
+  code: text("code").notNull(),
+  language: text("language").notNull(), // "javascript", "python", "java", etc.
+  testResults: jsonb("test_results").notNull(), // Results of running test cases
+  executionTime: integer("execution_time"), // Total execution time in ms
+  score: integer("score").notNull(),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+});
+
 // AI Analysis types
 export const insertAiAnalysisResultSchema = createInsertSchema(aiAnalysisResults).omit({
   id: true,
@@ -221,3 +273,27 @@ export type InsertAnalysisTimeline = z.infer<typeof insertAnalysisTimelineSchema
 
 export type AiReport = typeof aiReports.$inferSelect;
 export type InsertAiReport = z.infer<typeof insertAiReportSchema>;
+
+// Grading system schemas
+export const insertQuestionGradeSchema = createInsertSchema(questionGrades).omit({
+  id: true,
+  gradedAt: true,
+});
+
+export const insertCodingTestCaseSchema = createInsertSchema(codingTestCases).omit({
+  id: true,
+});
+
+export const insertCodingSubmissionSchema = createInsertSchema(codingSubmissions).omit({
+  id: true,
+  submittedAt: true,
+});
+
+export type QuestionGrade = typeof questionGrades.$inferSelect;
+export type InsertQuestionGrade = z.infer<typeof insertQuestionGradeSchema>;
+
+export type CodingTestCase = typeof codingTestCases.$inferSelect;
+export type InsertCodingTestCase = z.infer<typeof insertCodingTestCaseSchema>;
+
+export type CodingSubmission = typeof codingSubmissions.$inferSelect;
+export type InsertCodingSubmission = z.infer<typeof insertCodingSubmissionSchema>;
