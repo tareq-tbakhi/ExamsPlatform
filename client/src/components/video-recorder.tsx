@@ -160,6 +160,7 @@ export function VideoRecorder({
     score?: number;
     completed?: boolean;
   }>({});
+  const [continuousTranscriptionActive, setContinuousTranscriptionActive] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -187,6 +188,7 @@ export function VideoRecorder({
       setTimeout(() => {
         if (transcriberRef.current) {
           transcriberRef.current.enableContinuousMode();
+          setContinuousTranscriptionActive(true);
           console.log('Started continuous Arabic transcription for exam session');
         }
       }, 1000); // Small delay to ensure component is ready
@@ -339,14 +341,12 @@ export function VideoRecorder({
       mediaRecorderRef.current.stop();
       setIsRecording(false);
 
-      // Stop JavaScript-based transcription
-      if (transcriberRef.current) {
-        transcriberRef.current.stopTranscription();
-      }
+      // DON'T stop transcription - keep it running continuously
+      // Only the video recording stops, transcription continues
 
       toast({
         title: "Recording Stopped",
-        description: "Processing your recording..."
+        description: "Processing your recording... (Transcription continues running)"
       });
     }
   };
@@ -471,6 +471,12 @@ export function VideoRecorder({
           {isRecording && (
             <span className="text-red-500 animate-pulse">
               Recording {formatTime(recordingTime)}
+            </span>
+          )}
+          {/* Continuous transcription indicator */}
+          {continuousTranscriptionActive && (
+            <span className="text-green-600 text-sm bg-green-50 px-2 py-1 rounded-full animate-pulse">
+              🎤 Live Arabic Transcription
             </span>
           )}
         </CardTitle>
