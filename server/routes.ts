@@ -967,6 +967,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get submission details with videos and analysis
+  app.get("/api/submissions/:id/details", async (req, res) => {
+    try {
+      const submissionId = parseInt(req.params.id);
+      
+      // Get submission data
+      const submission = await storage.getSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ error: "Submission not found" });
+      }
+      
+      // Get exam details
+      const exam = await storage.getExamWithQuestions(submission.examId);
+      if (!exam) {
+        return res.status(404).json({ error: "Exam not found" });
+      }
+      
+      // Get video answers for video questions
+      const videoAnswers = await storage.getVideoAnswersBySubmission(submissionId);
+      
+      // Get proctoring videos
+      let proctoringVideos: any[] = [];
+      const proctoringDir = path.join(process.cwd(), 'uploads', 'proctoring');
+      
+      if (fs.existsSync(proctoringDir)) {
+        const files = fs.readdirSync(proctoringDir);
+        
+        // Try session ID match first
+        let filteredFiles = files.filter(file => 
+          submission.sessionId && file.includes(submission.sessionId) && file.endsWith('.webm')
+        );
+        
+        // Fallback to exam ID match if no session match
+        if (filteredFiles.length === 0) {
+          filteredFiles = files.filter(file => 
+            file.includes(`_${submission.examId}_`) && file.endsWith('.webm')
+          );
+        }
+        
+        proctoringVideos = filteredFiles.map(filename => ({
+          filename,
+          url: `/api/videos/proctoring/${filename}`,
+          type: filename.includes('camera') ? 'camera' : filename.includes('screen') ? 'screen' : 'unknown',
+          uploadedAt: fs.statSync(path.join(proctoringDir, filename)).mtime
+        }));
+      }
+      
+      // Parse answers from JSON
+      let answers = {};
+      try {
+        answers = typeof submission.answers === 'string' 
+          ? JSON.parse(submission.answers) 
+          : submission.answers || {};
+      } catch (error) {
+        console.error("Error parsing answers:", error);
+      }
+      
+      res.json({
+        submission,
+        exam,
+        answers,
+        videoAnswers,
+        proctoringVideos
+      });
+    } catch (error) {
+      console.error("Error getting submission details:", error);
+      res.status(500).json({ error: "Failed to get submission details" });
+    }
+  });
+
   // Get recent submissions
   app.get("/api/submissions/recent", async (req, res) => {
     try {

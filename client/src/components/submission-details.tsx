@@ -13,6 +13,13 @@ interface SubmissionDetailsResponse {
   submission: Submission;
   exam: ExamWithQuestions;
   answers: Record<string, any>;
+  videoAnswers: any[];
+  proctoringVideos: {
+    filename: string;
+    url: string;
+    type: string;
+    uploadedAt: string;
+  }[];
 }
 
 export default function SubmissionDetails({ submissionId }: SubmissionDetailsProps) {
@@ -37,7 +44,7 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
     );
   }
 
-  const { submission, exam, answers } = data;
+  const { submission, exam, answers, proctoringVideos, videoAnswers } = data;
   const scorePercentage = submission.score ? Math.round((submission.score / submission.totalPoints) * 100) : 0;
 
   const getAnswerStatus = (questionId: number, correctAnswer?: string | null) => {
