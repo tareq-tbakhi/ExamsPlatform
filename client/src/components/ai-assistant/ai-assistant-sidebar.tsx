@@ -43,11 +43,11 @@ export function AIAssistantSidebar({ isOpen, onClose }: AIAssistantSidebarProps)
     mutationFn: async (data: { message: string; context: string }) => {
       return await apiRequest("/api/ai-assistant/chat", "POST", data);
     },
-    onSuccess: (response) => {
+    onSuccess: (data: any) => {
       const assistantMessage: AIMessage = {
         id: Date.now().toString() + "_assistant",
         type: "assistant",
-        content: response.response,
+        content: data.response || "I couldn't generate a response at the moment.",
         timestamp: new Date(),
         context: location
       };
@@ -60,8 +60,8 @@ export function AIAssistantSidebar({ isOpen, onClose }: AIAssistantSidebarProps)
     mutationFn: async (context: string) => {
       return await apiRequest("/api/ai-assistant/suggestions", "POST", { context });
     },
-    onSuccess: (response) => {
-      setContextualSuggestions(response.suggestions || []);
+    onSuccess: (data: any) => {
+      setContextualSuggestions(data.suggestions || []);
     },
   });
 
