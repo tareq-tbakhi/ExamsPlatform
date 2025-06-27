@@ -149,6 +149,41 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
     }
   });
 
+  // Enhanced analysis mutation
+  const enhancedAnalysisMutation = useMutation({
+    mutationFn: async (): Promise<VideoAnalysis> => {
+      if (!videos?.proctoringVideos?.length) {
+        throw new Error("No video files available for analysis");
+      }
+      
+      const videoPath = videos.proctoringVideos[0].url; // Use first available video
+      const response = await fetch('/api/analyze/enhanced-analysis', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          videoPath, 
+          examContext: `Exam: ${examTitle} - Submission: ${submissionId}`,
+          submissionId 
+        }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return response.json();
+    },
+    onSuccess: (data: VideoAnalysis) => {
+      setActiveAnalysis(data);
+      toast({
+        title: "Enhanced Analysis Complete",
+        description: `Advanced Gemini AI analysis completed. Found ${data.violations.length} violations.`
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Enhanced Analysis Failed",
+        description: "Failed to perform enhanced AI analysis.",
+        variant: "destructive"
+      });
+    }
+  });
+
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical': return 'bg-red-500';
@@ -187,25 +222,36 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
             Generate Report
           </Button>
           <Button
-            onClick={() => {
-              // Generate enhanced analysis with all facial recognition, behavioral, and audio features
-              const enhancedAnalysis = {
-                overallSuspicion: Math.floor(Math.random() * 30) + 65, // 65-95%
-                violations: [
-                  {
-                    severity: 'critical' as const,
-                    confidence: 0.95,
-                    description: 'Advanced screen monitoring detected unauthorized application usage and suspicious keyboard activity patterns during critical exam moments.',
-                    recommendations: [
-                      'Review screen recording for unauthorized applications',
-                      'Investigate keyboard activity for copy-paste violations',
-                      'Analyze application switching patterns'
-                    ],
-                    suspiciousActivities: [
-                      'Unauthorized application access detected',
-                      'Suspicious keyboard shortcuts usage',
-                      'Browser tab switching during exam'
-                    ],
+            onClick={() => enhancedAnalysisMutation.mutate()}
+            disabled={enhancedAnalysisMutation.isPending || !videos?.proctoringVideos?.length}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          >
+            {enhancedAnalysisMutation.isPending ? (
+              <>
+                <div className="animate-spin h-4 w-4 border-b-2 border-white mr-2"></div>
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Brain className="h-4 w-4 mr-2" />
+                Enhanced AI Analysis
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      <Tabs defaultValue="violations" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="violations">Violations</TabsTrigger>
+          <TabsTrigger value="videos">Recordings</TabsTrigger>
+          <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
+          <TabsTrigger value="timeline">Timeline</TabsTrigger>
+          <TabsTrigger value="report">AI Report</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="violations" className="space-y-4">
+          <Card>
                     screenActivity: {
                       applicationSwitching: {
                         unauthorizedApps: ['web browser', 'messaging app', 'note-taking software'],
