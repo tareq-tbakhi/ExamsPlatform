@@ -181,6 +181,16 @@ export const analysisTimeline = pgTable("analysis_timeline", {
   severity: text("severity").notNull(),
 });
 
+export const aiReports = pgTable("ai_reports", {
+  id: serial("id").primaryKey(),
+  submissionId: integer("submission_id").notNull().references(() => submissions.id, { onDelete: "cascade" }),
+  reportType: text("report_type").notNull(), // 'violation_report', 'comprehensive_analysis', etc.
+  content: text("content").notNull(), // The generated report content
+  violationCount: integer("violation_count").notNull(),
+  suspicionLevel: integer("suspicion_level").notNull(), // Overall suspicion 0-100
+  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+});
+
 // AI Analysis types
 export const insertAiAnalysisResultSchema = createInsertSchema(aiAnalysisResults).omit({
   id: true,
@@ -195,6 +205,11 @@ export const insertAnalysisTimelineSchema = createInsertSchema(analysisTimeline)
   id: true,
 });
 
+export const insertAiReportSchema = createInsertSchema(aiReports).omit({
+  id: true,
+  generatedAt: true,
+});
+
 export type AiAnalysisResult = typeof aiAnalysisResults.$inferSelect;
 export type InsertAiAnalysisResult = z.infer<typeof insertAiAnalysisResultSchema>;
 
@@ -203,3 +218,6 @@ export type InsertAnalysisViolation = z.infer<typeof insertAnalysisViolationSche
 
 export type AnalysisTimeline = typeof analysisTimeline.$inferSelect;
 export type InsertAnalysisTimeline = z.infer<typeof insertAnalysisTimelineSchema>;
+
+export type AiReport = typeof aiReports.$inferSelect;
+export type InsertAiReport = z.infer<typeof insertAiReportSchema>;

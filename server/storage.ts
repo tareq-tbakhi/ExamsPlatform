@@ -1,12 +1,13 @@
 import { 
   users, exams, questions, submissions, proctoringViolations, videoQuestions, videoAnswers,
-  aiAnalysisResults, analysisViolations, analysisTimeline,
+  aiAnalysisResults, analysisViolations, analysisTimeline, aiReports,
   type User, type InsertUser, type Exam, type InsertExam, type Question, type InsertQuestion, 
   type Submission, type InsertSubmission, type ExamWithQuestions, type ExamWithStats, 
   type SubmissionWithExam, type ProctoringViolation, type InsertProctoringViolation,
   type VideoQuestion, type InsertVideoQuestion, type VideoAnswer, type InsertVideoAnswer,
   type AiAnalysisResult, type InsertAiAnalysisResult, type AnalysisViolation, 
-  type InsertAnalysisViolation, type AnalysisTimeline, type InsertAnalysisTimeline
+  type InsertAnalysisViolation, type AnalysisTimeline, type InsertAnalysisTimeline,
+  type AiReport, type InsertAiReport
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -59,6 +60,10 @@ export interface IStorage {
   createAnalysisViolations(violations: InsertAnalysisViolation[]): Promise<AnalysisViolation[]>;
   createAnalysisTimeline(timeline: InsertAnalysisTimeline[]): Promise<AnalysisTimeline[]>;
   getAnalysisResultsBySubmission(submissionId: number): Promise<AiAnalysisResult[]>;
+
+  // AI Reports
+  createAiReport(report: InsertAiReport): Promise<AiReport>;
+  getAiReportsBySubmission(submissionId: number): Promise<AiReport[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -361,6 +366,22 @@ export class DatabaseStorage implements IStorage {
       .from(aiAnalysisResults)
       .where(eq(aiAnalysisResults.submissionId, submissionId))
       .orderBy(desc(aiAnalysisResults.analyzedAt));
+  }
+
+  async createAiReport(insertReport: InsertAiReport): Promise<AiReport> {
+    const [report] = await db
+      .insert(aiReports)
+      .values(insertReport)
+      .returning();
+    return report;
+  }
+
+  async getAiReportsBySubmission(submissionId: number): Promise<AiReport[]> {
+    return await db
+      .select()
+      .from(aiReports)
+      .where(eq(aiReports.submissionId, submissionId))
+      .orderBy(desc(aiReports.generatedAt));
   }
 }
 
