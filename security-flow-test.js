@@ -5,7 +5,7 @@
  * Comprehensive testing of invitation-only authentication system
  */
 
-const http = require('http');
+import http from 'http';
 
 const BASE_URL = 'http://localhost:5000';
 
@@ -110,7 +110,7 @@ async function runSecurityTests() {
   testsTotal++;
   console.log('\nTest 4: Testing protected admin endpoints...');
   try {
-    const result = await makeRequest('/api/users');
+    const result = await makeRequest('/api/admin/users');
     if (result.status === 401) {
       console.log('✅ PASS: Admin endpoints properly protected');
       testsPassed++;

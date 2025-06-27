@@ -216,7 +216,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Enhanced analysis endpoint
-  app.post("/api/analyze/enhanced-analysis", async (req, res) => {
+  app.post("/api/analyze/enhanced-analysis", isAuthenticated, async (req, res) => {
     try {
       const { submissionId, examContext } = req.body;
       console.log('Enhanced analysis request:', { submissionId, examContext });
