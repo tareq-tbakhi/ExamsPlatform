@@ -372,3 +372,22 @@ export const insertUserInvitationSchema = createInsertSchema(userInvitations).om
 
 export type UserInvitation = typeof userInvitations.$inferSelect;
 export type InsertUserInvitation = z.infer<typeof insertUserInvitationSchema>;
+
+// Exam assignments - supervisor teachers can assign their exams to team members
+export const examAssignments = pgTable("exam_assignments", {
+  id: serial("id").primaryKey(),
+  examId: integer("exam_id").notNull(), // Reference to exams table
+  assignedTo: varchar("assigned_to").notNull(), // User ID who gets access to the exam
+  assignedBy: varchar("assigned_by").notNull(), // User ID who assigned the exam (supervisor)
+  canEdit: boolean("can_edit").default(false), // Whether assigned user can edit the exam
+  canViewResults: boolean("can_view_results").default(true), // Whether assigned user can view results
+  assignedAt: timestamp("assigned_at").defaultNow(),
+});
+
+export const insertExamAssignmentSchema = createInsertSchema(examAssignments).omit({
+  id: true,
+  assignedAt: true,
+});
+
+export type ExamAssignment = typeof examAssignments.$inferSelect;
+export type InsertExamAssignment = z.infer<typeof insertExamAssignmentSchema>;
