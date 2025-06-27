@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Edit, Share, Trash2, Search } from "lucide-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Eye, Edit, Share, Trash2, Search, Grid3X3, List, BookOpen, Send, Users, Clock, FileText } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { ExamWithStats } from "@shared/schema";
@@ -14,6 +15,7 @@ import type { ExamWithStats } from "@shared/schema";
 export default function ExamList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("all");
+  const [viewMode, setViewMode] = useState<"table" | "cards">("cards");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -86,7 +88,7 @@ export default function ExamList() {
   };
 
   const handleShare = (examId: number) => {
-    const shareUrl = `${window.location.origin}/exam/${examId}`;
+    const shareUrl = `${window.location.origin}/take-exam/${examId}`;
     navigator.clipboard.writeText(shareUrl).then(() => {
       toast({
         title: "Link Copied!",
@@ -96,7 +98,15 @@ export default function ExamList() {
   };
 
   const handleView = (examId: number) => {
-    window.open(`/exam/${examId}`, '_blank');
+    window.open(`/take-exam/${examId}`, '_blank');
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
   };
 
   if (isLoading) {
@@ -118,7 +128,7 @@ export default function ExamList() {
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle>My Exams</CardTitle>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
@@ -139,6 +149,14 @@ export default function ExamList() {
                 ))}
               </SelectContent>
             </Select>
+            <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as "table" | "cards")}>
+              <ToggleGroupItem value="cards" aria-label="Card view" className="h-10 w-10">
+                <Grid3X3 className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="table" aria-label="Table view" className="h-10 w-10">
+                <List className="h-4 w-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
         </div>
       </CardHeader>
@@ -154,7 +172,7 @@ export default function ExamList() {
               </p>
             )}
           </div>
-        ) : (
+        ) : viewMode === "table" ? (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -194,7 +212,7 @@ export default function ExamList() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleView(exam.id)}
-                          title="View Exam"
+                          title="Take Exam"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -250,6 +268,114 @@ export default function ExamList() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredExams.map((exam) => (
+              <Card key={exam.id} className="bg-white border-0 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105 overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2"></div>
+                  <div className="p-6 space-y-4">
+                    <div className="flex items-start justify-between">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold text-sm">
+                        {exam.title.charAt(0)}
+                      </div>
+                      {getStatusBadge(exam.status)}
+                    </div>
+                    
+                    <div>
+                      <h3 className="font-bold text-lg text-gray-900 mb-2">{exam.title}</h3>
+                      <p className="text-sm text-gray-600 mb-3">{exam.subject}</p>
+                      
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-600">{exam.questionsCount} questions</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-600">{exam.submissionsCount} submissions</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-600">Created {formatDate(exam.createdAt!)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="h-4 w-4 text-gray-400" />
+                          <span className="text-gray-600">
+                            {exam.averageScore ? `${exam.averageScore.toFixed(1)}% avg` : "No data"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {exam.status === "published" ? (
+                        <div className="space-y-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border-green-200 text-green-700 hover:text-green-800 font-semibold"
+                            onClick={() => handleView(exam.id)}
+                          >
+                            <BookOpen className="h-4 w-4 mr-2" />
+                            Take Test
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="w-full bg-gradient-to-r from-blue-50 to-cyan-50 hover:from-blue-100 hover:to-cyan-100 border-blue-200 text-blue-700 hover:text-blue-800 font-semibold"
+                            onClick={() => handleShare(exam.id)}
+                          >
+                            <Share className="h-4 w-4 mr-2" />
+                            Copy Link
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full bg-gradient-to-r from-orange-50 to-red-50 hover:from-orange-100 hover:to-red-100 border-orange-200 text-orange-700 hover:text-orange-800 font-semibold"
+                          onClick={() => publishExamMutation.mutate(exam.id)}
+                          disabled={publishExamMutation.isPending}
+                        >
+                          <Send className="h-4 w-4 mr-2" />
+                          {publishExamMutation.isPending ? "Publishing..." : "Publish Exam"}
+                        </Button>
+                      )}
+                      
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          disabled
+                          title="Edit Exam (Coming Soon)"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
+                          onClick={() => {
+                            if (window.confirm("Are you sure you want to delete this exam?")) {
+                              deleteExamMutation.mutate(exam.id);
+                            }
+                          }}
+                          disabled={deleteExamMutation.isPending}
+                          title="Delete Exam"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
       </CardContent>
