@@ -120,7 +120,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (fs.existsSync(proctoringDir)) {
         const files = fs.readdirSync(proctoringDir);
         console.log(`Found files in proctoring dir:`, files);
-        const filteredFiles = files.filter(file => file.includes(`_${submissionId}_`) && file.endsWith('.webm'));
+        
+        // Try multiple patterns to match videos to submissions
+        // Pattern 1: Direct submission ID match (_submissionId_)
+        // Pattern 2: Exam ID match for submissions from same exam
+        // Pattern 3: Recent videos from same exam (fallback for testing)
+        let filteredFiles = files.filter(file => file.includes(`_${submissionId}_`) && file.endsWith('.webm'));
+        
+        if (filteredFiles.length === 0) {
+          // Try exam ID match - get videos from same exam
+          filteredFiles = files.filter(file => 
+            file.includes(`_${submission.examId}_`) && file.endsWith('.webm')
+          );
+          console.log(`Using exam ID ${submission.examId} match for submission ${submissionId}: ${filteredFiles.length} files`);
+        }
+        
         console.log(`Filtered files for submission ${submissionId}:`, filteredFiles);
         
         proctoringVideos = filteredFiles.map(filename => {
