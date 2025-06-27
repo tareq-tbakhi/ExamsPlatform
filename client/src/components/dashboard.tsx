@@ -373,7 +373,7 @@ export default function Dashboard() {
                           <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                             <span>{exam.questionsCount} questions</span>
                             <span>•</span>
-                            <span>Created {formatDate(exam.createdAt)}</span>
+                            <span>Created {exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}</span>
                           </div>
                         </div>
                       </div>

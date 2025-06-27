@@ -432,6 +432,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dashboard stats endpoint
+  app.get("/api/stats", async (req, res) => {
+    try {
+      // Get all exams
+      const allExams = await storage.getExamsByCreator(1); // Mock user ID
+      
+      // Get all submissions across all exams
+      const allSubmissions = await storage.getRecentSubmissions(1000);
+      
+      // Calculate statistics
+      const totalExams = allExams.length;
+      const totalSubmissions = allSubmissions.length;
+      
+      // Calculate average score
+      const scoresWithValues = allSubmissions.filter(sub => sub.score !== null);
+      const averageScore = scoresWithValues.length > 0 
+        ? scoresWithValues.reduce((sum, sub) => sum + (sub.score || 0), 0) / scoresWithValues.length
+        : 0;
+      
+      // Calculate pass rate (assuming passing is 60% or higher)
+      const passingGrade = 60;
+      const passingCount = scoresWithValues.filter(sub => (sub.score || 0) >= passingGrade).length;
+      const passRate = scoresWithValues.length > 0 ? (passingCount / scoresWithValues.length) * 100 : 0;
+      
+      res.json({
+        totalExams,
+        totalSubmissions,
+        averageScore,
+        passRate
+      });
+    } catch (error) {
+      console.error("Failed to fetch stats:", error);
+      res.status(500).json({ message: "Failed to fetch stats", error: (error as Error).message });
+    }
+  });
+
   // Server is started in server/index.ts
   const httpServer = new Server(app);
   return httpServer;
