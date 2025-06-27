@@ -128,13 +128,11 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
         throw new Error("No video files available for analysis");
       }
       
-      const videoPath = videos.proctoringVideos[0].url; // Use first available video
       const response = await fetch('/api/analyze/enhanced-analysis', {
         method: 'POST',
         body: JSON.stringify({ 
-          videoPath, 
-          examContext: `Exam: ${examTitle} - Submission: ${submissionId}`,
-          submissionId 
+          submissionId,
+          examContext: `Exam: ${examTitle} - Submission: ${submissionId}`
         }),
         headers: { 'Content-Type': 'application/json' }
       });
