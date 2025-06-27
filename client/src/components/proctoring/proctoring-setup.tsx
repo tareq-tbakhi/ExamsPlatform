@@ -46,11 +46,17 @@ export default function ProctoringSetup({ onSetupComplete, examTitle }: Proctori
   }, []);
 
   const checkSystemCompatibility = () => {
+    // Detect mobile device
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                     (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+    
     const checks = {
       browserSupported: !!navigator.mediaDevices,
       mediaDevicesSupported: !!navigator.mediaDevices?.getUserMedia,
       speechRecognitionSupported: !!(window as any).SpeechRecognition || !!(window as any).webkitSpeechRecognition,
-      screenShareSupported: !!navigator.mediaDevices?.getDisplayMedia
+      // Screen sharing is limited on mobile, so we adapt
+      screenShareSupported: isMobile ? true : !!navigator.mediaDevices?.getDisplayMedia,
+      isMobile
     };
     
     setSystemCheck(checks);
