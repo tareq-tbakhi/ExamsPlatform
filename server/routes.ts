@@ -159,6 +159,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Found ${violations.length} violations and ${analysisResults.length} analysis results for submission ${submissionId}`);
 
+      // Check if a report already exists for this submission
+      const existingReports = await storage.getAiReportsBySubmission(submissionId);
+      if (existingReports.length > 0) {
+        console.log(`Returning existing AI report for submission ${submissionId}`);
+        return res.json({
+          success: true,
+          report: existingReports[0].content,
+          submissionId,
+          violationCount: existingReports[0].violationCount,
+          cached: true,
+          generatedAt: existingReports[0].generatedAt
+        });
+      }
+
       // Prepare exam info for report generation
       const examInfo = {
         title: exam.title,
@@ -179,17 +193,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }))
       ];
 
+      // Calculate overall suspicion level
+      const overallSuspicion = analysisResults.length > 0 
+        ? Math.round(analysisResults.reduce((sum, result) => sum + result.overallSuspicion, 0) / analysisResults.length)
+        : (violations.length > 0 ? Math.min(violations.length * 20, 100) : 0);
+
       // Generate the report using Gemini AI
       const { generateViolationReport } = await import("./services/gemini");
       const report = await generateViolationReport(allViolationData, examInfo);
       
       console.log(`Generated AI report for submission ${submissionId} (length: ${report.length} characters)`);
 
+      // Store the generated report in the database
+      try {
+        const storedReport = await storage.createAiReport({
+          submissionId: submissionId,
+          reportType: 'violation_report',
+          content: report,
+          violationCount: allViolationData.length,
+          suspicionLevel: overallSuspicion
+        });
+        
+        console.log(`Stored AI report in database with ID: ${storedReport.id}`);
+      } catch (dbError) {
+        console.error('Failed to store AI report in database:', dbError);
+        // Continue with response even if storage fails
+      }
+
       res.json({ 
         success: true, 
         report,
         submissionId,
-        violationCount: allViolationData.length
+        violationCount: allViolationData.length,
+        suspicionLevel: overallSuspicion,
+        cached: false
       });
     } catch (error) {
       console.error('Failed to generate AI report:', error);
@@ -197,6 +234,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Failed to generate AI report", 
         error: (error as Error).message 
       });
+    }
+  });
+
+  // Get stored AI reports for a submission
+  app.get("/api/reports/:submissionId", async (req, res) => {
+    try {
+      const submissionId = parseInt(req.params.submissionId);
+      const reports = await storage.getAiReportsBySubmission(submissionId);
+      
+      console.log(`Retrieved ${reports.length} stored AI reports for submission ${submissionId}`);
+      res.json(reports);
+    } catch (error) {
+      console.error('Failed to fetch AI reports:', error);
+      res.status(500).json({ message: "Failed to fetch AI reports", error: (error as Error).message });
     }
   });
 

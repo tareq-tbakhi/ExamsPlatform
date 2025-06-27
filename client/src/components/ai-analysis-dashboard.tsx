@@ -95,6 +95,13 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
     enabled: true
   });
 
+  // Fetch stored AI reports
+  const { data: storedReports, refetch: refetchReports } = useQuery({
+    queryKey: ['/api/reports', submissionId],
+    queryFn: () => fetch(`/api/reports/${submissionId}`).then(res => res.json()),
+    enabled: true
+  });
+
   // Generate violation report mutation
   const generateReportMutation = useMutation({
     mutationFn: async () => {
@@ -105,11 +112,14 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
       });
       return response.json();
     },
-    onSuccess: (data: { report: string }) => {
+    onSuccess: (data: { report: string; cached: boolean; generatedAt?: string }) => {
       setGeneratedReport(data.report);
+      refetchReports(); // Refresh stored reports
       toast({
-        title: "Report Generated",
-        description: "AI analysis report has been generated successfully."
+        title: data.cached ? "Report Retrieved" : "Report Generated",
+        description: data.cached 
+          ? "Existing AI analysis report retrieved from database."
+          : "AI analysis report has been generated and stored successfully."
       });
     },
     onError: () => {
