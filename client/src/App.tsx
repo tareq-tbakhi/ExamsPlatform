@@ -47,6 +47,11 @@ function Router() {
           <Route path="/" component={Dashboard} />
         </>
       )}
+      
+      {/* Student Portal Routes - Separate authentication system */}
+      <Route path="/student/login" component={StudentLogin} />
+      <Route path="/student/dashboard" component={StudentDashboard} />
+      
       <Route component={NotFound} />
     </Switch>
   );
