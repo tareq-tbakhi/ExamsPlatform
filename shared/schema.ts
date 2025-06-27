@@ -176,7 +176,7 @@ export const analysisViolations = pgTable("analysis_violations", {
 export const analysisTimeline = pgTable("analysis_timeline", {
   id: serial("id").primaryKey(),
   analysisId: integer("analysis_id").notNull().references(() => aiAnalysisResults.id, { onDelete: "cascade" }),
-  timestamp: integer("timestamp").notNull(), // Store as seconds or minutes
+  timestamp: bigint("timestamp", { mode: "number" }).notNull(), // Store as Unix timestamp or seconds
   activity: text("activity").notNull(),
   severity: text("severity").notNull(),
 });
