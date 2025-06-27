@@ -224,6 +224,18 @@ Changelog:
   * Added visual indicators showing "Stored in Database" status with event count metadata
   * Enhanced timeline display with fallback to current analysis when no stored data exists
   * Improved user experience with loading states and clear data source indicators
+- June 27, 2025. Implemented comprehensive automated grading system with core evaluation features:
+  * Extended question types: multiple_choice, true_false, short_answer, essay, coding, video_response, audio_response
+  * Added weighted scoring system with question importance weights and passing thresholds
+  * Implemented automated grading service with AI-powered essay and short answer evaluation
+  * Built question-level grading with detailed feedback and confidence scoring
+  * Added coding challenge support with test case execution and auto-grading
+  * Created comprehensive score breakdown by question type with visual analytics
+  * Implemented pass/fail determination with custom thresholds and grade distribution
+  * Added exam analytics with performance insights and score distribution charts
+  * Built grading dashboard with overview, question details, breakdown, and analytics tabs
+  * Integrated auto-grading API endpoints with complete database persistence
+  * Enhanced results view with dedicated grading interface alongside AI proctoring analysis
 ```
 
 ## User Preferences

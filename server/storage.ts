@@ -1,13 +1,15 @@
 import { 
   users, exams, questions, submissions, proctoringViolations, videoQuestions, videoAnswers,
   aiAnalysisResults, analysisViolations, analysisTimeline, aiReports,
+  questionGrades, codingTestCases, codingSubmissions,
   type User, type InsertUser, type Exam, type InsertExam, type Question, type InsertQuestion, 
   type Submission, type InsertSubmission, type ExamWithQuestions, type ExamWithStats, 
   type SubmissionWithExam, type ProctoringViolation, type InsertProctoringViolation,
   type VideoQuestion, type InsertVideoQuestion, type VideoAnswer, type InsertVideoAnswer,
   type AiAnalysisResult, type InsertAiAnalysisResult, type AnalysisViolation, 
   type InsertAnalysisViolation, type AnalysisTimeline, type InsertAnalysisTimeline,
-  type AiReport, type InsertAiReport
+  type AiReport, type InsertAiReport, type QuestionGrade, type InsertQuestionGrade,
+  type CodingTestCase, type InsertCodingTestCase, type CodingSubmission, type InsertCodingSubmission
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";

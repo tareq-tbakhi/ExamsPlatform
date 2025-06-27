@@ -277,6 +277,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Auto-grade a submission
+  app.post("/api/submissions/:submissionId/grade", async (req, res) => {
+    try {
+      const submissionId = parseInt(req.params.submissionId);
+      const { gradingService } = await import("./services/grading");
+      
+      // Get submission and related data
+      const submission = await storage.getSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      const questions = await storage.getQuestionsByExam(submission.examId);
+      const testCases = await Promise.all(
+        questions.map(q => storage.getCodingTestCasesByQuestion(q.id))
+      ).then(results => results.flat());
+
+      // Grade the submission
+      const gradingResult = await gradingService.gradeSubmission(questions, submission.answers, testCases);
+
+      // Store individual question grades
+      for (const questionGrade of gradingResult.questionGrades) {
+        await storage.createQuestionGrade({
+          submissionId,
+          questionId: questionGrade.questionId,
+          answer: submission.answers[questionGrade.questionId.toString()],
+          score: questionGrade.score,
+          maxScore: questionGrade.maxScore,
+          isCorrect: questionGrade.isCorrect,
+          gradingType: questionGrade.gradingType,
+          feedback: questionGrade.feedback,
+          gradedBy: "system"
+        });
+      }
+
+      // Update submission with grading results
+      const autoGradedScore = gradingResult.questionGrades
+        .filter(g => g.gradingType === "auto" || g.gradingType === "ai")
+        .reduce((sum, g) => sum + g.score, 0);
+
+      const manualGradingRequired = gradingResult.questionGrades.some(g => g.gradingType === "manual");
+
+      await storage.updateSubmissionGrading(submissionId, {
+        score: gradingResult.totalScore,
+        weightedScore: gradingResult.weightedScore,
+        passingStatus: gradingResult.passingStatus,
+        gradingStatus: gradingResult.gradingStatus,
+        autoGradedScore,
+        manualGradedScore: manualGradingRequired ? 0 : undefined,
+        scoreBreakdown: gradingResult.scoreBreakdown
+      });
+
+      console.log(`Graded submission ${submissionId}: ${gradingResult.totalScore}/${gradingResult.totalPossible} points`);
+      res.json(gradingResult);
+    } catch (error) {
+      console.error('Failed to grade submission:', error);
+      res.status(500).json({ message: "Failed to grade submission", error: (error as Error).message });
+    }
+  });
+
+  // Get detailed grading results for a submission
+  app.get("/api/submissions/:submissionId/grades", async (req, res) => {
+    try {
+      const submissionId = parseInt(req.params.submissionId);
+      const grades = await storage.getQuestionGradesBySubmission(submissionId);
+      res.json(grades);
+    } catch (error) {
+      console.error('Failed to fetch grades:', error);
+      res.status(500).json({ message: "Failed to fetch grades", error: (error as Error).message });
+    }
+  });
+
+  // Get score analytics for an exam
+  app.get("/api/exams/:examId/analytics", async (req, res) => {
+    try {
+      const examId = parseInt(req.params.examId);
+      const submissions = await storage.getSubmissionsByExam(examId);
+      
+      const analytics = {
+        totalSubmissions: submissions.length,
+        gradedSubmissions: submissions.filter(s => s.gradingStatus === "completed").length,
+        averageScore: submissions.length > 0 
+          ? submissions.reduce((sum, s) => sum + (s.score || 0), 0) / submissions.length
+          : 0,
+        passRate: submissions.length > 0
+          ? (submissions.filter(s => s.passingStatus === "passed").length / submissions.length) * 100
+          : 0,
+        scoreDistribution: {
+          "90-100": 0,
+          "80-89": 0,
+          "70-79": 0,
+          "60-69": 0,
+          "50-59": 0,
+          "0-49": 0
+        },
+        questionTypeBreakdown: {} as Record<string, { averageScore: number; totalQuestions: number }>
+      };
+
+      // Calculate score distribution
+      submissions.forEach(submission => {
+        if (submission.score !== null && submission.totalPoints > 0) {
+          const percentage = (submission.score / submission.totalPoints) * 100;
+          if (percentage >= 90) analytics.scoreDistribution["90-100"]++;
+          else if (percentage >= 80) analytics.scoreDistribution["80-89"]++;
+          else if (percentage >= 70) analytics.scoreDistribution["70-79"]++;
+          else if (percentage >= 60) analytics.scoreDistribution["60-69"]++;
+          else if (percentage >= 50) analytics.scoreDistribution["50-59"]++;
+          else analytics.scoreDistribution["0-49"]++;
+        }
+      });
+
+      res.json(analytics);
+    } catch (error) {
+      console.error('Failed to fetch analytics:', error);
+      res.status(500).json({ message: "Failed to fetch analytics", error: (error as Error).message });
+    }
+  });
+
   // Stats endpoint
   app.get("/api/stats", async (req, res) => {
     try {
