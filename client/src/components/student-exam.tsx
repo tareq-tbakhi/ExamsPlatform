@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { uploadQueue } from "@/lib/upload-queue";
 import ProctoringManager from "@/components/proctoring/proctoring-manager";
 import ProctoringSetup from "@/components/proctoring/proctoring-setup";
 import type { ExamWithQuestions, Question } from "@shared/schema";
@@ -80,6 +81,12 @@ export default function StudentExam({ examId }: StudentExamProps) {
       setSubmissionResult(result);
       setSubmissionId(result.id);
       setExamSubmitted(true);
+      
+      // Update upload queue with submission ID for proper video association
+      if (proctoringSessionId && result.id) {
+        uploadQueue.updateSubmissionId(proctoringSessionId, result.id);
+        console.log(`Updated video uploads for session ${proctoringSessionId} with submission ID ${result.id}`);
+      }
       
       toast({
         title: "Exam Submitted!",

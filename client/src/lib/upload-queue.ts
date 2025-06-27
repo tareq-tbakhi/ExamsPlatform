@@ -232,6 +232,25 @@ class UploadQueue {
     this.notifyStatusChange();
   }
 
+  // Update submission ID for uploads with matching session ID
+  updateSubmissionId(sessionId: string, submissionId: number): void {
+    let updated = false;
+    this.queue.forEach(upload => {
+      if (upload.sessionId === sessionId && !upload.submissionId) {
+        upload.submissionId = submissionId;
+        updated = true;
+        console.log(`Updated upload ${upload.filename} with submission ID: ${submissionId}`);
+      }
+    });
+    
+    if (updated) {
+      this.saveQueueToStorage();
+      this.notifyStatusChange();
+      // Re-process queue to upload with updated submission ID
+      this.processQueue();
+    }
+  }
+
   private clearRetryTimeout(uploadId: string): void {
     const timeoutId = this.retryTimeouts.get(uploadId);
     if (timeoutId) {
