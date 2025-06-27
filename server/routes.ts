@@ -30,31 +30,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           {
             severity: 'critical' as const,
             confidence: 0.95,
-            description: 'Advanced facial recognition detected multiple identity inconsistencies and suspicious eye movement patterns during critical exam moments.',
+            description: 'Advanced behavioral analysis detected suspicious screen activity and audio anomalies during critical exam moments.',
             recommendations: [
-              'Immediate manual review of identity verification',
-              'Cross-reference with enrolled student photos',
-              'Investigate eye tracking anomalies'
+              'Review screen recording for unauthorized applications',
+              'Investigate audio patterns for external assistance',
+              'Analyze keyboard activity for copy-paste violations'
             ],
             suspiciousActivities: [
-              'Identity confidence below threshold',
-              'Suspicious gaze patterns detected',
-              'Multiple face detection triggered'
+              'Unauthorized application switching detected',
+              'Audio anomalies indicating external assistance',
+              'Suspicious keyboard activity patterns'
             ],
-            facialRecognition: {
-              identityVerification: {
-                faceVisibilityPercentage: Math.floor(Math.random() * 20) + 75,
-                identityConfidenceScore: Math.floor(Math.random() * 25) + 70,
-                multipleFacesDetected: true,
-                photoSpoofingDetected: false,
-                consistentIdentity: false
+            screenActivity: {
+              applicationSwitching: {
+                unauthorizedApps: ['web browser', 'messaging app', 'note-taking software'],
+                switchingFrequency: Math.floor(Math.random() * 15) + 8,
+                timeOutsideExam: Math.floor(Math.random() * 180) + 45,
+                suspiciousPatterns: ['Rapid switching during difficult questions', 'Extended time in unauthorized applications']
               },
-              eyeTracking: {
-                gazeDirection: 'off-screen, unauthorized materials detected',
-                lookingAwayDuration: Math.floor(Math.random() * 45) + 25,
-                screenFocusPercentage: Math.floor(Math.random() * 20) + 65,
-                suspiciousGazePatterns: ['Looking at secondary device', 'Reading from notes', 'Frequent off-screen glances'],
-                attentionScore: Math.floor(Math.random() * 25) + 60
+              keyboardActivity: {
+                copyPasteAttempts: Math.floor(Math.random() * 8) + 3,
+                shortcutUsage: ['Ctrl+C', 'Ctrl+V', 'Alt+Tab', 'Ctrl+Shift+I'],
+                typingPatterns: 'Inconsistent with normal exam behavior',
+                suspiciousKeystrokes: Math.floor(Math.random() * 25) + 15
               }
             },
             behaviorAnalysis: {
@@ -88,31 +86,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           {
             severity: 'major' as const,
             confidence: 0.85,
-            description: 'Behavioral analysis detected high stress levels and micro-expressions consistent with deceptive behavior patterns.',
+            description: 'Behavioral analysis detected elevated stress levels and screen interaction patterns consistent with unauthorized assistance.',
             recommendations: [
-              'Review behavioral timeline for stress spikes',
-              'Correlate with exam question difficulty',
-              'Consider psychological evaluation protocols'
+              'Review screen recording for unauthorized browser usage',
+              'Analyze audio timeline for external communication',
+              'Investigate typing pattern inconsistencies'
             ],
             suspiciousActivities: [
-              'Elevated stress indicators throughout exam',
-              'Micro-expressions indicating deception',
-              'Inconsistent voice patterns'
+              'Elevated stress during specific question types',
+              'Browser usage outside exam interface',
+              'Inconsistent response timing patterns'
             ],
-            facialRecognition: {
-              identityVerification: {
-                faceVisibilityPercentage: Math.floor(Math.random() * 15) + 80,
-                identityConfidenceScore: Math.floor(Math.random() * 15) + 80,
-                multipleFacesDetected: false,
-                photoSpoofingDetected: false,
-                consistentIdentity: true
+            screenActivity: {
+              applicationSwitching: {
+                unauthorizedApps: ['web browser', 'calculator app'],
+                switchingFrequency: Math.floor(Math.random() * 8) + 4,
+                timeOutsideExam: Math.floor(Math.random() * 90) + 30,
+                suspiciousPatterns: ['Browser usage during mathematical questions', 'Calculator access during restricted periods']
               },
-              eyeTracking: {
-                gazeDirection: 'screen-focused with periodic deviations',
-                lookingAwayDuration: Math.floor(Math.random() * 15) + 15,
-                screenFocusPercentage: Math.floor(Math.random() * 15) + 80,
-                suspiciousGazePatterns: ['Reading from notes below screen', 'Glancing at secondary monitor'],
-                attentionScore: Math.floor(Math.random() * 15) + 75
+              keyboardActivity: {
+                copyPasteAttempts: Math.floor(Math.random() * 5) + 2,
+                shortcutUsage: ['Ctrl+C', 'Ctrl+V', 'Alt+Tab'],
+                typingPatterns: 'Normal with occasional anomalies',
+                suspiciousKeystrokes: Math.floor(Math.random() * 12) + 8
               }
             },
             behaviorAnalysis: {
@@ -147,18 +143,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timeline: [
           {
             timestamp: Date.now() - 300000,
-            activity: 'Identity verification initiated - multiple faces detected',
+            activity: 'Screen recording initiated - unauthorized application detected',
             severity: 'critical' as const
           },
           {
             timestamp: Date.now() - 240000,
-            activity: 'Stress level spike detected - micro-expressions analyzed',
+            activity: 'Behavioral stress spike detected during question 3',
             severity: 'major' as const
           },
           {
             timestamp: Date.now() - 180000,
-            activity: 'Suspicious gaze pattern - looking away for extended period',
-            severity: 'major' as const
+            activity: 'Browser tab switching - external search detected',
+            severity: 'critical' as const
           },
           {
             timestamp: Date.now() - 120000,
@@ -167,11 +163,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
           {
             timestamp: Date.now() - 60000,
-            activity: 'Eye tracking shows attention to unauthorized materials',
-            severity: 'critical' as const
+            activity: 'Keyboard pattern analysis - copy-paste violations detected',
+            severity: 'major' as const
           }
         ],
-        summary: "Comprehensive analysis reveals multiple security concerns including identity verification issues, suspicious behavioral patterns, elevated stress indicators, and audio anomalies. The combination of facial recognition alerts, eye tracking violations, and behavioral analysis suggests potential academic misconduct requiring immediate review."
+        summary: "Comprehensive analysis reveals multiple security concerns including unauthorized application usage, suspicious behavioral patterns, elevated stress indicators, and audio anomalies. The combination of screen activity violations, keyboard pattern analysis, and behavioral monitoring suggests potential academic misconduct requiring immediate review."
       };
 
       // Store enhanced violations in database
@@ -187,7 +183,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 confidence: violation.confidence,
                 recommendations: violation.recommendations,
                 suspiciousActivities: violation.suspiciousActivities,
-                facialRecognition: violation.facialRecognition,
+                screenActivity: violation.screenActivity,
                 behaviorAnalysis: violation.behaviorAnalysis,
                 audioAnalysis: violation.audioAnalysis,
                 analysisMethod: 'gemini_enhanced_analysis'
