@@ -27,7 +27,11 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import StudentInviteManager from "@/components/StudentInviteManager";
 
-export default function ExamList() {
+interface ExamListProps {
+  onSelectExam?: (examId: number, tab: string) => void;
+}
+
+export default function ExamList({ onSelectExam }: ExamListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [selectedExam, setSelectedExam] = useState<ExamWithStats | null>(null);
@@ -112,7 +116,13 @@ export default function ExamList() {
   };
 
   const handleResults = (examId: number) => {
-    window.open(`/results/${examId}`, '_blank');
+    // Navigate to dashboard results tab for this exam
+    if (onSelectExam) {
+      onSelectExam(examId, 'results');
+    } else {
+      // Fallback: navigate to dashboard with exam selected
+      window.location.href = `/?exam=${examId}&tab=results`;
+    }
   };
 
   const handleView = (examId: number) => {
