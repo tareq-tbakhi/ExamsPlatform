@@ -42,7 +42,7 @@ export default function ResultsView({ selectedExamId }: ResultsViewProps) {
   });
 
   const { data: exams = [], isLoading: examsLoading } = useQuery<ExamWithStats[]>({
-    queryKey: [`/api/exams/creator/${userId}`],
+    queryKey: ["/api/exams"],
     enabled: !!userId,
   });
 

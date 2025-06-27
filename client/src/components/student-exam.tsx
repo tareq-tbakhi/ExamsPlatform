@@ -352,7 +352,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
   // Show student info form before starting exam
   if (!examStarted) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen bg-gray-50 pt-2 pb-8">
         <div className="max-w-2xl mx-auto px-4">
           <Card>
             <CardHeader>
@@ -428,7 +428,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
 
   // Main exam interface
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 pt-2 pb-8">
       {/* Proctoring Manager - AI Monitoring System */}
       {proctoringEnabled && examStarted && (
         <ProctoringManager
