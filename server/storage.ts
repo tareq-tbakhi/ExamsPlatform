@@ -1,7 +1,7 @@
 import { 
   users, exams, questions, submissions, proctoringViolations, videoQuestions, videoAnswers,
   aiAnalysisResults, analysisViolations, analysisTimeline, aiReports,
-  questionGrades, codingTestCases, codingSubmissions, examInvitations,
+  questionGrades, codingTestCases, codingSubmissions, examInvitations, userInvitations,
   type User, type InsertUser, type UpsertUser, type Exam, type InsertExam, type Question, type InsertQuestion, 
   type Submission, type InsertSubmission, type ExamWithQuestions, type ExamWithStats, 
   type SubmissionWithExam, type ProctoringViolation, type InsertProctoringViolation,
@@ -10,7 +10,7 @@ import {
   type InsertAnalysisViolation, type AnalysisTimeline, type InsertAnalysisTimeline,
   type AiReport, type InsertAiReport, type QuestionGrade, type InsertQuestionGrade,
   type CodingTestCase, type InsertCodingTestCase, type CodingSubmission, type InsertCodingSubmission,
-  type ExamInvitation, type InsertExamInvitation
+  type ExamInvitation, type InsertExamInvitation, type UserInvitation, type InsertUserInvitation
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -102,6 +102,14 @@ export interface IStorage {
   getInvitationByToken(token: string): Promise<ExamInvitation | undefined>;
   getInvitationByStudentDetails(name: string, email: string, registrationNumber: string): Promise<ExamInvitation | undefined>;
   getInvitationsByEmail(email: string): Promise<ExamInvitation[]>;
+
+  // User Invitations (Platform Access)
+  createUserInvitation(invitation: InsertUserInvitation): Promise<UserInvitation>;
+  getUserInvitations(): Promise<UserInvitation[]>;
+  getUserInvitationByToken(token: string): Promise<UserInvitation | undefined>;
+  getUserInvitationByEmail(email: string): Promise<UserInvitation | undefined>;
+  updateUserInvitationStatus(id: number, status: string, acceptedAt?: Date): Promise<UserInvitation | undefined>;
+  deleteUserInvitation(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -598,8 +606,48 @@ export class DatabaseStorage implements IStorage {
       .from(examInvitations)
       .where(eq(examInvitations.studentEmail, email));
   }
+
+  // User Invitations (Platform Access)
+  async createUserInvitation(insertInvitation: InsertUserInvitation): Promise<UserInvitation> {
+    const [invitation] = await db
+      .insert(userInvitations)
+      .values(insertInvitation)
+      .returning();
+    return invitation;
+  }
+
+  async getUserInvitations(): Promise<UserInvitation[]> {
+    return await db.select().from(userInvitations).orderBy(desc(userInvitations.invitedAt));
+  }
+
+  async getUserInvitationByToken(token: string): Promise<UserInvitation | undefined> {
+    const [invitation] = await db.select().from(userInvitations).where(eq(userInvitations.inviteToken, token));
+    return invitation;
+  }
+
+  async getUserInvitationByEmail(email: string): Promise<UserInvitation | undefined> {
+    const [invitation] = await db.select().from(userInvitations).where(eq(userInvitations.email, email));
+    return invitation;
+  }
+
+  async updateUserInvitationStatus(id: number, status: string, acceptedAt?: Date): Promise<UserInvitation | undefined> {
+    const updateData: any = { inviteStatus: status };
+    if (acceptedAt) {
+      updateData.acceptedAt = acceptedAt;
+    }
+
+    const [updated] = await db
+      .update(userInvitations)
+      .set(updateData)
+      .where(eq(userInvitations.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteUserInvitation(id: number): Promise<boolean> {
+    const result = await db.delete(userInvitations).where(eq(userInvitations.id, id));
+    return result.rowCount > 0;
+  }
 }
-
-
 
 export const storage = new DatabaseStorage();
