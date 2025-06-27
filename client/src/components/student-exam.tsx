@@ -428,7 +428,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
 
   // Main exam interface
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 relative">
       {/* Proctoring Manager - AI Monitoring System */}
       {proctoringEnabled && examStarted && (
         <ProctoringManager
@@ -440,7 +440,8 @@ export default function StudentExam({ examId }: StudentExamProps) {
         />
       )}
       
-      <div className="max-w-4xl mx-auto px-4 py-6 relative z-10">
+      {/* Main content with proper spacing to avoid proctoring button overlap */}
+      <div className="max-w-4xl mx-auto px-4 py-6 pt-20 relative z-10">
         {/* Proctoring Status Indicator */}
         {proctoringEnabled && examStarted && (
           <div className="mb-4">
