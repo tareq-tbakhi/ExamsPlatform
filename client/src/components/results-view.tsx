@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@radix-ui/react-collapsible";
 import { ClipboardList, Users, TrendingUp, Medal, Eye, Brain, ChevronDown, ChevronRight, AlertTriangle, CheckCircle } from "lucide-react";
 import AIAnalysisDashboard from "@/components/ai-analysis-dashboard";
 import SubmissionDetails from "@/components/submission-details";
@@ -180,7 +180,7 @@ export default function ResultsView() {
               </div>
               <div className="ml-4">
                 <div className="text-2xl font-bold text-gray-900">
-                  {stats?.totalExams || 0}
+                  {exams.length}
                 </div>
                 <div className="text-sm text-gray-600">Total Exams</div>
               </div>
@@ -196,7 +196,7 @@ export default function ResultsView() {
               </div>
               <div className="ml-4">
                 <div className="text-2xl font-bold text-gray-900">
-                  {stats?.totalSubmissions || 0}
+                  {recentSubmissions.length}
                 </div>
                 <div className="text-sm text-gray-600">Total Submissions</div>
               </div>
@@ -212,7 +212,10 @@ export default function ResultsView() {
               </div>
               <div className="ml-4">
                 <div className="text-2xl font-bold text-gray-900">
-                  {stats?.averageScore ? `${stats.averageScore}%` : "0%"}
+                  {recentSubmissions.length > 0 
+                    ? `${Math.round(recentSubmissions.reduce((sum, sub) => sum + ((sub.score || 0) / sub.totalPoints * 100), 0) / recentSubmissions.length)}%`
+                    : "0%"
+                  }
                 </div>
                 <div className="text-sm text-gray-600">Average Score</div>
               </div>
@@ -228,7 +231,10 @@ export default function ResultsView() {
               </div>
               <div className="ml-4">
                 <div className="text-2xl font-bold text-gray-900">
-                  {stats?.passRate || 0}%
+                  {recentSubmissions.length > 0 
+                    ? `${Math.round(recentSubmissions.filter(sub => (sub.score || 0) / sub.totalPoints >= 0.6).length / recentSubmissions.length * 100)}%`
+                    : "0%"
+                  }
                 </div>
                 <div className="text-sm text-gray-600">Pass Rate</div>
               </div>
@@ -237,123 +243,204 @@ export default function ResultsView() {
         </Card>
       </div>
 
-      {/* Recent Submissions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Submissions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {recentSubmissions.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">No submissions yet.</p>
-              <p className="text-sm text-gray-400 mt-2">
-                Submissions will appear here once students start taking your exams.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Exam</TableHead>
-                    <TableHead>Score</TableHead>
-                    <TableHead>Grade</TableHead>
-                    <TableHead>Time Spent</TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentSubmissions.map((submission) => (
-                    <TableRow key={submission.id}>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 text-sm font-medium mr-3">
-                            {submission.studentName.split(' ').map(n => n[0]).join('').toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-medium text-gray-900">{submission.studentName}</div>
-                            {submission.studentEmail && (
-                              <div className="text-sm text-gray-500">{submission.studentEmail}</div>
-                            )}
+      {/* Exams with Student Results and AI Analysis */}
+      <div className="space-y-4">
+        {examSubmissions.length === 0 ? (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-8">
+                <p className="text-gray-500">No exams found.</p>
+                <p className="text-sm text-gray-400 mt-2">
+                  Create your first exam to see results here.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          examSubmissions.map((exam) => (
+            <Card key={exam.id}>
+              <Collapsible 
+                open={expandedExams.has(exam.id)} 
+                onOpenChange={() => toggleExamExpansion(exam.id)}
+              >
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer hover:bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        {expandedExams.has(exam.id) ? (
+                          <ChevronDown className="h-5 w-5 text-gray-500" />
+                        ) : (
+                          <ChevronRight className="h-5 w-5 text-gray-500" />
+                        )}
+                        <div>
+                          <CardTitle className="text-lg">{exam.title}</CardTitle>
+                          <div className="text-sm text-gray-500 mt-1">
+                            {exam.subject} • {exam.submissions.length} student{exam.submissions.length !== 1 ? 's' : ''}
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell className="text-gray-600">{submission.examTitle}</TableCell>
-                      <TableCell className="font-medium">
-                        {submission.score || 0}/{submission.totalPoints}
-                      </TableCell>
-                      <TableCell>
-                        {getGradeBadge(submission.score || 0, submission.totalPoints)}
-                      </TableCell>
-                      <TableCell className="text-gray-600">
-                        {submission.timeSpent ? `${submission.timeSpent} min` : "-"}
-                      </TableCell>
-                      <TableCell className="text-gray-600">
-                        {formatTimeAgo(submission.submittedAt!)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                title="View Details"
-                                onClick={() => setSelectedSubmission(submission)}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                              <DialogHeader>
-                                <DialogTitle>Submission Details</DialogTitle>
-                                <DialogDescription>
-                                  Detailed answers for {submission.studentName}'s submission
-                                </DialogDescription>
-                              </DialogHeader>
-                              {selectedSubmission && (
-                                <SubmissionDetails submissionId={selectedSubmission.id} />
-                              )}
-                            </DialogContent>
-                          </Dialog>
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                title="AI Proctoring Analysis"
-                                onClick={() => setSelectedSubmission(submission)}
-                              >
-                                <Brain className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-                              <DialogHeader>
-                                <DialogTitle>AI Proctoring Analysis</DialogTitle>
-                                <DialogDescription>
-                                  Gemini AI analysis for {submission.studentName}'s submission
-                                </DialogDescription>
-                              </DialogHeader>
-                              {selectedSubmission && (
-                                <AIAnalysisDashboard 
-                                  submissionId={selectedSubmission.id}
-                                  examTitle={selectedSubmission.examTitle}
-                                />
-                              )}
-                            </DialogContent>
-                          </Dialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <Badge variant={exam.status === 'published' ? 'default' : 'secondary'}>
+                          {exam.status}
+                        </Badge>
+                        {exam.submissions.length > 0 && (
+                          <div className="text-right">
+                            <div className="text-sm font-medium">
+                              Avg: {Math.round(exam.submissions.reduce((sum, sub) => sum + ((sub.score || 0) / sub.totalPoints * 100), 0) / exam.submissions.length)}%
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {exam.submissions.filter(sub => sub.aiAnalysis && sub.aiAnalysis.overallSuspicion > 60).length} high-risk
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                
+                <CollapsibleContent>
+                  <CardContent>
+                    {exam.submissions.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500">No submissions yet for this exam.</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Student</TableHead>
+                              <TableHead>Score</TableHead>
+                              <TableHead>Grade</TableHead>
+                              <TableHead>AI Risk Level</TableHead>
+                              <TableHead>Gemini Analysis Summary</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {exam.submissions.map((submission) => (
+                              <TableRow key={submission.id}>
+                                <TableCell>
+                                  <div className="flex items-center">
+                                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-gray-600 text-sm font-medium mr-3">
+                                      {submission.studentName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <div className="font-medium text-gray-900">{submission.studentName}</div>
+                                      <div className="text-sm text-gray-500">
+                                        {formatTimeAgo(submission.submittedAt!)}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                  {submission.score || 0}/{submission.totalPoints}
+                                  <div className="text-xs text-gray-500">
+                                    {Math.round((submission.score || 0) / submission.totalPoints * 100)}%
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  {getGradeBadge(submission.score || 0, submission.totalPoints)}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    {getSuspicionBadge(submission.aiAnalysis?.overallSuspicion || 0)}
+                                    <div className="text-xs text-gray-500">
+                                      {submission.aiAnalysis?.overallSuspicion || 0}% suspicion
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="max-w-md">
+                                  <div className="space-y-2">
+                                    <p className="text-sm text-gray-700">
+                                      {submission.aiAnalysis?.summary}
+                                    </p>
+                                    <div className="flex flex-wrap gap-2 text-xs">
+                                      {submission.aiAnalysis?.criticalViolations ? (
+                                        <Badge variant="destructive" className="text-xs">
+                                          {submission.aiAnalysis.criticalViolations} Critical
+                                        </Badge>
+                                      ) : null}
+                                      {submission.aiAnalysis?.majorViolations ? (
+                                        <Badge variant="secondary" className="text-xs">
+                                          {submission.aiAnalysis.majorViolations} Major
+                                        </Badge>
+                                      ) : null}
+                                      <span className="text-gray-500">
+                                        Face: {submission.aiAnalysis?.facialRecognitionScore}%
+                                      </span>
+                                      <span className="text-gray-500">
+                                        Behavior: {submission.aiAnalysis?.behavioralScore}%
+                                      </span>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex gap-2">
+                                    <Dialog>
+                                      <DialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          title="View Details"
+                                          onClick={() => setSelectedSubmission(submission)}
+                                        >
+                                          <Eye className="h-4 w-4" />
+                                        </Button>
+                                      </DialogTrigger>
+                                      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                                        <DialogHeader>
+                                          <DialogTitle>Submission Details</DialogTitle>
+                                          <DialogDescription>
+                                            Detailed answers for {submission.studentName}'s submission
+                                          </DialogDescription>
+                                        </DialogHeader>
+                                        {selectedSubmission && (
+                                          <SubmissionDetails submissionId={selectedSubmission.id} />
+                                        )}
+                                      </DialogContent>
+                                    </Dialog>
+                                    <Dialog>
+                                      <DialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          title="Full AI Analysis"
+                                          onClick={() => setSelectedSubmission(submission)}
+                                        >
+                                          <Brain className="h-4 w-4" />
+                                        </Button>
+                                      </DialogTrigger>
+                                      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                                        <DialogHeader>
+                                          <DialogTitle>Complete AI Proctoring Analysis</DialogTitle>
+                                          <DialogDescription>
+                                            Full Gemini AI analysis for {submission.studentName}'s submission
+                                          </DialogDescription>
+                                        </DialogHeader>
+                                        {selectedSubmission && (
+                                          <AIAnalysisDashboard 
+                                            submissionId={selectedSubmission.id}
+                                            examTitle={selectedSubmission.examTitle}
+                                          />
+                                        )}
+                                      </DialogContent>
+                                    </Dialog>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </CardContent>
+                </CollapsibleContent>
+              </Collapsible>
+            </Card>
+          ))
+        )}
+      </div>
     </div>
   );
 }
