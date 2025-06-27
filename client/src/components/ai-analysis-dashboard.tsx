@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, CheckCircle, XCircle, FileText, Video, Mic, Brain, Eye, User } from "lucide-react";
+import { AlertTriangle, CheckCircle, XCircle, FileText, Video, Mic, Brain, Eye, User, Monitor, Keyboard } from "lucide-react";
 
 interface ViolationAnalysis {
   severity: 'critical' | 'major' | 'minor';
@@ -582,60 +582,53 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                           </div>
                           <p className="text-sm mb-2">{violation.description}</p>
                           
-                          {/* Facial Recognition & Eye Tracking Section */}
-                          {violation.facialRecognition && (
-                            <div className="mb-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                          {/* Screen Activity & Keyboard Monitoring Section */}
+                          {violation.screenActivity && (
+                            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                               <div className="flex items-center gap-2 mb-2">
-                                <User className="w-4 h-4 text-green-600" />
-                                <span className="font-medium text-green-700 dark:text-green-300">Facial Recognition & Eye Tracking</span>
+                                <Monitor className="w-4 h-4 text-blue-600" />
+                                <span className="font-medium text-blue-700 dark:text-blue-300">Screen Activity & Keyboard Monitoring</span>
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                                 <div>
-                                  <p className="font-medium text-gray-600 dark:text-gray-300">Identity Verification:</p>
+                                  <p className="font-medium text-gray-600 dark:text-gray-300">Application Switching:</p>
                                   <div className="space-y-1">
                                     <div className="flex justify-between">
-                                      <span>Face Visibility:</span>
-                                      <span className="text-green-600">{violation.facialRecognition.identityVerification.faceVisibilityPercentage}%</span>
+                                      <span>Switch Frequency:</span>
+                                      <span className="text-red-600">{violation.screenActivity.applicationSwitching.switchingFrequency}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                      <span>Identity Score:</span>
-                                      <span className="text-blue-600">{violation.facialRecognition.identityVerification.identityConfidenceScore}%</span>
+                                      <span>Time Outside Exam:</span>
+                                      <span className="text-red-600">{violation.screenActivity.applicationSwitching.timeOutsideExam}s</span>
                                     </div>
                                     <div className="flex justify-between">
-                                      <span>Multiple Faces:</span>
-                                      <span className={violation.facialRecognition.identityVerification.multipleFacesDetected ? "text-red-600" : "text-green-600"}>
-                                        {violation.facialRecognition.identityVerification.multipleFacesDetected ? "Yes" : "No"}
-                                      </span>
+                                      <span>Unauthorized Apps:</span>
+                                      <span className="text-red-600">{violation.screenActivity.applicationSwitching.unauthorizedApps.length}</span>
                                     </div>
-                                    <div className="flex justify-between">
-                                      <span>Photo Spoofing:</span>
-                                      <span className={violation.facialRecognition.identityVerification.photoSpoofingDetected ? "text-red-600" : "text-green-600"}>
-                                        {violation.facialRecognition.identityVerification.photoSpoofingDetected ? "Detected" : "None"}
-                                      </span>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      Apps: {violation.screenActivity.applicationSwitching.unauthorizedApps.join(', ')}
                                     </div>
                                   </div>
                                 </div>
                                 <div>
                                   <p className="font-medium text-gray-600 dark:text-gray-300 mb-1">
-                                    <Eye className="w-3 h-3 inline mr-1" />
-                                    Eye Tracking:
+                                    <Keyboard className="w-3 h-3 inline mr-1" />
+                                    Keyboard Activity:
                                   </p>
                                   <div className="space-y-1">
                                     <div className="flex justify-between">
-                                      <span>Screen Focus:</span>
-                                      <span className="text-blue-600">{violation.facialRecognition.eyeTracking.screenFocusPercentage}%</span>
+                                      <span>Copy/Paste Attempts:</span>
+                                      <span className="text-red-600">{violation.screenActivity.keyboardActivity.copyPasteAttempts}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                      <span>Attention Score:</span>
-                                      <span className="text-purple-600">{violation.facialRecognition.eyeTracking.attentionScore}%</span>
+                                      <span>Suspicious Keystrokes:</span>
+                                      <span className="text-red-600">{violation.screenActivity.keyboardActivity.suspiciousKeystrokes}</span>
                                     </div>
-                                    <div className="flex justify-between">
-                                      <span>Looking Away:</span>
-                                      <span className="text-orange-600">{violation.facialRecognition.eyeTracking.lookingAwayDuration}s</span>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      Shortcuts: {violation.screenActivity.keyboardActivity.shortcutUsage.join(', ')}
                                     </div>
-                                    <div className="flex justify-between">
-                                      <span>Gaze Direction:</span>
-                                      <span className="capitalize">{violation.facialRecognition.eyeTracking.gazeDirection}</span>
+                                    <div className="text-xs text-gray-500">
+                                      Pattern: {violation.screenActivity.keyboardActivity.typingPatterns}
                                     </div>
                                   </div>
                                 </div>
