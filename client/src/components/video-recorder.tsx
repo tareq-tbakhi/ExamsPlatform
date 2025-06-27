@@ -5,6 +5,13 @@ import { Video, StopCircle, Mic, MicOff, Camera, CameraOff, Edit2, Check, X } fr
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
+// TypeScript declaration for global auto-save function
+declare global {
+  interface Window {
+    videoRecorderAutoSave?: () => Promise<void>;
+  }
+}
+
 // Arabic Speech Recognition Class for client-side transcription
 class ArabicVideoTranscriber {
   recognition: any = null;
@@ -449,6 +456,31 @@ export function VideoRecorder({
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // Auto-save function for when user clicks "Next"
+  const autoSave = async () => {
+    if (isRecording && mediaRecorderRef.current) {
+      // Stop current recording
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      
+      // Stop transcription and capture final transcript
+      if (transcriberRef.current) {
+        transcriberRef.current.stopTranscription();
+        setContinuousTranscriptionActive(false);
+      }
+      
+      console.log(`Auto-saved question ${questionId}: Recording stopped, transcript captured`);
+      
+      // Call the processing function with current recorded blob
+      if (recordedBlob) {
+        await processRecording(recordedBlob);
+      }
+    }
+  };
+
+  // Make auto-save accessible from parent component
+  window.videoRecorderAutoSave = autoSave;
 
   if (!permissionGranted) {
     return (
