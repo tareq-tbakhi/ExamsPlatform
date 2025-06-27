@@ -1073,7 +1073,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Update invitation status to accessed if it's the first time
-      if (invitation.status === "pending") {
+      if (invitation.inviteStatus === "pending") {
         await storage.updateInvitationStatus(invitation.id, "accessed", new Date());
       }
 
@@ -1121,10 +1121,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             duration: exam.duration,
             questionsCount: questions.length,
             status: exam.status,
-            invitationStatus: invitation.status,
+            invitationStatus: invitation.inviteStatus,
             accessedAt: invitation.accessedAt,
-            completedAt: invitation.completedAt,
-            score: invitation.score
+            completedAt: null, // Not available in current schema
+            score: null // Not available in current schema
           });
         }
       }
