@@ -810,6 +810,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate questions using AI
+  app.post("/api/generate-questions", async (req, res) => {
+    try {
+      console.log("AI Question Generation Request received:", req.body);
+      const requestData: GenerateQuestionsRequest = req.body;
+      
+      // Validate request data
+      const schema = z.object({
+        topic: z.string().min(1),
+        questionType: z.enum(["multiple_choice", "true_false", "short_answer", "essay", "coding", "video_response", "audio_response"]),
+        difficulty: z.enum(["easy", "medium", "hard"]),
+        count: z.number().min(1).max(20),
+        subject: z.string().optional()
+      });
+      
+      const validatedData = schema.parse(requestData);
+      console.log("Validated request data:", validatedData);
+      
+      // Generate questions using OpenAI
+      console.log("Calling OpenAI service...");
+      const questions = await generateQuestions(validatedData);
+      console.log("Generated questions:", questions);
+      
+      res.json({ questions });
+    } catch (error) {
+      console.error("Failed to generate questions:", error);
+      res.status(500).json({ 
+        message: "Failed to generate questions", 
+        error: (error as Error).message 
+      });
+    }
+  });
+
   // Dashboard stats endpoint
   app.get("/api/stats", async (req, res) => {
     try {
