@@ -14,6 +14,7 @@ import TakeExam from "@/pages/take-exam";
 import StudentLogin from "@/pages/StudentLogin";
 import StudentDashboard from "@/pages/StudentDashboard";
 import AcceptInvitation from "@/pages/AcceptInvitation";
+import AccessDenied from "@/pages/AccessDenied";
 import { AIAssistantTrigger } from "@/components/ai-assistant/ai-assistant-trigger";
 
 function Router() {
@@ -62,6 +63,9 @@ function Router() {
       {/* Student Portal Routes - Separate authentication system */}
       <Route path="/student/login" component={StudentLogin} />
       <Route path="/student/dashboard" component={StudentDashboard} />
+      
+      {/* Access Control Routes */}
+      <Route path="/access-denied" component={AccessDenied} />
       
       <Route component={NotFound} />
     </Switch>
