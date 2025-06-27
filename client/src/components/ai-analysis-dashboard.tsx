@@ -18,20 +18,18 @@ interface ViolationAnalysis {
   description: string;
   recommendations: string[];
   suspiciousActivities: string[];
-  facialRecognition?: {
-    identityVerification: {
-      faceVisibilityPercentage: number; // 0-100
-      identityConfidenceScore: number; // 0-100
-      multipleFacesDetected: boolean;
-      photoSpoofingDetected: boolean;
-      consistentIdentity: boolean;
+  screenActivity?: {
+    applicationSwitching: {
+      unauthorizedApps: string[];
+      switchingFrequency: number;
+      timeOutsideExam: number; // seconds
+      suspiciousPatterns: string[];
     };
-    eyeTracking: {
-      gazeDirection: string;
-      lookingAwayDuration: number; // seconds
-      screenFocusPercentage: number; // 0-100
-      suspiciousGazePatterns: string[];
-      attentionScore: number; // 0-100
+    keyboardActivity: {
+      copyPasteAttempts: number;
+      shortcutUsage: string[];
+      typingPatterns: string;
+      suspiciousKeystrokes: number;
     };
   };
   behaviorAnalysis?: {
@@ -197,31 +195,29 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                   {
                     severity: 'critical' as const,
                     confidence: 0.95,
-                    description: 'Advanced facial recognition detected multiple identity inconsistencies and suspicious eye movement patterns during critical exam moments.',
+                    description: 'Advanced screen monitoring detected unauthorized application usage and suspicious keyboard activity patterns during critical exam moments.',
                     recommendations: [
-                      'Immediate manual review of identity verification',
-                      'Cross-reference with enrolled student photos',
-                      'Investigate eye tracking anomalies'
+                      'Review screen recording for unauthorized applications',
+                      'Investigate keyboard activity for copy-paste violations',
+                      'Analyze application switching patterns'
                     ],
                     suspiciousActivities: [
-                      'Identity confidence below threshold',
-                      'Suspicious gaze patterns detected',
-                      'Multiple face detection triggered'
+                      'Unauthorized application access detected',
+                      'Suspicious keyboard shortcuts usage',
+                      'Browser tab switching during exam'
                     ],
-                    facialRecognition: {
-                      identityVerification: {
-                        faceVisibilityPercentage: Math.floor(Math.random() * 20) + 75,
-                        identityConfidenceScore: Math.floor(Math.random() * 25) + 70,
-                        multipleFacesDetected: true,
-                        photoSpoofingDetected: false,
-                        consistentIdentity: false
+                    screenActivity: {
+                      applicationSwitching: {
+                        unauthorizedApps: ['web browser', 'messaging app', 'note-taking software'],
+                        switchingFrequency: Math.floor(Math.random() * 15) + 8,
+                        timeOutsideExam: Math.floor(Math.random() * 180) + 45,
+                        suspiciousPatterns: ['Rapid switching during difficult questions', 'Extended time in unauthorized applications']
                       },
-                      eyeTracking: {
-                        gazeDirection: 'off-screen, unauthorized materials detected',
-                        lookingAwayDuration: Math.floor(Math.random() * 45) + 25,
-                        screenFocusPercentage: Math.floor(Math.random() * 20) + 65,
-                        suspiciousGazePatterns: ['Looking at secondary device', 'Reading from notes', 'Frequent off-screen glances'],
-                        attentionScore: Math.floor(Math.random() * 25) + 60
+                      keyboardActivity: {
+                        copyPasteAttempts: Math.floor(Math.random() * 8) + 3,
+                        shortcutUsage: ['Ctrl+C', 'Ctrl+V', 'Alt+Tab', 'Ctrl+Shift+I'],
+                        typingPatterns: 'Inconsistent with normal exam behavior',
+                        suspiciousKeystrokes: Math.floor(Math.random() * 25) + 15
                       }
                     },
                     behaviorAnalysis: {
