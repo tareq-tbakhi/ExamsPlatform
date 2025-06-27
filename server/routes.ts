@@ -7,6 +7,7 @@ import { insertExamSchema, insertQuestionSchema, insertSubmissionSchema, insertP
 import { generateQuestions, type GenerateQuestionsRequest } from "./services/openai";
 import { analyzeViolationImage, analyzeVideoRecording, generateViolationReport, analyzeArabicAudioTranscription } from "./services/gemini";
 import { aiAssistantService } from "./services/ai-assistant";
+import { EmailService } from "./services/emailService";
 import { setupAuth, isAuthenticated, requireAdmin, requireSupervisor, requireTeacher, requireSuperAdmin } from "./replitAuth";
 import * as fs from "fs";
 import * as path from "path";
@@ -120,13 +121,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         expiresAt
       });
 
-      // In a real application, send email here
-      const inviteUrl = `${req.protocol}://${req.get('host')}/invite/${inviteToken}`;
+      // Send invitation email
+      const inviterUser = await storage.getUser(invitedBy);
+      const inviterName = inviterUser ? `${inviterUser.firstName} ${inviterUser.lastName}`.trim() || inviterUser.email : 'ExamCraft Admin';
+      
+      const emailSent = await EmailService.sendUserInvitation({
+        recipientEmail: email,
+        recipientName: firstName ? `${firstName} ${lastName}`.trim() : undefined,
+        inviterName,
+        role,
+        invitationToken: inviteToken
+      });
+
+      const inviteUrl = `${req.protocol}://${req.get('host')}/accept-invitation?token=${inviteToken}`;
       
       res.json({ 
         invitation, 
         inviteUrl,
-        message: "User invitation created successfully" 
+        emailSent,
+        message: emailSent ? "User invitation created and email sent successfully" : "User invitation created (email failed to send)"
       });
     } catch (error) {
       console.error("Error creating user invitation:", error);
