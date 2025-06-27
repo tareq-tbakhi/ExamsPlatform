@@ -8,9 +8,9 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
-}
+// Use default values for development if environment variables are not set
+const REPLIT_DOMAINS = process.env.REPLIT_DOMAINS || `${process.env.REPL_SLUG || 'examcraft'}.${process.env.REPL_OWNER || 'user'}.repl.co`;
+const REPL_ID = process.env.REPL_ID || process.env.REPL_SLUG || 'examcraft';
 
 const getOidcConfig = memoize(
   async () => {
@@ -84,8 +84,7 @@ export async function setupAuth(app: Express) {
     verified(null, user);
   };
 
-  for (const domain of process.env
-    .REPLIT_DOMAINS!.split(",")) {
+  for (const domain of REPLIT_DOMAINS.split(",")) {
     const strategy = new Strategy(
       {
         name: `replitauth:${domain}`,
@@ -119,7 +118,7 @@ export async function setupAuth(app: Express) {
     req.logout(() => {
       res.redirect(
         client.buildEndSessionUrl(config, {
-          client_id: process.env.REPL_ID!,
+          client_id: REPL_ID,
           post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
         }).href
       );
