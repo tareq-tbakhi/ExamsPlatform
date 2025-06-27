@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, real, bigint } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -152,3 +152,54 @@ export type ExamWithVideoQuestions = Exam & {
   questions: Question[];
   videoQuestions: VideoQuestion[];
 };
+
+// AI Analysis tables
+export const aiAnalysisResults = pgTable("ai_analysis_results", {
+  id: serial("id").primaryKey(),
+  submissionId: integer("submission_id").notNull().references(() => submissions.id, { onDelete: "cascade" }),
+  videoPath: text("video_path").notNull(),
+  overallSuspicion: integer("overall_suspicion").notNull(), // Store as percentage (0-100)
+  summary: text("summary").notNull(),
+  analyzedAt: timestamp("analyzed_at").defaultNow().notNull(),
+});
+
+export const analysisViolations = pgTable("analysis_violations", {
+  id: serial("id").primaryKey(),
+  analysisId: integer("analysis_id").notNull().references(() => aiAnalysisResults.id, { onDelete: "cascade" }),
+  severity: text("severity").notNull(), // 'critical', 'major', 'minor'
+  confidence: integer("confidence").notNull(), // Store as percentage (0-100)
+  description: text("description").notNull(),
+  recommendations: jsonb("recommendations").notNull(),
+  suspiciousActivities: jsonb("suspicious_activities").notNull(),
+});
+
+export const analysisTimeline = pgTable("analysis_timeline", {
+  id: serial("id").primaryKey(),
+  analysisId: integer("analysis_id").notNull().references(() => aiAnalysisResults.id, { onDelete: "cascade" }),
+  timestamp: integer("timestamp").notNull(), // Store as seconds or minutes
+  activity: text("activity").notNull(),
+  severity: text("severity").notNull(),
+});
+
+// AI Analysis types
+export const insertAiAnalysisResultSchema = createInsertSchema(aiAnalysisResults).omit({
+  id: true,
+  analyzedAt: true,
+});
+
+export const insertAnalysisViolationSchema = createInsertSchema(analysisViolations).omit({
+  id: true,
+});
+
+export const insertAnalysisTimelineSchema = createInsertSchema(analysisTimeline).omit({
+  id: true,
+});
+
+export type AiAnalysisResult = typeof aiAnalysisResults.$inferSelect;
+export type InsertAiAnalysisResult = z.infer<typeof insertAiAnalysisResultSchema>;
+
+export type AnalysisViolation = typeof analysisViolations.$inferSelect;
+export type InsertAnalysisViolation = z.infer<typeof insertAnalysisViolationSchema>;
+
+export type AnalysisTimeline = typeof analysisTimeline.$inferSelect;
+export type InsertAnalysisTimeline = z.infer<typeof insertAnalysisTimelineSchema>;
