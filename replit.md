@@ -200,10 +200,13 @@ Changelog:
   * Fixed database ordering to show most recent submissions first (DESC order)
   * Increased default submission limit from 10 to 20 entries
   * Completely removed all face detection features from proctoring system
-  * Added missing video upload endpoints (/api/upload-proctoring-video)
+  * Added missing video upload endpoints (/api/upload-proctoring-video, /api/upload-video-answer)
   * Fixed results view caching with aggressive 2-second refresh
   * Updated violation categories to focus on screen activity instead of face detection
   * Enhanced AI Analysis now uses real Gemini API processing instead of static data
+  * Improved video association logic to match videos using session IDs from exam recordings
+  * Updated video display to show preview thumbnails instead of just filenames
+  * Cleaned up test data and verified system ready for proper video recording testing
 ```
 
 ## User Preferences
