@@ -196,6 +196,14 @@ Changelog:
   * Updated AI analysis to prioritize screen behavior over facial features
   * Modified violation categories to emphasize unauthorized application usage
   * Maintained behavioral and audio analysis for comprehensive monitoring
+- June 27, 2025. Fixed submission visibility and video recording system:
+  * Fixed database ordering to show most recent submissions first (DESC order)
+  * Increased default submission limit from 10 to 20 entries
+  * Completely removed all face detection features from proctoring system
+  * Added missing video upload endpoints (/api/upload-proctoring-video)
+  * Fixed results view caching with aggressive 2-second refresh
+  * Updated violation categories to focus on screen activity instead of face detection
+  * Enhanced AI Analysis now uses real Gemini API processing instead of static data
 ```
 
 ## User Preferences
