@@ -241,51 +241,68 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
 
 
       {/* Video Question Answers */}
-      {videoAnswers && videoAnswers.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Video Question Responses ({videoAnswers.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {videoAnswers.map((answer, index) => (
-                <div key={index} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="font-medium">Question {answer.videoQuestionId}</h4>
-                    <Badge variant="outline">
-                      Score: {answer.score || 'Pending'}
-                    </Badge>
-                  </div>
-                  {answer.videoUrl && (
-                    <div className="mb-3">
-                      <video controls className="w-full max-h-40 rounded">
-                        <source src={answer.videoUrl} type="video/webm" />
-                        Your browser does not support the video tag.
-                      </video>
-                    </div>
-                  )}
-                  {answer.transcript && (
-                    <div className="mt-3">
-                      <p className="text-sm font-medium text-gray-700 mb-2">Student Answer:</p>
-                      <div className="p-3 bg-gray-50 rounded text-sm">
-                        {answer.transcript}
+      {(() => {
+        const videoQuestions = questions?.filter(q => q.type === 'video_response' || q.type === 'audio_response') || [];
+        return videoQuestions.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Video/Audio Question Responses ({videoQuestions.length} questions)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {videoQuestions.map((question) => {
+                  const answer = videoAnswers?.find(va => va.videoQuestionId === question.id);
+                  return (
+                    <div key={question.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-medium">Question {question.id}</h4>
+                        <Badge variant={answer ? "default" : "secondary"}>
+                          {answer ? (answer.score ? `Score: ${answer.score}` : 'Answered') : 'Not Answered'}
+                        </Badge>
                       </div>
-                      {answer.confidence && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Confidence: {Math.round(answer.confidence * 100)}%
-                        </p>
+                      <div className="mb-3 p-3 bg-blue-50 rounded text-sm">
+                        <strong>Question:</strong> {question.question}
+                      </div>
+                      {answer ? (
+                        <>
+                          {answer.videoUrl && (
+                            <div className="mb-3">
+                              <video controls className="w-full max-h-40 rounded">
+                                <source src={answer.videoUrl} type="video/webm" />
+                                Your browser does not support the video tag.
+                              </video>
+                            </div>
+                          )}
+                          {answer.transcript && (
+                            <div className="mt-3">
+                              <p className="text-sm font-medium text-gray-700 mb-2">Student Answer:</p>
+                              <div className="p-3 bg-gray-50 rounded text-sm">
+                                {answer.transcript}
+                              </div>
+                              {answer.confidence && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Confidence: {Math.round(answer.confidence * 100)}%
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="p-3 bg-gray-100 rounded text-gray-500 text-sm">
+                          No response provided for this question
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
     </div>
   );
 }
