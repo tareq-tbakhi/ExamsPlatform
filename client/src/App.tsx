@@ -10,6 +10,8 @@ import Landing from "@/pages/Landing";
 import Dashboard from "@/components/dashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import TakeExam from "@/pages/take-exam";
+import StudentLogin from "@/pages/StudentLogin";
+import StudentDashboard from "@/pages/StudentDashboard";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
