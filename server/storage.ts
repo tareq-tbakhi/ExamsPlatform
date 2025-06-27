@@ -65,6 +65,25 @@ export interface IStorage {
   // AI Reports
   createAiReport(report: InsertAiReport): Promise<AiReport>;
   getAiReportsBySubmission(submissionId: number): Promise<AiReport[]>;
+
+  // Grading System
+  createQuestionGrade(grade: InsertQuestionGrade): Promise<QuestionGrade>;
+  getQuestionGradesBySubmission(submissionId: number): Promise<QuestionGrade[]>;
+  updateSubmissionGrading(submissionId: number, gradingData: {
+    score?: number;
+    weightedScore?: number;
+    passingStatus?: string;
+    gradingStatus?: string;
+    autoGradedScore?: number;
+    manualGradedScore?: number;
+    scoreBreakdown?: any;
+  }): Promise<Submission | undefined>;
+
+  // Coding Challenges
+  createCodingTestCase(testCase: InsertCodingTestCase): Promise<CodingTestCase>;
+  getCodingTestCasesByQuestion(questionId: number): Promise<CodingTestCase[]>;
+  createCodingSubmission(submission: InsertCodingSubmission): Promise<CodingSubmission>;
+  getCodingSubmissionsBySubmission(submissionId: number): Promise<CodingSubmission[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -391,6 +410,72 @@ export class DatabaseStorage implements IStorage {
       .from(aiReports)
       .where(eq(aiReports.submissionId, submissionId))
       .orderBy(desc(aiReports.generatedAt));
+  }
+
+  // Grading System Implementation
+  async createQuestionGrade(insertGrade: InsertQuestionGrade): Promise<QuestionGrade> {
+    const [grade] = await db
+      .insert(questionGrades)
+      .values(insertGrade)
+      .returning();
+    return grade;
+  }
+
+  async getQuestionGradesBySubmission(submissionId: number): Promise<QuestionGrade[]> {
+    return await db
+      .select()
+      .from(questionGrades)
+      .where(eq(questionGrades.submissionId, submissionId))
+      .orderBy(questionGrades.questionId);
+  }
+
+  async updateSubmissionGrading(submissionId: number, gradingData: {
+    score?: number;
+    weightedScore?: number;
+    passingStatus?: string;
+    gradingStatus?: string;
+    autoGradedScore?: number;
+    manualGradedScore?: number;
+    scoreBreakdown?: any;
+  }): Promise<Submission | undefined> {
+    const [updated] = await db
+      .update(submissions)
+      .set(gradingData)
+      .where(eq(submissions.id, submissionId))
+      .returning();
+    return updated;
+  }
+
+  // Coding Challenges Implementation
+  async createCodingTestCase(insertTestCase: InsertCodingTestCase): Promise<CodingTestCase> {
+    const [testCase] = await db
+      .insert(codingTestCases)
+      .values(insertTestCase)
+      .returning();
+    return testCase;
+  }
+
+  async getCodingTestCasesByQuestion(questionId: number): Promise<CodingTestCase[]> {
+    return await db
+      .select()
+      .from(codingTestCases)
+      .where(eq(codingTestCases.questionId, questionId))
+      .orderBy(codingTestCases.id);
+  }
+
+  async createCodingSubmission(insertSubmission: InsertCodingSubmission): Promise<CodingSubmission> {
+    const [submission] = await db
+      .insert(codingSubmissions)
+      .values(insertSubmission)
+      .returning();
+    return submission;
+  }
+
+  async getCodingSubmissionsBySubmission(submissionId: number): Promise<CodingSubmission[]> {
+    return await db
+      .select()
+      .from(codingSubmissions)
+      .where(eq(codingSubmissions.submissionId, submissionId));
   }
 }
 
