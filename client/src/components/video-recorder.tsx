@@ -160,7 +160,6 @@ interface VideoRecorderProps {
   submissionId: number;
   questionType: "video_response" | "audio_response";
   onRecordingComplete: (transcription: string, confidence: number) => void;
-  onValidationComplete: (isValid: boolean, feedback: string, score: number) => void;
   onAutoSave?: () => void; // Callback for when auto-save is triggered
 }
 
@@ -169,7 +168,6 @@ export function VideoRecorder({
   submissionId,
   questionType,
   onRecordingComplete,
-  onValidationComplete,
   onAutoSave
 }: VideoRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
@@ -178,15 +176,8 @@ export function VideoRecorder({
   const [transcription, setTranscription] = useState("");
   const [editableTranscript, setEditableTranscript] = useState("");
   const [isEditingTranscript, setIsEditingTranscript] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [validationStatus, setValidationStatus] = useState<{
-    isValid?: boolean;
-    feedback?: string;
-    score?: number;
-    completed?: boolean;
-  }>({});
   const [continuousTranscriptionActive, setContinuousTranscriptionActive] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -750,40 +741,7 @@ export function VideoRecorder({
           </div>
         )}
 
-        {/* Validation Status Display */}
-        {validationStatus.completed && (
-          <div className={`mt-4 p-4 rounded-lg border ${
-            validationStatus.isValid 
-              ? 'bg-green-50 border-green-200' 
-              : 'bg-yellow-50 border-yellow-200'
-          }`}>
-            <div className="flex items-center justify-between mb-2">
-              <h4 className={`font-medium ${
-                validationStatus.isValid ? 'text-green-800' : 'text-yellow-800'
-              }`}>
-                AI Validation Result
-              </h4>
-              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                validationStatus.isValid 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-yellow-100 text-yellow-800'
-              }`}>
-                Score: {validationStatus.score}%
-              </div>
-            </div>
-            <div className="bg-white p-3 rounded border">
-              <p className="text-sm text-gray-700">{validationStatus.feedback}</p>
-            </div>
-          </div>
-        )}
 
-        {/* Processing Status */}
-        {isProcessing && (
-          <div className="text-center py-4">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-            <p className="text-sm text-gray-600">Processing your recording...</p>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
