@@ -98,8 +98,8 @@ export async function setupAuth(app: Express) {
     const claims = tokens.claims();
     const email = claims?.email;
     
-    if (!email) {
-      verified(new Error('Access denied: No email address provided'), false);
+    if (!email || typeof email !== 'string') {
+      verified(null, false);
       return;
     }
     
@@ -115,8 +115,8 @@ export async function setupAuth(app: Express) {
       return;
     }
     
-    // Check if user has a valid invitation
-    const invitation = await storage.getUserInvitationByEmail(email as string);
+    // Check if user has a valid invitation  
+    const invitation = await storage.getUserInvitationByEmail(email);
     if (!invitation) {
       // No invitation found - deny access
       verified(null, false);
@@ -172,7 +172,7 @@ export async function setupAuth(app: Express) {
   app.get("/api/callback", (req, res, next) => {
     passport.authenticate(`replitauth:${req.hostname}`, {
       successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
+      failureRedirect: "/access-denied",
     })(req, res, next);
   });
 
