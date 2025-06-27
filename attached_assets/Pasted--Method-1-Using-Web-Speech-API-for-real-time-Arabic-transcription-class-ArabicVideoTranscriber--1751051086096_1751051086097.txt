@@ -1,0 +1,313 @@
+// Method 1: Using Web Speech API for real-time Arabic transcription
+class ArabicVideoTranscriber {
+    constructor() {
+        this.recognition = null;
+        this.transcript = '';
+        this.isRecording = false;
+        this.initSpeechRecognition();
+    }
+
+    initSpeechRecognition() {
+        // Check if browser supports speech recognition
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            console.error('Speech recognition not supported in this browser');
+            return;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        this.recognition = new SpeechRecognition();
+        
+        // Configure for Arabic
+        this.recognition.lang = 'ar-SA'; // Arabic (Saudi Arabia)
+        this.recognition.continuous = true;
+        this.recognition.interimResults = true;
+        this.recognition.maxAlternatives = 1;
+
+        this.setupEventHandlers();
+    }
+
+    setupEventHandlers() {
+        this.recognition.onstart = () => {
+            console.log('Arabic speech recognition started');
+            this.isRecording = true;
+        };
+
+        this.recognition.onresult = (event) => {
+            let interimTranscript = '';
+            let finalTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalTranscript += transcript + ' ';
+                } else {
+                    interimTranscript += transcript;
+                }
+            }
+
+            this.transcript = finalTranscript;
+            this.onTranscriptUpdate(finalTranscript, interimTranscript);
+        };
+
+        this.recognition.onerror = (event) => {
+            console.error('Speech recognition error:', event.error);
+        };
+
+        this.recognition.onend = () => {
+            console.log('Speech recognition ended');
+            this.isRecording = false;
+        };
+    }
+
+    startTranscription() {
+        if (this.recognition && !this.isRecording) {
+            this.recognition.start();
+        }
+    }
+
+    stopTranscription() {
+        if (this.recognition && this.isRecording) {
+            this.recognition.stop();
+        }
+    }
+
+    onTranscriptUpdate(finalText, interimText) {
+        // Override this method to handle transcript updates
+        console.log('Final:', finalText);
+        console.log('Interim:', interimText);
+    }
+
+    getFullTranscript() {
+        return this.transcript;
+    }
+}
+
+// Method 2: Extract existing subtitles/captions from video element
+class VideoSubtitleExtractor {
+    constructor(videoElement) {
+        this.video = videoElement;
+    }
+
+    // Extract WebVTT subtitles
+    async extractWebVTT() {
+        const tracks = this.video.textTracks;
+        const arabicSubtitles = [];
+
+        for (let i = 0; i < tracks.length; i++) {
+            const track = tracks[i];
+            
+            // Look for Arabic tracks
+            if (track.language.startsWith('ar') || track.label.includes('Arabic') || track.label.includes('عربي')) {
+                track.mode = 'showing'; // Activate the track
+                
+                const cues = Array.from(track.cues || []);
+                cues.forEach(cue => {
+                    arabicSubtitles.push({
+                        startTime: cue.startTime,
+                        endTime: cue.endTime,
+                        text: cue.text,
+                        timeString: this.formatTime(cue.startTime) + ' --> ' + this.formatTime(cue.endTime)
+                    });
+                });
+            }
+        }
+
+        return arabicSubtitles;
+    }
+
+    // Extract subtitles from YouTube video (if accessible)
+    async extractYouTubeSubtitles() {
+        try {
+            // This requires the video to have accessible subtitle tracks
+            const ytPlayer = this.video;
+            const playerResponse = ytPlayer.getPlayerResponse?.();
+            
+            if (playerResponse?.captions?.playerCaptionsTracklistRenderer?.captionTracks) {
+                const tracks = playerResponse.captions.playerCaptionsTracklistRenderer.captionTracks;
+                const arabicTrack = tracks.find(track => 
+                    track.languageCode.startsWith('ar') || 
+                    track.name.simpleText.includes('Arabic') ||
+                    track.name.simpleText.includes('عربي')
+                );
+                
+                if (arabicTrack) {
+                    const response = await fetch(arabicTrack.baseUrl);
+                    const subtitleData = await response.text();
+                    return this.parseSubtitleData(subtitleData);
+                }
+            }
+        } catch (error) {
+            console.error('Error extracting YouTube subtitles:', error);
+        }
+        return null;
+    }
+
+    formatTime(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        const ms = Math.floor((seconds % 1) * 1000);
+        
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+    }
+
+    parseSubtitleData(data) {
+        // Parse different subtitle formats (WebVTT, SRT, etc.)
+        const lines = data.split('\n');
+        const subtitles = [];
+        let currentSubtitle = {};
+
+        lines.forEach(line => {
+            line = line.trim();
+            
+            // WebVTT time format: 00:00:01.000 --> 00:00:05.000
+            const timeMatch = line.match(/(\d{2}:\d{2}:\d{2}\.\d{3}) --> (\d{2}:\d{2}:\d{2}\.\d{3})/);
+            
+            if (timeMatch) {
+                if (currentSubtitle.text) {
+                    subtitles.push(currentSubtitle);
+                }
+                currentSubtitle = {
+                    startTime: this.timeToSeconds(timeMatch[1]),
+                    endTime: this.timeToSeconds(timeMatch[2]),
+                    timeString: line,
+                    text: ''
+                };
+            } else if (line && !line.includes('WEBVTT') && !line.match(/^\d+$/)) {
+                if (currentSubtitle.startTime !== undefined) {
+                    currentSubtitle.text += (currentSubtitle.text ? ' ' : '') + line;
+                }
+            }
+        });
+        
+        if (currentSubtitle.text) {
+            subtitles.push(currentSubtitle);
+        }
+        
+        return subtitles;
+    }
+
+    timeToSeconds(timeString) {
+        const [hours, minutes, seconds] = timeString.split(':');
+        return parseInt(hours) * 3600 + parseInt(minutes) * 60 + parseFloat(seconds);
+    }
+}
+
+// Method 3: Using MediaStream from video for live transcription
+class VideoStreamTranscriber extends ArabicVideoTranscriber {
+    constructor(videoElement) {
+        super();
+        this.video = videoElement;
+        this.audioContext = null;
+        this.mediaStream = null;
+    }
+
+    async captureVideoAudio() {
+        try {
+            // Create audio context
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Create media stream from video element
+            this.mediaStream = this.video.captureStream();
+            
+            // Connect to speech recognition
+            const source = this.audioContext.createMediaStreamSource(this.mediaStream);
+            
+            // Start transcription
+            this.startTranscription();
+            
+        } catch (error) {
+            console.error('Error capturing video audio:', error);
+        }
+    }
+
+    stopCapture() {
+        if (this.mediaStream) {
+            this.mediaStream.getTracks().forEach(track => track.stop());
+        }
+        if (this.audioContext) {
+            this.audioContext.close();
+        }
+        this.stopTranscription();
+    }
+}
+
+// Usage Examples:
+
+// Example 1: Real-time transcription
+function setupRealTimeTranscription() {
+    const transcriber = new ArabicVideoTranscriber();
+    
+    // Override transcript update handler
+    transcriber.onTranscriptUpdate = function(finalText, interimText) {
+        document.getElementById('transcript-final').textContent = finalText;
+        document.getElementById('transcript-interim').textContent = interimText;
+    };
+    
+    // Start/stop buttons
+    document.getElementById('start-btn').onclick = () => transcriber.startTranscription();
+    document.getElementById('stop-btn').onclick = () => transcriber.stopTranscription();
+}
+
+// Example 2: Extract existing subtitles
+async function extractExistingSubtitles() {
+    const video = document.querySelector('video');
+    const extractor = new VideoSubtitleExtractor(video);
+    
+    const subtitles = await extractor.extractWebVTT();
+    
+    if (subtitles.length > 0) {
+        console.log('Found Arabic subtitles:', subtitles);
+        displaySubtitles(subtitles);
+    } else {
+        console.log('No Arabic subtitles found');
+    }
+}
+
+// Example 3: Transcribe video stream
+async function transcribeVideoStream() {
+    const video = document.querySelector('video');
+    const streamTranscriber = new VideoStreamTranscriber(video);
+    
+    streamTranscriber.onTranscriptUpdate = function(finalText, interimText) {
+        console.log('Video transcript:', finalText);
+    };
+    
+    await streamTranscriber.captureVideoAudio();
+}
+
+// Helper function to display subtitles
+function displaySubtitles(subtitles) {
+    const container = document.getElementById('subtitles-container');
+    container.innerHTML = '';
+    
+    subtitles.forEach((subtitle, index) => {
+        const div = document.createElement('div');
+        div.className = 'subtitle-item';
+        div.innerHTML = `
+            <div class="time">${subtitle.timeString}</div>
+            <div class="text" dir="rtl">${subtitle.text}</div>
+        `;
+        container.appendChild(div);
+    });
+}
+
+// Helper function to save transcript as file
+function saveTranscriptAsFile(transcript, filename = 'arabic-transcript.txt') {
+    const blob = new Blob([transcript], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+// Export functions for use
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        ArabicVideoTranscriber,
+        VideoSubtitleExtractor,
+        VideoStreamTranscriber
+    };
+}

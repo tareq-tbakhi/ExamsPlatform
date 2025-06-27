@@ -5,6 +5,86 @@ import { Video, StopCircle, Mic, MicOff, Camera, CameraOff } from "lucide-react"
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
+// Arabic Speech Recognition Class for client-side transcription
+class ArabicVideoTranscriber {
+  recognition: any = null;
+  transcript: string = '';
+  isRecording: boolean = false;
+  onTranscriptUpdate: (finalText: string, interimText: string) => void = () => {};
+
+  constructor() {
+    this.initSpeechRecognition();
+  }
+
+  initSpeechRecognition() {
+    // Check if browser supports speech recognition
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      console.error('Speech recognition not supported in this browser');
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    this.recognition = new SpeechRecognition();
+    
+    // Configure for Arabic
+    this.recognition.lang = 'ar-SA'; // Arabic (Saudi Arabia)
+    this.recognition.continuous = true;
+    this.recognition.interimResults = true;
+    this.recognition.maxAlternatives = 1;
+
+    this.setupEventHandlers();
+  }
+
+  setupEventHandlers() {
+    this.recognition.onstart = () => {
+      console.log('Arabic speech recognition started');
+      this.isRecording = true;
+    };
+
+    this.recognition.onresult = (event: any) => {
+      let interimTranscript = '';
+      let finalTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + ' ';
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      this.transcript = finalTranscript;
+      this.onTranscriptUpdate(finalTranscript, interimTranscript);
+    };
+
+    this.recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+    };
+
+    this.recognition.onend = () => {
+      console.log('Speech recognition ended');
+      this.isRecording = false;
+    };
+  }
+
+  startTranscription() {
+    if (this.recognition && !this.isRecording) {
+      this.recognition.start();
+    }
+  }
+
+  stopTranscription() {
+    if (this.recognition && this.isRecording) {
+      this.recognition.stop();
+    }
+  }
+
+  getFullTranscript() {
+    return this.transcript;
+  }
+}
+
 interface VideoRecorderProps {
   questionId: number;
   submissionId: number;
@@ -38,6 +118,7 @@ export function VideoRecorder({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const transcriberRef = useRef<ArabicVideoTranscriber | null>(null);
   
   const { toast } = useToast();
 
@@ -49,6 +130,14 @@ export function VideoRecorder({
     setIsProcessing(false);
     setRecordingTime(0);
     setValidationStatus({});
+    
+    // Initialize Arabic transcriber
+    if (!transcriberRef.current) {
+      transcriberRef.current = new ArabicVideoTranscriber();
+      transcriberRef.current.onTranscriptUpdate = (finalText: string, interimText: string) => {
+        setTranscription(finalText + interimText);
+      };
+    }
   }, [questionId]);
 
   // Request camera/microphone permissions or reuse existing stream
@@ -164,6 +253,11 @@ export function VideoRecorder({
       setIsRecording(true);
       setRecordingTime(0);
 
+      // Start JavaScript-based Arabic transcription
+      if (transcriberRef.current) {
+        transcriberRef.current.startTranscription();
+      }
+
       toast({
         title: "Recording Started",
         description: `${questionType === "video_response" ? "Video" : "Audio"} recording is now active`
@@ -182,6 +276,11 @@ export function VideoRecorder({
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+
+      // Stop JavaScript-based transcription
+      if (transcriberRef.current) {
+        transcriberRef.current.stopTranscription();
+      }
 
       toast({
         title: "Recording Stopped",
