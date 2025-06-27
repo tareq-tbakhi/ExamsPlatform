@@ -832,6 +832,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update exam
+  app.put("/api/exams/:id", async (req, res) => {
+    try {
+      const examId = parseInt(req.params.id);
+      console.log(`Updating exam ${examId} with data:`, JSON.stringify(req.body, null, 2));
+      const examData = insertExamSchema.partial().parse(req.body);
+      const updatedExam = await storage.updateExam(examId, examData);
+      
+      if (!updatedExam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      
+      console.log("Exam updated successfully:", updatedExam);
+      res.json(updatedExam);
+    } catch (error) {
+      console.error("Failed to update exam:", error);
+      res.status(500).json({ message: "Failed to update exam", error: (error as Error).message });
+    }
+  });
+
+  // Patch exam (for status updates like publishing)
+  app.patch("/api/exams/:id", async (req, res) => {
+    try {
+      const examId = parseInt(req.params.id);
+      console.log(`Patching exam ${examId} with data:`, JSON.stringify(req.body, null, 2));
+      const examData = insertExamSchema.partial().parse(req.body);
+      const updatedExam = await storage.updateExam(examId, examData);
+      
+      if (!updatedExam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      
+      console.log("Exam patched successfully:", updatedExam);
+      res.json(updatedExam);
+    } catch (error) {
+      console.error("Failed to patch exam:", error);
+      res.status(500).json({ message: "Failed to patch exam", error: (error as Error).message });
+    }
+  });
+
   // Create question
   app.post("/api/questions", async (req, res) => {
     try {
