@@ -139,6 +139,44 @@ export default function ProctoringManager({
     return unsubscribe;
   };
 
+  const startMobileMonitoring = async () => {
+    console.log("Starting mobile-specific monitoring...");
+    
+    // Monitor orientation changes
+    const handleOrientationChange = () => {
+      const newOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+      setState(prev => ({ ...prev, deviceOrientation: newOrientation }));
+      
+      if (newOrientation === 'portrait') {
+        reportViolation({
+          type: 'minor',
+          category: 'device_orientation',
+          description: 'Device rotated to portrait mode - recommended to use landscape'
+        });
+      }
+    };
+
+    // Monitor app switching on mobile (limited capabilities)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        reportViolation({
+          type: 'major',
+          category: 'app_switch',
+          description: 'App switched or minimized during exam'
+        });
+      }
+    };
+
+    window.addEventListener('orientationchange', handleOrientationChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Store cleanup functions
+    return () => {
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  };
+
   const initializeProctoring = async () => {
     console.log(`Starting ${isMobile ? 'mobile' : 'desktop'} proctoring for exam ${examId} with session ${sessionIdRef.current}`);
     try {

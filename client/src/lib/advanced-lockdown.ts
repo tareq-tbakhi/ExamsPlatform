@@ -15,13 +15,16 @@ interface SecurityViolation {
 }
 
 class AdvancedLockdownManager {
+  private isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                     !!(navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+  
   private config: LockdownConfiguration = {
-    forceFullscreen: true,
+    forceFullscreen: !this.isMobile, // Disable fullscreen on mobile
     preventPrintScreen: true,
-    blockNavigation: true,
-    kioskMode: true,
-    enhancedBlocking: true,
-    autoReentry: true
+    blockNavigation: !this.isMobile, // Allow navigation on mobile
+    kioskMode: !this.isMobile, // Disable kiosk mode on mobile
+    enhancedBlocking: !this.isMobile, // Reduce blocking on mobile
+    autoReentry: !this.isMobile // Disable auto-reentry on mobile
   };
 
   private isActive = false;
@@ -126,6 +129,12 @@ class AdvancedLockdownManager {
 
   // Force fullscreen mode with better permission handling
   private async enterFullscreen(): Promise<void> {
+    // Skip fullscreen on mobile devices
+    if (this.isMobile) {
+      console.log('Mobile device detected - skipping fullscreen mode');
+      return;
+    }
+
     try {
       if (!document.fullscreenElement) {
         const element = document.documentElement;
@@ -148,16 +157,18 @@ class AdvancedLockdownManager {
     } catch (error) {
       console.error('Failed to enter fullscreen:', error);
       
-      // Report fullscreen permission issue
-      this.reportViolation({
-        type: 'escape_attempt',
-        timestamp: Date.now(),
-        details: `Fullscreen permission denied: ${error}`,
-        severity: 'critical'
-      });
-      
-      // Show user guidance for fullscreen permission
-      this.showFullscreenGuidance();
+      // Report fullscreen permission issue only if not mobile
+      if (!this.isMobile) {
+        this.reportViolation({
+          type: 'escape_attempt',
+          timestamp: Date.now(),
+          details: `Fullscreen permission denied: ${error}`,
+          severity: 'critical'
+        });
+        
+        // Show user guidance for fullscreen permission
+        this.showFullscreenGuidance();
+      }
     }
   }
 
