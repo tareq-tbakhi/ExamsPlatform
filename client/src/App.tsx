@@ -68,6 +68,9 @@ function Router() {
       {/* Access Control Routes */}
       <Route path="/access-denied" component={AccessDenied} />
       
+      {/* Student Exam Invitation Routes (public access) */}
+      <Route path="/exam-invitation" component={StudentExamAccess} />
+      
       <Route component={NotFound} />
     </Switch>
   );
