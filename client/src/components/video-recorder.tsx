@@ -46,7 +46,8 @@ class MultiLanguageVideoTranscriber {
 
   setupEventHandlers() {
     this.recognition.onstart = () => {
-      console.log('Arabic speech recognition started');
+      const lang = this.currentLanguage === 'ar-SA' ? 'Arabic' : 'English';
+      console.log(`${lang} speech recognition started`);
       this.isRecording = true;
     };
 
@@ -135,6 +136,22 @@ class MultiLanguageVideoTranscriber {
 
   getFullTranscript() {
     return this.transcript;
+  }
+
+  // Switch language between Arabic and English
+  switchLanguage(language: 'arabic' | 'english') {
+    const langCode = language === 'arabic' ? 'ar-SA' : 'en-US';
+    this.currentLanguage = langCode;
+    
+    // Update recognition language if already initialized
+    if (this.recognition) {
+      this.recognition.lang = langCode;
+      console.log(`Switched transcription language to ${language}`);
+    }
+  }
+
+  getCurrentLanguage() {
+    return this.currentLanguage === 'ar-SA' ? 'arabic' : 'english';
   }
 }
 
@@ -458,7 +475,7 @@ export function VideoRecorder({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Auto-save function for when user clicks "Next"
+  // Auto-save function for when user clicks "Next" - simple save without AI processing
   const autoSave = async () => {
     if (isRecording && mediaRecorderRef.current) {
       // Stop current recording
@@ -473,10 +490,51 @@ export function VideoRecorder({
       
       console.log(`Auto-saved question ${questionId}: Recording stopped, transcript captured`);
       
-      // Call the processing function with current recorded blob
+      // Simple save without AI processing - just save video and transcript
       if (recordedBlob) {
-        await processRecording(recordedBlob);
+        await simpleVideoSave(recordedBlob);
       }
+    }
+  };
+
+  // Simple video save function without AI processing
+  const simpleVideoSave = async (blob: Blob) => {
+    try {
+      const finalTranscript = editableTranscript || transcription;
+      const confidence = 0.8; // Default confidence for manual transcript editing
+      
+      // Upload the video file to be stored as an answer
+      const videoFormData = new FormData();
+      videoFormData.append('video', blob, `answer_${questionId}_${Date.now()}.webm`);
+      videoFormData.append('questionId', questionId.toString());
+      videoFormData.append('submissionId', submissionId.toString());
+      videoFormData.append('transcript', finalTranscript);
+      videoFormData.append('confidence', confidence.toString());
+      videoFormData.append('duration', recordingTime.toString());
+
+      const uploadRes = await fetch('/api/upload-video-answer', {
+        method: 'POST',
+        body: videoFormData
+      });
+      
+      if (uploadRes.ok) {
+        const uploadResponse = await uploadRes.json();
+        console.log('Video answer saved successfully:', uploadResponse);
+        
+        toast({
+          title: "Saved Successfully",
+          description: "Your video and transcript have been saved"
+        });
+      } else {
+        throw new Error('Failed to upload video answer');
+      }
+    } catch (error) {
+      console.error('Simple save error:', error);
+      toast({
+        title: "Save Error",
+        description: "Failed to save recording. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -516,10 +574,10 @@ export function VideoRecorder({
               Recording {formatTime(recordingTime)}
             </span>
           )}
-          {/* Continuous transcription indicator */}
+          {/* Continuous transcription indicator with language */}
           {continuousTranscriptionActive && (
             <span className="text-green-600 text-sm bg-green-50 px-2 py-1 rounded-full animate-pulse">
-              🎤 Live Arabic Transcription
+              🎤 Live {transcriberRef.current?.getCurrentLanguage() === 'arabic' ? 'Arabic' : 'English'} Transcription
             </span>
           )}
         </CardTitle>
@@ -566,6 +624,32 @@ export function VideoRecorder({
             )}
           </div>
         )}
+
+        {/* Language Toggle */}
+        <div className="flex justify-center mb-4">
+          <div className="flex items-center space-x-2 bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => transcriberRef.current?.switchLanguage('arabic')}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                transcriberRef.current?.getCurrentLanguage() === 'arabic'
+                  ? 'bg-blue-500 text-white'
+                  : 'text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              العربية
+            </button>
+            <button
+              onClick={() => transcriberRef.current?.switchLanguage('english')}
+              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                transcriberRef.current?.getCurrentLanguage() === 'english'
+                  ? 'bg-blue-500 text-white'
+                  : 'text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              English
+            </button>
+          </div>
+        </div>
 
         {/* Recording Controls */}
         <div className="flex justify-center space-x-4">
