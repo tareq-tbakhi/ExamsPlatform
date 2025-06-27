@@ -608,22 +608,6 @@ export default function StudentExam({ examId }: StudentExamProps) {
                         type: 'video_response'
                       });
                     }}
-                    onValidationComplete={(isValid, feedback, score) => {
-                      // Update the answer with validation results
-                      const currentAnswer = answers[currentQuestion.id] || {};
-                      handleAnswerChange(currentQuestion.id, {
-                        ...currentAnswer,
-                        isValid,
-                        feedback,
-                        score,
-                        validated: true
-                      });
-                      toast({
-                        title: isValid ? "Answer Validated" : "Answer Needs Improvement",
-                        description: `Score: ${score}% - ${feedback.substring(0, 100)}...`,
-                        variant: isValid ? "default" : "destructive"
-                      });
-                    }}
                   />
                 )}
 
@@ -638,22 +622,6 @@ export default function StudentExam({ examId }: StudentExamProps) {
                         transcription,
                         confidence,
                         type: 'audio_response'
-                      });
-                    }}
-                    onValidationComplete={(isValid, feedback, score) => {
-                      // Update the answer with validation results
-                      const currentAnswer = answers[currentQuestion.id] || {};
-                      handleAnswerChange(currentQuestion.id, {
-                        ...currentAnswer,
-                        isValid,
-                        feedback,
-                        score,
-                        validated: true
-                      });
-                      toast({
-                        title: isValid ? "Answer Validated" : "Answer Needs Improvement",
-                        description: `Score: ${score}% - ${feedback.substring(0, 100)}...`,
-                        variant: isValid ? "default" : "destructive"
                       });
                     }}
                   />
