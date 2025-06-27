@@ -10,6 +10,7 @@ import { ClipboardList, Users, TrendingUp, Medal, Eye, Brain, ChevronDown, Chevr
 import AIAnalysisDashboard from "@/components/ai-analysis-dashboard";
 import SubmissionDetails from "@/components/submission-details";
 import GradingDashboard from "@/components/grading-dashboard";
+import { useAuth } from "@/hooks/useAuth";
 import type { SubmissionWithExam, ExamWithStats } from "@shared/schema";
 
 interface SubmissionWithAnalysis extends SubmissionWithExam {
@@ -33,8 +34,8 @@ export default function ResultsView({ selectedExamId }: ResultsViewProps) {
   const [selectedSubmission, setSelectedSubmission] = useState<SubmissionWithExam | null>(null);
   const [expandedExams, setExpandedExams] = useState<Set<number>>(new Set());
   
-  // Mock user ID - in real app this would come from authentication
-  const userId = 1;
+  const { user } = useAuth();
+  const userId = user?.id;
 
   const { data: stats } = useQuery({
     queryKey: ["/api/stats"],
@@ -42,6 +43,7 @@ export default function ResultsView({ selectedExamId }: ResultsViewProps) {
 
   const { data: exams = [], isLoading: examsLoading } = useQuery<ExamWithStats[]>({
     queryKey: [`/api/exams/creator/${userId}`],
+    enabled: !!userId,
   });
 
   const { data: recentSubmissions = [], isLoading: submissionsLoading } = useQuery<SubmissionWithExam[]>({
