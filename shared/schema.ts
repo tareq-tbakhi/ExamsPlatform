@@ -345,3 +345,26 @@ export const insertExamInvitationSchema = createInsertSchema(examInvitations).om
 
 export type ExamInvitation = typeof examInvitations.$inferSelect;
 export type InsertExamInvitation = z.infer<typeof insertExamInvitationSchema>;
+
+// User Invitations table for platform access
+export const userInvitations = pgTable("user_invitations", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 255 }).notNull().unique(),
+  firstName: varchar("first_name", { length: 100 }),
+  lastName: varchar("last_name", { length: 100 }),
+  role: varchar("role", { length: 50 }).notNull().default("teacher"),
+  invitedBy: varchar("invited_by", { length: 255 }).notNull(),
+  inviteToken: varchar("invite_token", { length: 255 }).notNull().unique(),
+  inviteStatus: varchar("invite_status", { length: 50 }).notNull().default("pending"),
+  invitedAt: timestamp("invited_at").defaultNow(),
+  acceptedAt: timestamp("accepted_at"),
+  expiresAt: timestamp("expires_at").notNull(),
+});
+
+export const insertUserInvitationSchema = createInsertSchema(userInvitations).omit({
+  id: true,
+  invitedAt: true,
+});
+
+export type UserInvitation = typeof userInvitations.$inferSelect;
+export type InsertUserInvitation = z.infer<typeof insertUserInvitationSchema>;
