@@ -188,11 +188,14 @@ export const requireRole = (allowedRoles: string[]): RequestHandler => {
   };
 };
 
-// Admin only access
-export const requireAdmin = requireRole(["admin"]);
+// Super admin only access
+export const requireSuperAdmin = requireRole(["super_admin"]);
 
-// Teacher supervisor and admin access
-export const requireSupervisor = requireRole(["admin", "teacher_supervisor"]);
+// Admin and super admin access
+export const requireAdmin = requireRole(["super_admin", "admin"]);
 
-// Teacher, supervisor, and admin access
-export const requireTeacher = requireRole(["admin", "teacher_supervisor", "teacher"]);
+// Teacher supervisor, admin, and super admin access
+export const requireSupervisor = requireRole(["super_admin", "admin", "teacher_supervisor"]);
+
+// Teacher, supervisor, admin, and super admin access
+export const requireTeacher = requireRole(["super_admin", "admin", "teacher_supervisor", "teacher"]);
