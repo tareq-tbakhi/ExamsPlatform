@@ -35,7 +35,7 @@ export default function ResultsView({ selectedExamId }: ResultsViewProps) {
   const [expandedExams, setExpandedExams] = useState<Set<number>>(new Set());
   
   const { user } = useAuth();
-  const userId = user?.id;
+  const userId = (user as any)?.id;
 
   const { data: stats } = useQuery({
     queryKey: ["/api/stats"],
