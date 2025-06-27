@@ -425,7 +425,7 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                         <CardTitle className="text-lg">Overall Suspicion</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-3xl font-bold text-red-600">{activeAnalysis.overallSuspicion}%</div>
+                        <div className="text-3xl font-bold text-red-600">{Math.round(activeAnalysis.overallSuspicion / 100)}%</div>
                       </CardContent>
                     </Card>
                     <Card>
@@ -533,7 +533,7 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                           </div>
                           <div className="text-right">
                             <div className="text-2xl font-bold text-red-600">
-                              {analysis.overallSuspicion}%
+                              {Math.round(analysis.overallSuspicion / 100)}%
                             </div>
                             <div className="text-sm text-gray-500">suspicion</div>
                           </div>

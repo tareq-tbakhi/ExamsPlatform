@@ -111,7 +111,7 @@ export default function ResultsView({ selectedExamId }: ResultsViewProps) {
                          analysis.majorViolations > 0 ? "violations detected" : 
                          "compliance acceptable";
                          
-    return `${riskLevel} - ${violationText} with ${analysis.overallSuspicion}% suspicion level.`;
+    return `${riskLevel} - ${violationText} with ${Math.round(analysis.overallSuspicion / 100)}% suspicion level.`;
   };
 
   // Enhance submissions with AI analysis
@@ -415,7 +415,7 @@ export default function ResultsView({ selectedExamId }: ResultsViewProps) {
                                       <>
                                         {getSuspicionBadge(submission.aiAnalysis.overallSuspicion)}
                                         <div className="text-xs text-gray-500">
-                                          {submission.aiAnalysis.overallSuspicion}% suspicion
+                                          {Math.round(submission.aiAnalysis.overallSuspicion / 100)}% suspicion
                                         </div>
                                       </>
                                     ) : (
