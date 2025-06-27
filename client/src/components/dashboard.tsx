@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,12 +17,86 @@ import {
   BarChart3,
   Settings,
   Search,
-  Bell
+  Bell,
+  Send,
+  Share
 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import ExamCreator from "@/components/exam-creator";
 import ResultsView from "@/components/results-view";
 import type { ExamWithStats } from "@shared/schema";
 import logoImage from "@assets/image_1751011948568.png";
+
+// Publish Exam Button Component
+function PublishExamButton({ examId }: { examId: number }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const publishExamMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest("PATCH", `/api/exams/${id}`, {
+        status: "published"
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/exams"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/exams/creator/1`] });
+      toast({
+        title: "Exam Published!",
+        description: "Your exam is now live and students can take it.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to publish exam",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleShare = async (examId: number) => {
+    const url = `${window.location.origin}/take-exam/${examId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({
+        title: "Link Copied!",
+        description: "Exam link has been copied to clipboard",
+      });
+    } catch (err) {
+      toast({
+        title: "Share Link",
+        description: `Copy this link: ${url}`,
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Button 
+        variant="outline" 
+        size="sm" 
+        className="w-full bg-gradient-to-r from-orange-50 to-red-50 hover:from-orange-100 hover:to-red-100 border-orange-200 text-orange-700 hover:text-orange-800 font-semibold"
+        onClick={() => publishExamMutation.mutate(examId)}
+        disabled={publishExamMutation.isPending}
+      >
+        <Send className="h-4 w-4 mr-2" />
+        {publishExamMutation.isPending ? "Publishing..." : "Publish Exam"}
+      </Button>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        className="w-full bg-gradient-to-r from-blue-50 to-cyan-50 hover:from-blue-100 hover:to-cyan-100 border-blue-200 text-blue-700 hover:text-blue-800 font-semibold"
+        onClick={() => handleShare(examId)}
+      >
+        <Share className="h-4 w-4 mr-2" />
+        Copy Link
+      </Button>
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -478,19 +552,36 @@ export default function Dashboard() {
                               Created {exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}
                             </div>
                             
-                            {/* Action Button */}
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="w-full bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border-purple-200 text-purple-700 hover:text-purple-800 font-semibold"
-                              onClick={() => {
-                                setSelectedExamId(exam.id);
-                                setActiveTab("results");
-                              }}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Results
-                            </Button>
+                            {/* Action Buttons */}
+                            <div className="space-y-2">
+                              {exam.status === 'published' ? (
+                                <div className="space-y-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="w-full bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border-green-200 text-green-700 hover:text-green-800 font-semibold"
+                                    onClick={() => window.open(`/take-exam/${exam.id}`, '_blank')}
+                                  >
+                                    <BookOpen className="h-4 w-4 mr-2" />
+                                    Take Test
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="w-full bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border-purple-200 text-purple-700 hover:text-purple-800 font-semibold"
+                                    onClick={() => {
+                                      setSelectedExamId(exam.id);
+                                      setActiveTab("results");
+                                    }}
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    View Results
+                                  </Button>
+                                </div>
+                              ) : (
+                                <PublishExamButton examId={exam.id} />
+                              )}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
