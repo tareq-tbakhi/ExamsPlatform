@@ -216,6 +216,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test endpoint to verify routing
+  app.get("/api/test", (req, res) => {
+    res.json({ message: "API routes are working", timestamp: new Date().toISOString() });
+  });
+
+  // Create submission
+  app.post("/api/submissions", async (req, res) => {
+    try {
+      console.log("Submissions endpoint hit with data:", req.body);
+      const submissionData = insertSubmissionSchema.parse(req.body);
+      const submission = await storage.createSubmission(submissionData);
+      console.log("Submission created successfully:", submission);
+      res.json(submission);
+    } catch (error) {
+      console.error("Failed to create submission:", error);
+      res.status(500).json({ message: "Failed to create submission", error: (error as Error).message });
+    }
+  });
+
   // Get recent submissions
   app.get("/api/submissions/recent", async (req, res) => {
     try {
