@@ -443,40 +443,54 @@ export default function Dashboard() {
                             </Badge>
                           </div>
                         </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-500">Questions:</span>
-                              <span className="font-medium">{exam.questionsCount}</span>
+                        <CardContent className="pt-0">
+                          <div className="space-y-4">
+                            {/* Stats Grid */}
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-3 text-center">
+                                <div className="text-lg font-bold text-blue-700">{exam.questionsCount}</div>
+                                <div className="text-xs text-blue-600">Questions</div>
+                              </div>
+                              <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-3 text-center">
+                                <div className="text-lg font-bold text-green-700">{exam.submissionsCount}</div>
+                                <div className="text-xs text-green-600">Submissions</div>
+                              </div>
                             </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-500">Submissions:</span>
-                              <span className="font-medium">{exam.submissionsCount}</span>
-                            </div>
+                            
+                            {/* Average Score with Progress Bar */}
                             {exam.averageScore !== undefined && (
-                              <div className="flex justify-between text-sm">
-                                <span className="text-gray-500">Average Score:</span>
-                                <span className="font-medium">{exam.averageScore.toFixed(1)}%</span>
+                              <div className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm text-gray-600">Average Score</span>
+                                  <span className="font-semibold text-gray-900">{exam.averageScore.toFixed(1)}%</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                  <div 
+                                    className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300" 
+                                    style={{ width: `${exam.averageScore}%` }}
+                                  ></div>
+                                </div>
                               </div>
                             )}
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-500">Created:</span>
-                              <span className="font-medium">{exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}</span>
+                            
+                            {/* Created Date */}
+                            <div className="text-xs text-gray-400 text-center pt-2">
+                              Created {exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}
                             </div>
-                            <div className="pt-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="w-full"
-                                onClick={() => {
-                                  setSelectedExamId(exam.id);
-                                  setActiveTab("results");
-                                }}
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                View Results
-                              </Button>
-                            </div>
+                            
+                            {/* Action Button */}
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="w-full bg-gradient-to-r from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border-purple-200 text-purple-700 hover:text-purple-800 font-semibold"
+                              onClick={() => {
+                                setSelectedExamId(exam.id);
+                                setActiveTab("results");
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View Results
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
