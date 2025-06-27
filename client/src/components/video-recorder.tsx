@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Video, StopCircle, Mic, MicOff, Camera, CameraOff } from "lucide-react";
+import { Video, StopCircle, Mic, MicOff, Camera, CameraOff, Edit2, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -104,6 +104,8 @@ export function VideoRecorder({
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [transcription, setTranscription] = useState("");
+  const [editableTranscript, setEditableTranscript] = useState("");
+  const [isEditingTranscript, setIsEditingTranscript] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -135,7 +137,12 @@ export function VideoRecorder({
     if (!transcriberRef.current) {
       transcriberRef.current = new ArabicVideoTranscriber();
       transcriberRef.current.onTranscriptUpdate = (finalText: string, interimText: string) => {
-        setTranscription(finalText + interimText);
+        const fullText = finalText + interimText;
+        setTranscription(fullText);
+        // Sync editable transcript only if not currently editing
+        if (!isEditingTranscript) {
+          setEditableTranscript(fullText);
+        }
       };
     }
   }, [questionId]);
@@ -293,13 +300,14 @@ export function VideoRecorder({
     setIsProcessing(true);
     
     try {
-      // Use JavaScript transcription instead of server-side processing
-      const finalTranscript = transcriberRef.current?.getFullTranscript() || '';
+      // Use editable transcript if user has edited it, otherwise use live transcription
+      const finalTranscript = isEditingTranscript ? editableTranscript : (transcriberRef.current?.getFullTranscript() || '');
       const confidence = 0.85; // JavaScript speech recognition typical confidence
       
       console.log(`JavaScript transcription completed: "${finalTranscript}"`);
       
       setTranscription(finalTranscript);
+      setEditableTranscript(finalTranscript);
       onRecordingComplete(finalTranscript, confidence);
 
       // Upload the video file to be stored as an answer
@@ -478,21 +486,75 @@ export function VideoRecorder({
           )}
         </div>
 
-        {/* Real-time Transcription Display */}
-        {(transcription || isProcessing) && (
+        {/* Editable Transcription Display */}
+        {(transcription || editableTranscript || isProcessing) && (
           <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-medium text-blue-800">Live Transcription</h4>
-              {isProcessing && (
-                <div className="flex items-center space-x-2 text-blue-600">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                  <span className="text-xs">Processing...</span>
-                </div>
-              )}
+              <div className="flex items-center space-x-2">
+                {!isEditingTranscript && !isRecording && (
+                  <Button
+                    onClick={() => {
+                      setIsEditingTranscript(true);
+                      setEditableTranscript(transcription);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                  >
+                    <Edit2 className="h-3 w-3 mr-1" />
+                    Edit
+                  </Button>
+                )}
+                {isEditingTranscript && (
+                  <div className="flex space-x-1">
+                    <Button
+                      onClick={() => {
+                        setTranscription(editableTranscript);
+                        setIsEditingTranscript(false);
+                      }}
+                      variant="default"
+                      size="sm"
+                      className="text-xs"
+                    >
+                      <Check className="h-3 w-3 mr-1" />
+                      Save
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setEditableTranscript(transcription);
+                        setIsEditingTranscript(false);
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+                {isProcessing && (
+                  <div className="flex items-center space-x-2 text-blue-600">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                    <span className="text-xs">Processing...</span>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="bg-white p-3 rounded border border-blue-200 min-h-[60px]">
-              {transcription ? (
-                <p className="text-sm text-gray-800 leading-relaxed">{transcription}</p>
+              {isEditingTranscript ? (
+                <textarea
+                  value={editableTranscript}
+                  onChange={(e) => setEditableTranscript(e.target.value)}
+                  className="w-full text-sm text-gray-800 leading-relaxed bg-transparent border-none outline-none resize-none min-h-[50px]"
+                  placeholder="Type or edit your Arabic text here..."
+                  dir="rtl"
+                />
+              ) : transcription || editableTranscript ? (
+                <p className="text-sm text-gray-800 leading-relaxed" dir="rtl">
+                  {transcription || editableTranscript}
+                </p>
               ) : (
                 <p className="text-sm text-gray-400 italic">Your speech will appear here in real-time...</p>
               )}
