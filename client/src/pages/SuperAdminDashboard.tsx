@@ -310,7 +310,7 @@ export default function SuperAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {users.map((user: any) => (
+                    {(users as any[]).map((user: any) => (
                       <TableRow key={user.id}>
                         <TableCell>
                           {user.firstName} {user.lastName}
@@ -371,7 +371,7 @@ export default function SuperAdminDashboard() {
             <CardContent>
               {invitationsLoading ? (
                 <div className="flex justify-center p-4">Loading invitations...</div>
-              ) : invitations.length === 0 ? (
+              ) : (invitations as any[]).length === 0 ? (
                 <div className="text-center p-8 text-gray-500">
                   <Mail className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>No pending invitations</p>
@@ -390,7 +390,7 @@ export default function SuperAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {invitations.map((invitation: any) => (
+                    {(invitations as any[]).map((invitation: any) => (
                       <TableRow key={invitation.id}>
                         <TableCell>
                           {invitation.firstName} {invitation.lastName}
