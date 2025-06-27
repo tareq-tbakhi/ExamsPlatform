@@ -13,11 +13,14 @@ import { Plus, Minus } from "lucide-react";
 import type { Question } from "@shared/schema";
 
 const questionSchema = z.object({
-  type: z.enum(["multiple_choice", "short_answer", "essay", "true_false"]),
+  type: z.enum(["multiple_choice", "true_false", "short_answer", "essay", "coding", "video_response", "audio_response"]),
   question: z.string().min(1, "Question is required"),
   options: z.array(z.string()).optional(),
   correctAnswer: z.string().optional(),
   points: z.number().min(1, "Points must be at least 1"),
+  metadata: z.record(z.any()).optional(),
+  timeLimit: z.number().optional(),
+  weight: z.number().optional(),
 });
 
 type QuestionFormData = z.infer<typeof questionSchema>;
@@ -67,6 +70,21 @@ export default function QuestionForms({ question, onSave, onCancel }: QuestionFo
         form.setError("correctAnswer", { message: "Please select True or False" });
         return;
       }
+    } else if (data.type === "video_response" || data.type === "audio_response") {
+      // Process keywords for video/audio responses
+      const keywords = data.correctAnswer ? data.correctAnswer.split(",").map(k => k.trim()).filter(k => k) : [];
+      processedData.metadata = {
+        keywords,
+        maxDuration: data.timeLimit || (data.type === "video_response" ? 120 : 60)
+      };
+      processedData.correctAnswer = ""; // Clear this since we store keywords in metadata
+    } else if (data.type === "coding") {
+      // Set up metadata for coding questions
+      processedData.metadata = {
+        language: "javascript",
+        template: data.correctAnswer || ""
+      };
+      processedData.correctAnswer = ""; // Clear this since we store template in metadata
     }
 
     onSave(processedData);
@@ -121,9 +139,12 @@ export default function QuestionForms({ question, onSave, onCancel }: QuestionFo
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                        <SelectItem value="true_false">True/False</SelectItem>
                         <SelectItem value="short_answer">Short Answer</SelectItem>
                         <SelectItem value="essay">Essay</SelectItem>
-                        <SelectItem value="true_false">True/False</SelectItem>
+                        <SelectItem value="coding">Coding Challenges</SelectItem>
+                        <SelectItem value="video_response">Video Response</SelectItem>
+                        <SelectItem value="audio_response">Audio Response</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -281,6 +302,115 @@ export default function QuestionForms({ question, onSave, onCancel }: QuestionFo
                   </FormItem>
                 )}
               />
+            )}
+
+            {/* Coding Question - Test Cases and Language */}
+            {watchedType === "coding" && (
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="correctAnswer"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Code Template (Optional)</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="function solution(input) {\n  // Your code here\n  return result;\n}"
+                          rows={4}
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="text-sm text-gray-600">
+                  Note: Test cases can be added after creating the question through the grading dashboard.
+                </div>
+              </div>
+            )}
+
+            {/* Video Response Question */}
+            {watchedType === "video_response" && (
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="timeLimit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Maximum Duration (seconds)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="120" 
+                          {...field}
+                          onChange={e => field.onChange(Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="correctAnswer"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Expected Keywords (comma-separated)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="gravity, acceleration, force, motion"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+
+            {/* Audio Response Question */}
+            {watchedType === "audio_response" && (
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="timeLimit"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Maximum Duration (seconds)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="60" 
+                          {...field}
+                          onChange={e => field.onChange(Number(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="correctAnswer"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Expected Keywords (comma-separated)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="تبخر، تكثف، هطول، دورة المياه"
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="text-sm text-gray-600">
+                  Note: Arabic speech-to-text transcription will be used for automatic grading.
+                </div>
+              </div>
             )}
 
             <div className="flex justify-end space-x-2">

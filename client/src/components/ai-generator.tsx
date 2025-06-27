@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const aiGeneratorSchema = z.object({
   topic: z.string().min(1, "Topic is required"),
-  questionType: z.enum(["multiple_choice", "short_answer", "essay", "true_false"]),
+  questionType: z.enum(["multiple_choice", "true_false", "short_answer", "essay", "coding", "video_response", "audio_response"]),
   difficulty: z.enum(["easy", "medium", "hard"]),
   count: z.number().min(1, "Count must be at least 1").max(20, "Maximum 20 questions"),
   subject: z.string().optional(),
@@ -134,9 +134,12 @@ export default function AIGenerator({ onQuestionsGenerated }: AIGeneratorProps) 
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="multiple_choice">Multiple Choice</SelectItem>
+                      <SelectItem value="true_false">True/False</SelectItem>
                       <SelectItem value="short_answer">Short Answer</SelectItem>
                       <SelectItem value="essay">Essay</SelectItem>
-                      <SelectItem value="true_false">True/False</SelectItem>
+                      <SelectItem value="coding">Coding Challenges</SelectItem>
+                      <SelectItem value="video_response">Video Response</SelectItem>
+                      <SelectItem value="audio_response">Audio Response</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
