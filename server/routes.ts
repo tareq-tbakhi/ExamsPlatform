@@ -128,6 +128,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate AI violation report
+  app.post("/api/analyze/generate-report", async (req, res) => {
+    try {
+      const { submissionId } = req.body;
+      
+      if (!submissionId) {
+        return res.status(400).json({ message: "Submission ID is required" });
+      }
+
+      console.log(`Generating AI report for submission ${submissionId}`);
+
+      // Get submission data
+      const submission = await storage.getSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      // Get exam data
+      const exam = await storage.getExam(submission.examId);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+
+      // Get violations for this submission
+      const violations = await storage.getViolationsBySubmission(submissionId);
+      
+      // Get stored AI analysis results
+      const analysisResults = await storage.getAnalysisResultsBySubmission(submissionId);
+      
+      console.log(`Found ${violations.length} violations and ${analysisResults.length} analysis results for submission ${submissionId}`);
+
+      // Prepare exam info for report generation
+      const examInfo = {
+        title: exam.title,
+        duration: exam.duration,
+        studentName: submission.studentName,
+        submissionId: submissionId,
+        submittedAt: submission.submittedAt
+      };
+
+      // Combine violations and analysis data
+      const allViolationData = [
+        ...violations,
+        ...analysisResults.map(result => ({
+          type: result.overallSuspicion > 80 ? 'critical' : result.overallSuspicion > 50 ? 'major' : 'minor',
+          category: 'ai_analysis',
+          description: result.summary,
+          evidence: { suspicionLevel: result.overallSuspicion }
+        }))
+      ];
+
+      // Generate the report using Gemini AI
+      const { generateViolationReport } = await import("./services/gemini");
+      const report = await generateViolationReport(allViolationData, examInfo);
+      
+      console.log(`Generated AI report for submission ${submissionId} (length: ${report.length} characters)`);
+
+      res.json({ 
+        success: true, 
+        report,
+        submissionId,
+        violationCount: allViolationData.length
+      });
+    } catch (error) {
+      console.error('Failed to generate AI report:', error);
+      res.status(500).json({ 
+        message: "Failed to generate AI report", 
+        error: (error as Error).message 
+      });
+    }
+  });
+
   // Stats endpoint
   app.get("/api/stats", async (req, res) => {
     try {
