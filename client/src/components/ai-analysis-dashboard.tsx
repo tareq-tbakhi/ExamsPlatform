@@ -297,32 +297,57 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                   <p>Loading videos...</p>
                 </div>
               ) : videos?.proctoringVideos?.length || videos?.answerVideos?.length ? (
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {videos.proctoringVideos?.map((video: any, index: number) => (
-                    <div key={index} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{video.filename}</p>
-                          <p className="text-sm text-gray-600">
-                            {video.type} • {(video.size / 1024 / 1024).toFixed(2)} MB
-                          </p>
+                    <div key={index} className="border rounded-lg p-4 space-y-3">
+                      {/* Video Preview */}
+                      <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
+                        <video
+                          src={video.url}
+                          className="w-full h-full object-cover"
+                          controls
+                          preload="metadata"
+                          playsInline
+                        />
+                        {/* Video Type Badge */}
+                        <div className="absolute top-2 left-2">
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            video.type === 'screen' 
+                              ? 'bg-blue-500 text-white' 
+                              : 'bg-green-500 text-white'
+                          }`}>
+                            {video.type === 'screen' ? 'Screen' : 'Camera'}
+                          </span>
                         </div>
+                      </div>
+                      
+                      {/* Video Info and Actions */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-sm truncate">{video.filename}</p>
+                            <p className="text-xs text-gray-600">
+                              {(video.size / 1024 / 1024).toFixed(2)} MB • {new Date(video.timestamp).toLocaleTimeString()}
+                            </p>
+                          </div>
+                        </div>
+                        
                         <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => analyzeVideoMutation.mutate(video.url)}
+                            disabled={analyzeVideoMutation.isPending}
+                            className="flex-1"
+                          >
+                            <Brain className="h-4 w-4 mr-2" />
+                            {analyzeVideoMutation.isPending ? 'Analyzing...' : 'AI Analyze'}
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => window.open(video.url, '_blank')}
                           >
-                            <Play className="h-4 w-4 mr-2" />
-                            View
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => analyzeVideoMutation.mutate(video.url)}
-                            disabled={analyzeVideoMutation.isPending}
-                          >
-                            <Brain className="h-4 w-4 mr-2" />
-                            Analyze
+                            <Play className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
