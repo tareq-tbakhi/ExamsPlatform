@@ -19,7 +19,10 @@ import {
   Search,
   Filter,
   Edit,
-  BarChart3
+  BarChart3,
+  Grid3X3,
+  List,
+  MoreHorizontal
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import StudentInviteManager from "@/components/StudentInviteManager";
@@ -29,6 +32,7 @@ export default function ExamList() {
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [selectedExam, setSelectedExam] = useState<ExamWithStats | null>(null);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"card" | "list">("card");
   
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -173,6 +177,26 @@ export default function ExamList() {
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* View Toggle Buttons */}
+              <div className="flex items-center border rounded-lg">
+                <Button
+                  variant={viewMode === "card" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("card")}
+                  className="rounded-l-lg rounded-r-none border-0"
+                >
+                  <Grid3X3 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === "list" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  className="rounded-r-lg rounded-l-none border-0"
+                >
+                  <List className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -191,7 +215,7 @@ export default function ExamList() {
                 }
               </p>
             </div>
-          ) : (
+          ) : viewMode === "card" ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {filteredExams.map((exam) => (
                 <Card key={exam.id} className="group hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500">
@@ -310,6 +334,94 @@ export default function ExamList() {
                           title="Delete Exam"
                         >
                           <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            // List View
+            <div className="space-y-4">
+              {filteredExams.map((exam) => (
+                <Card key={exam.id} className="hover:shadow-md transition-all duration-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4 flex-1">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                          {exam.title.charAt(0)}
+                        </div>
+                        
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h3 className="font-semibold text-lg text-gray-900">{exam.title}</h3>
+                              <p className="text-sm text-gray-600">{exam.subject}</p>
+                            </div>
+                            
+                            <div className="flex items-center space-x-6 text-sm text-gray-500">
+                              <div className="flex items-center">
+                                <FileText className="h-4 w-4 mr-1" />
+                                {exam.questionsCount} questions
+                              </div>
+                              <div className="flex items-center">
+                                <Users className="h-4 w-4 mr-1" />
+                                {exam.submissionsCount} submissions
+                              </div>
+                              <div className="flex items-center">
+                                <Clock className="h-4 w-4 mr-1" />
+                                {exam.duration} min
+                              </div>
+                              <div className="flex items-center">
+                                <Calendar className="h-4 w-4 mr-1" />
+                                {exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2 ml-4">
+                        {getStatusBadge(exam.status)}
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleView(exam.id)}
+                          title="Preview Exam"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleResults(exam.id)}
+                          title="View Results"
+                        >
+                          <BarChart3 className="h-4 w-4" />
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedExam(exam);
+                            setInviteDialogOpen(true);
+                          }}
+                          title="Manage Students"
+                        >
+                          <Users className="h-4 w-4" />
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {}}
+                          title="More Actions"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </div>
                     </div>
