@@ -22,10 +22,13 @@ import {
   Send,
   Share,
   ClipboardCheck,
-  GraduationCap
+  GraduationCap,
+  Shield
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { isSuperAdmin } from "@/lib/authUtils";
 import ExamCreator from "@/components/exam-creator";
 import ExamList from "@/components/exam-list";
 import ResultsView from "@/components/results-view";
@@ -105,6 +108,7 @@ function PublishExamButton({ examId }: { examId: number }) {
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
+  const { user } = useAuth();
 
   const { data: stats } = useQuery({
     queryKey: ["/api/stats"],
@@ -188,6 +192,20 @@ export default function Dashboard() {
                 </button>
               );
             })}
+            
+            {/* Super Admin Section */}
+            {user && user.role && isSuperAdmin(user.role) && (
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <Button
+                  variant="outline"
+                  className="w-full flex items-center gap-4 px-6 py-4 rounded-xl transition-all duration-200 text-left font-medium bg-gradient-to-r from-red-50 to-orange-50 hover:from-red-100 hover:to-orange-100 border-red-200 text-red-700 hover:text-red-800"
+                  onClick={() => window.location.href = "/super-admin"}
+                >
+                  <Shield className="h-6 w-6 flex-shrink-0" />
+                  <span className="text-lg">Super Admin</span>
+                </Button>
+              </div>
+            )}
             
             <div className="mt-8 pt-6 border-t border-gray-200">
               <Button 
