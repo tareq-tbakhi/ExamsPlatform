@@ -1,11 +1,30 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, real, bigint } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, real, bigint, varchar, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Session storage table for Replit Auth
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// User management with roles and Replit Auth integration
 export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  id: varchar("id").primaryKey().notNull(), // Replit user ID
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  role: text("role").notNull().default("student"), // admin, teacher_supervisor, teacher, student
+  permissions: jsonb("permissions").default([]), // Additional permissions array
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const exams = pgTable("exams", {
@@ -15,7 +34,7 @@ export const exams = pgTable("exams", {
   instructions: text("instructions"),
   duration: integer("duration").notNull(), // minutes
   totalPoints: integer("total_points").notNull(),
-  createdBy: integer("created_by").notNull(),
+  createdBy: varchar("created_by").notNull(), // Now references user.id (string)
   status: text("status").notNull().default("draft"), // draft, published, archived
   settings: jsonb("settings").default({}),
   createdAt: timestamp("created_at").defaultNow(),
@@ -90,10 +109,15 @@ export const videoAnswers = pgTable("video_answers", {
   submittedAt: timestamp("submitted_at").defaultNow(),
 });
 
-// Insert schemas
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
+// Authentication and user management schemas
+export const insertUserSchema = createInsertSchema(users);
+
+export const upsertUserSchema = createInsertSchema(users).pick({
+  id: true,
+  email: true,
+  firstName: true,
+  lastName: true,
+  profileImageUrl: true,
 });
 
 export const insertExamSchema = createInsertSchema(exams).omit({
@@ -110,9 +134,10 @@ export const insertSubmissionSchema = createInsertSchema(submissions).omit({
   submittedAt: true,
 });
 
-// Types
+// User types for Replit Auth
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpsertUser = z.infer<typeof upsertUserSchema>;
 
 export type Exam = typeof exams.$inferSelect;
 export type InsertExam = z.infer<typeof insertExamSchema>;
