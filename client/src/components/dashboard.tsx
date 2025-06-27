@@ -18,6 +18,7 @@ import {
 import ExamCreator from "@/components/exam-creator";
 import ResultsView from "@/components/results-view";
 import type { ExamWithStats } from "@shared/schema";
+import logoImage from "@assets/image_1751011948568.png";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -71,7 +72,14 @@ export default function Dashboard() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Create New Exam</h1>
+          <div className="flex items-center gap-4">
+            <img 
+              src={logoImage} 
+              alt="ExamCraft Logo" 
+              className="h-12 w-auto"
+            />
+            <h1 className="text-3xl font-bold text-blue-700">Create New Exam</h1>
+          </div>
           <Button 
             variant="outline" 
             onClick={() => setShowCreateExam(false)}
@@ -87,9 +95,16 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">ExamCraft Dashboard</h1>
-          <p className="text-gray-600">Manage your exams and monitor student performance</p>
+        <div className="flex items-center gap-4">
+          <img 
+            src={logoImage} 
+            alt="ExamCraft Logo" 
+            className="h-16 w-auto"
+          />
+          <div>
+            <h1 className="text-3xl font-bold text-blue-700">ExamCraft</h1>
+            <p className="text-gray-600">AI-Powered Exam Management Dashboard</p>
+          </div>
         </div>
         <Button onClick={() => setShowCreateExam(true)}>
           <Plus className="h-4 w-4 mr-2" />
