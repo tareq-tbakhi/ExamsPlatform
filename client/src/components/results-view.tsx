@@ -96,6 +96,20 @@ export default function ResultsView() {
     return submissionAnalysisQueries.data?.get(submissionId) || undefined;
   };
 
+  // Generate short summary text for table display
+  const getShortSummary = (analysis: any) => {
+    if (!analysis) return "";
+    
+    const riskLevel = analysis.overallSuspicion > 70 ? "High risk" : 
+                     analysis.overallSuspicion > 40 ? "Moderate risk" : "Low risk";
+    
+    const violationText = analysis.criticalViolations > 0 ? "critical violations detected" :
+                         analysis.majorViolations > 0 ? "violations detected" : 
+                         "compliance acceptable";
+                         
+    return `${riskLevel} - ${violationText} with ${analysis.overallSuspicion}% suspicion level.`;
+  };
+
   // Enhance submissions with AI analysis
   const enhancedSubmissions: SubmissionWithAnalysis[] = recentSubmissions.map(submission => ({
     ...submission,
@@ -324,38 +338,7 @@ export default function ResultsView() {
                       </div>
                     ) : (
                       <div>
-                        {/* AI Analysis Summary Section */}
-                        {exam.submissions.some(sub => sub.aiAnalysis) && (
-                          <div className="mb-6">
-                            <h3 className="text-lg font-semibold mb-3">AI Analysis Summary</h3>
-                            <div className="space-y-3">
-                              {exam.submissions.filter(sub => sub.aiAnalysis).map((submission) => (
-                                <Card key={`summary-${submission.id}`} className="bg-blue-50 border-blue-200">
-                                  <CardContent className="pt-4">
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex-1">
-                                        <div className="flex items-center gap-2 mb-2">
-                                          <span className="font-medium text-blue-900">{submission.studentName}</span>
-                                          <Badge variant={
-                                            submission.aiAnalysis!.overallSuspicion > 70 ? "destructive" :
-                                            submission.aiAnalysis!.overallSuspicion > 40 ? "secondary" : "default"
-                                          }>
-                                            {submission.aiAnalysis!.overallSuspicion}% Risk
-                                          </Badge>
-                                        </div>
-                                        <p className="text-sm text-gray-700 leading-relaxed">
-                                          {submission.aiAnalysis!.summary}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Submissions Table */}
+
                       <div className="overflow-x-auto">
                         <Table>
                           <TableHeader>
@@ -412,7 +395,7 @@ export default function ResultsView() {
                                     {submission.aiAnalysis ? (
                                       <>
                                         <p className="text-sm text-gray-800 font-medium leading-relaxed">
-                                          {submission.aiAnalysis.summary}
+                                          {getShortSummary(submission.aiAnalysis)}
                                         </p>
                                         <div className="flex flex-wrap gap-2 text-xs">
                                           {submission.aiAnalysis.criticalViolations > 0 && (
