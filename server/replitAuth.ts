@@ -116,22 +116,22 @@ export async function setupAuth(app: Express) {
     }
     
     // Check if user has a valid invitation
-    const invitation = await storage.getUserInvitationByEmail(email);
+    const invitation = await storage.getUserInvitationByEmail(email as string);
     if (!invitation) {
       // No invitation found - deny access
-      verified(new Error('Access denied: No invitation found for this email address'), false);
+      verified(null, false);
       return;
     }
     
     if (invitation.inviteStatus !== 'pending') {
       // Invitation already used or expired
-      verified(new Error('Access denied: Invitation has already been used or expired'), false);
+      verified(null, false);
       return;
     }
     
     // Check if invitation has expired
     if (invitation.expiresAt && new Date() > invitation.expiresAt) {
-      verified(new Error('Access denied: Invitation has expired'), false);
+      verified(null, false);
       return;
     }
     
