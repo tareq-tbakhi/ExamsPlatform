@@ -27,6 +27,7 @@ import logoImage from "@assets/image_1751011948568.png";
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [showCreateExam, setShowCreateExam] = useState(false);
+  const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
 
   // Mock user ID - in real app this would come from authentication
   const userId = 1;
@@ -83,27 +84,28 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
         <div className="flex">
-          {/* Sidebar */}
-          <div className="w-64 bg-white shadow-lg min-h-screen">
-            <div className="p-6 border-b">
-              <div className="flex items-center gap-3">
+          {/* Enhanced Sidebar - Always Visible */}
+          <div className="w-80 bg-white shadow-xl min-h-screen relative border-r border-gray-200">
+            <div className="p-8 border-b bg-gradient-to-r from-purple-50 to-blue-50">
+              <div className="flex items-center gap-4">
                 <img 
                   src={logoImage} 
                   alt="ExamCraft Logo" 
-                  className="h-10 w-auto"
+                  className="h-14 w-auto"
                 />
-                <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                   ExamCraft
                 </h1>
               </div>
+              <p className="text-sm text-gray-600 mt-2 ml-18">AI-Powered Exam Platform</p>
             </div>
-            <nav className="p-4">
+            <nav className="p-6">
               <Button 
                 variant="ghost" 
                 onClick={() => setShowCreateExam(false)}
-                className="w-full justify-start mb-4"
+                className="w-full justify-start mb-6 text-lg font-semibold py-4 px-6 rounded-xl hover:bg-gray-100"
               >
-                <Home className="h-4 w-4 mr-3" />
+                <Home className="h-6 w-6 mr-4" />
                 Back to Dashboard
               </Button>
             </nav>
@@ -127,48 +129,49 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
       <div className="flex">
-        {/* Sidebar */}
-        <div className="w-64 bg-white shadow-lg min-h-screen relative">
-          <div className="p-6 border-b">
-            <div className="flex items-center gap-3">
+        {/* Enhanced Sidebar - Always Visible */}
+        <div className="w-80 bg-white shadow-xl min-h-screen relative border-r border-gray-200">
+          <div className="p-8 border-b bg-gradient-to-r from-purple-50 to-blue-50">
+            <div className="flex items-center gap-4">
               <img 
                 src={logoImage} 
                 alt="ExamCraft Logo" 
-                className="h-10 w-auto"
+                className="h-14 w-auto"
               />
-              <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 ExamCraft
               </h1>
             </div>
+            <p className="text-sm text-gray-600 mt-2 ml-18">AI-Powered Exam Platform</p>
           </div>
           
-          <nav className="p-4 space-y-2">
+          <nav className="p-6 space-y-3">
             {sidebarItems.map((item) => {
               const Icon = item.icon;
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl transition-all text-left ${
                     activeTab === item.id
-                      ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg transform scale-105'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   }`}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span className="font-medium">{item.label}</span>
+                  <Icon className="h-6 w-6" />
+                  <span className="font-semibold text-lg">{item.label}</span>
                 </button>
               );
             })}
           </nav>
           
-          <div className="absolute bottom-4 left-4 right-4">
+          <div className="absolute bottom-6 left-6 right-6">
             <Button
               onClick={() => setShowCreateExam(true)}
-              className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white shadow-lg"
+              className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white shadow-xl py-4 text-lg font-semibold rounded-xl"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Exam
+              <Plus className="h-5 w-5 mr-3" />
+              Create New Exam
             </Button>
           </div>
         </div>
@@ -416,7 +419,10 @@ export default function Dashboard() {
                                 variant="outline" 
                                 size="sm" 
                                 className="w-full"
-                                onClick={() => setActiveTab("results")}
+                                onClick={() => {
+                                  setSelectedExamId(exam.id);
+                                  setActiveTab("results");
+                                }}
                               >
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Results
@@ -494,7 +500,7 @@ export default function Dashboard() {
             )}
 
             {activeTab === "results" && (
-              <ResultsView />
+              <ResultsView selectedExamId={selectedExamId} />
             )}
           </div>
         </div>
