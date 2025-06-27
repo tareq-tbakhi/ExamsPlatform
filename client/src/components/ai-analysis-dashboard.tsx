@@ -266,7 +266,6 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
           </Button>
         </div>
       </div>
-
       <Tabs defaultValue="violations" className="w-full">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="violations">Violations</TabsTrigger>
@@ -638,7 +637,7 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                     </div>
                   )}
                   <div className="prose max-w-none">
-                    <pre className="whitespace-pre-wrap text-sm bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border">
+                    <pre className="whitespace-pre-wrap text-sm dark:bg-gray-900 p-4 rounded-lg border bg-[#0c0a09]">
                       {generatedReport}
                     </pre>
                   </div>
