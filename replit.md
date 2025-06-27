@@ -254,6 +254,15 @@ Changelog:
   * Added video/audio question types to student exam interface with automatic recording triggers
   * Enhanced database integration to store video answers with transcription and validation results
   * Enabled default proctoring protection for all exams automatically (no manual configuration needed)
+- June 27, 2025. Enhanced video recording system with individual question recordings and real-time transcription:
+  * Fixed camera permission conflicts between proctoring system and video recorder
+  * Implemented stream sharing so video recorder reuses proctoring camera stream (data-proctoring attribute)
+  * Added individual recording per question with automatic reset when switching questions
+  * Built real-time on-screen transcription display with live processing indicators
+  * Created comprehensive AI validation display showing score percentage and detailed feedback
+  * Enhanced mobile-friendly proctoring with adaptive permissions (camera/mic only on mobile)
+  * Verified complete pipeline: Video recording → OpenAI transcription → AI validation → Score display
+  * Successfully tested Palestinian Studies exam with 5 Arabic video questions and mobile proctoring
 ```
 
 ## User Preferences
