@@ -20,13 +20,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Enhanced analysis endpoint
   app.post("/api/analyze/enhanced-analysis", async (req, res) => {
     try {
-      const { videoPath, examContext, submissionId } = req.body;
-      console.log('Enhanced analysis request:', { videoPath, examContext, submissionId });
+      const { submissionId, examContext } = req.body;
+      console.log('Enhanced analysis request:', { submissionId, examContext });
       
-      // Use real Gemini AI analysis instead of mock data
-      console.log('Starting Gemini AI video analysis...');
-      const enhancedAnalysis = await analyzeVideoRecording(videoPath, examContext);
-      console.log('Gemini AI analysis completed:', enhancedAnalysis);
+      // Fetch all videos for this submission
+      const videosResponse = await fetch(`http://localhost:5000/api/videos/submission/${submissionId}`);
+      const videos = await videosResponse.json();
+      
+      if (!videos.proctoringVideos?.length) {
+        return res.status(400).json({ message: "No videos found for analysis" });
+      }
+
+      console.log(`Found ${videos.proctoringVideos.length} videos for analysis`);
+      
+      // Analyze both camera and screen videos
+      const allViolations = [];
+      const allTimeline = [];
+      let combinedSuspicion = 0;
+      let videoCount = 0;
+      
+      for (const video of videos.proctoringVideos) {
+        try {
+          console.log(`Analyzing video: ${video.filename}`);
+          const analysis = await analyzeVideoRecording(video.url, `${examContext} - ${video.type} video`);
+          
+          // Combine results
+          allViolations.push(...analysis.violations);
+          allTimeline.push(...analysis.timeline);
+          combinedSuspicion += analysis.overallSuspicion;
+          videoCount++;
+          
+          console.log(`Analysis completed for ${video.filename}: ${analysis.violations.length} violations`);
+        } catch (videoError) {
+          console.error(`Error analyzing video ${video.filename}:`, videoError);
+          // Continue with other videos
+        }
+      }
+      
+      // Create combined analysis result
+      const enhancedAnalysis = {
+        overallSuspicion: videoCount > 0 ? Math.round(combinedSuspicion / videoCount) : 0,
+        violations: allViolations,
+        timeline: allTimeline.sort((a, b) => a.timestamp - b.timestamp),
+        summary: `Combined analysis of ${videoCount} videos found ${allViolations.length} violations with ${Math.round(combinedSuspicion / videoCount)}% overall suspicion level.`
+      };
+      
+      console.log('Combined AI analysis completed:', enhancedAnalysis);
 
       // Store AI analysis results in new database tables
       if (submissionId) {
@@ -34,7 +73,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Create main analysis result entry
           const analysisResult = await storage.createAiAnalysisResult({
             submissionId: parseInt(submissionId),
-            videoPath,
+            videoPath: `Combined analysis of ${videoCount} videos`,
             overallSuspicion: Math.round(enhancedAnalysis.overallSuspicion * 100),
             summary: enhancedAnalysis.summary
           });

@@ -46,45 +46,60 @@ export default function ResultsView() {
     gcTime: 0, // Don't cache the data (TanStack Query v5 uses gcTime instead of cacheTime)
   });
 
-  // Generate AI analysis summary for submission
-  const generateAIAnalysisSummary = (submissionId: number): SubmissionWithAnalysis["aiAnalysis"] => {
-    // This simulates real Gemini AI analysis data
-    const criticalViolations = Math.floor(Math.random() * 3);
-    const majorViolations = Math.floor(Math.random() * 4);
-    const minorViolations = Math.floor(Math.random() * 6);
-    const overallSuspicion = Math.max(20, Math.min(95, 30 + (criticalViolations * 25) + (majorViolations * 10) + (minorViolations * 3)));
-    
-    const screenActivityScore = Math.floor(Math.random() * 30) + 70;
-    const behavioralScore = Math.floor(Math.random() * 25) + 75;
-    const audioScore = Math.floor(Math.random() * 20) + 80;
-    
-    let summary = "AI Analysis: ";
-    if (overallSuspicion > 80) {
-      summary += "High risk detected - Multiple critical violations including unauthorized application usage and suspicious screen activity patterns.";
-    } else if (overallSuspicion > 60) {
-      summary += "Moderate risk - Several violations detected requiring manual review for screen monitoring and behavioral anomalies.";
-    } else if (overallSuspicion > 40) {
-      summary += "Low risk - Minor violations detected but overall compliance acceptable with normal screen activity patterns.";
-    } else {
-      summary += "Minimal risk - Excellent compliance with consistent screen monitoring and normal behavioral patterns.";
-    }
+  // Fetch real AI analysis data for all submissions
+  const submissionAnalysisQueries = useQuery({
+    queryKey: ['/api/analyze/all-results'],
+    queryFn: async () => {
+      const analysisMap = new Map();
+      
+      // Fetch analysis for each submission
+      for (const submission of recentSubmissions) {
+        try {
+          const response = await fetch(`/api/analyze/results/${submission.id}`);
+          const analysis = await response.json();
+          
+          if (analysis.length > 0) {
+            // Use the most recent analysis
+            const latestAnalysis = analysis[0];
+            
+            // Count violations by severity - need to fetch violations for this analysis
+            const violationsResponse = await fetch(`/api/violations/${submission.id}`);
+            const violations = await violationsResponse.json();
+            
+            const criticalViolations = violations.filter((v: any) => v.type === 'critical').length;
+            const majorViolations = violations.filter((v: any) => v.type === 'major').length;
+            const minorViolations = violations.filter((v: any) => v.type === 'minor').length;
+            
+            analysisMap.set(submission.id, {
+              overallSuspicion: Math.round(latestAnalysis.overallSuspicion / 100), // Convert from 0-10000 to 0-100
+              criticalViolations,
+              majorViolations,
+              minorViolations,
+              screenActivityScore: 85, // Default values for now
+              behavioralScore: 85,
+              audioScore: 80,
+              summary: latestAnalysis.summary
+            });
+          }
+        } catch (error) {
+          console.error(`Failed to fetch analysis for submission ${submission.id}:`, error);
+        }
+      }
+      
+      return analysisMap;
+    },
+    enabled: recentSubmissions.length > 0
+  });
 
-    return {
-      overallSuspicion,
-      criticalViolations,
-      majorViolations,
-      minorViolations,
-      screenActivityScore,
-      behavioralScore,
-      audioScore,
-      summary
-    };
+  // Get AI analysis summary for submission from stored data
+  const getAIAnalysisSummary = (submissionId: number): SubmissionWithAnalysis["aiAnalysis"] | null => {
+    return submissionAnalysisQueries.data?.get(submissionId) || null;
   };
 
   // Enhance submissions with AI analysis
   const enhancedSubmissions: SubmissionWithAnalysis[] = recentSubmissions.map(submission => ({
     ...submission,
-    aiAnalysis: generateAIAnalysisSummary(submission.id)
+    aiAnalysis: getAIAnalysisSummary(submission.id)
   }));
 
   // Group submissions by exam
