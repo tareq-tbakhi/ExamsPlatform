@@ -332,10 +332,10 @@ export default function Dashboard() {
                   </Card>
                 </div>
 
-                {/* All Exams Section - Enhanced Cards */}
+                {/* Recent Exams Section - Enhanced Cards */}
                 <div className="space-y-8">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-bold text-gray-900">All Exams</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">Recent Exams</h2>
                     <Button onClick={() => setActiveTab("create")} className="bg-gradient-to-r from-purple-500 to-blue-500">
                       <Plus className="h-4 w-4 mr-2" />
                       Create New Exam
