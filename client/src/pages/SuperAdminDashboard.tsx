@@ -55,15 +55,12 @@ export default function SuperAdminDashboard() {
   // Invite user mutation
   const inviteUserMutation = useMutation({
     mutationFn: async (data: InviteUserForm) => {
-      return await apiRequest("/api/admin/invite-user", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      return await apiRequest("POST", "/api/admin/invite-user", data);
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({
         title: "User Invited Successfully",
-        description: `Invitation sent to ${data.invitation.email}`,
+        description: `Invitation sent to ${data.email}`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/user-invitations"] });
       setIsInviteDialogOpen(false);
@@ -81,9 +78,7 @@ export default function SuperAdminDashboard() {
   // Delete invitation mutation
   const deleteInvitationMutation = useMutation({
     mutationFn: async (id: number) => {
-      return await apiRequest(`/api/admin/user-invitations/${id}`, {
-        method: "DELETE",
-      });
+      return await apiRequest("DELETE", `/api/admin/user-invitations/${id}`);
     },
     onSuccess: () => {
       toast({
@@ -104,10 +99,7 @@ export default function SuperAdminDashboard() {
   // Update user role mutation
   const updateUserRoleMutation = useMutation({
     mutationFn: async ({ id, role }: { id: string; role: string }) => {
-      return await apiRequest(`/api/admin/users/${id}/role`, {
-        method: "PATCH",
-        body: JSON.stringify({ role }),
-      });
+      return await apiRequest("PATCH", `/api/admin/users/${id}/role`, { role });
     },
     onSuccess: () => {
       toast({
@@ -128,10 +120,7 @@ export default function SuperAdminDashboard() {
   // Activate/deactivate user mutation
   const updateUserStatusMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-      return await apiRequest(`/api/admin/users/${id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ isActive }),
-      });
+      return await apiRequest("PATCH", `/api/admin/users/${id}/status`, { isActive });
     },
     onSuccess: () => {
       toast({
