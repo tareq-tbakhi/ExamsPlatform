@@ -8,14 +8,18 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Eye, Edit, Share, Trash2, Search, Grid3X3, List, BookOpen, Send, Users, Clock, FileText, TrendingUp } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import StudentInviteManager from "@/components/StudentInviteManager";
 import type { ExamWithStats } from "@shared/schema";
 
 export default function ExamList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [viewMode, setViewMode] = useState<"table" | "cards">("cards");
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [selectedExam, setSelectedExam] = useState<ExamWithStats | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -344,11 +348,23 @@ export default function ExamList() {
                         </Button>
                       )}
                       
-                      <div className="flex gap-2">
+                      <div className="grid grid-cols-3 gap-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex-1"
+                          onClick={() => {
+                            setSelectedExam(exam);
+                            setInviteDialogOpen(true);
+                          }}
+                          title="Manage Student Invitations"
+                          className="text-purple-600 hover:text-purple-700 border-purple-200 hover:bg-purple-50"
+                        >
+                          <Users className="h-4 w-4 mr-1" />
+                          Invite
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
                           disabled
                           title="Edit Exam (Coming Soon)"
                         >
@@ -358,7 +374,7 @@ export default function ExamList() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex-1 text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
+                          className="text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
                           onClick={() => {
                             if (window.confirm("Are you sure you want to delete this exam?")) {
                               deleteExamMutation.mutate(exam.id);

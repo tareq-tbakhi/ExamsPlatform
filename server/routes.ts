@@ -941,6 +941,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Upload CSV/Excel file for bulk student invitations
+  app.post("/api/exams/:id/upload-students", requireTeacher, async (req: RequestWithFiles, res) => {
+    try {
+      const examId = parseInt(req.params.id);
+      
+      // Check if exam exists
+      const exam = await storage.getExam(examId);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+
+      // Check if file was uploaded
+      if (!req.files || !req.files.csvFile) {
+        return res.status(400).json({ message: "No CSV file uploaded" });
+      }
+
+      const uploadedFile = req.files.csvFile as UploadedFile;
+      
+      // Check file type
+      const allowedTypes = ['.csv', '.xlsx', '.xls'];
+      const fileExt = path.extname(uploadedFile.name).toLowerCase();
+      if (!allowedTypes.includes(fileExt)) {
+        return res.status(400).json({ message: "Only CSV and Excel files are allowed" });
+      }
+
+      // Parse CSV file
+      const fileContent = uploadedFile.data.toString('utf8');
+      
+      Papa.parse(fileContent, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          try {
+            const students = results.data as any[];
+            console.log(`Processing ${students.length} students for exam ${examId}`);
+
+            // Validate and prepare student data
+            const validStudents = [];
+            const errors = [];
+
+            for (let i = 0; i < students.length; i++) {
+              const student = students[i];
+              const row = i + 1;
+
+              // Check for required email field
+              const email = student.email || student.Email || student.EMAIL || student['Student Email'] || student['student_email'];
+              if (!email || !email.includes('@')) {
+                errors.push(`Row ${row}: Invalid or missing email address`);
+                continue;
+              }
+
+              // Extract other fields with various possible column names
+              const name = student.name || student.Name || student.NAME || student['Student Name'] || student['student_name'] || '';
+              const regNumber = student.registration || student.Registration || student.REGISTRATION || 
+                               student['Registration Number'] || student['registration_number'] || student.id || student.ID || '';
+
+              validStudents.push({
+                examId,
+                studentEmail: email.trim().toLowerCase(),
+                studentName: name.trim() || null,
+                registrationNumber: regNumber.toString().trim() || null,
+                inviteStatus: 'pending',
+                inviteToken: crypto.randomUUID(),
+              });
+            }
+
+            if (errors.length > 0 && validStudents.length === 0) {
+              return res.status(400).json({ 
+                message: "No valid students found", 
+                errors 
+              });
+            }
+
+            // Create bulk invitations
+            const createdInvitations = await storage.createBulkExamInvitations(validStudents);
+            
+            console.log(`Successfully created ${createdInvitations.length} invitations for exam ${examId}`);
+
+            res.json({
+              message: `Successfully uploaded ${createdInvitations.length} student invitations`,
+              totalProcessed: students.length,
+              successfulInvitations: createdInvitations.length,
+              errors,
+              invitations: createdInvitations
+            });
+
+          } catch (error) {
+            console.error('Error processing CSV data:', error);
+            res.status(500).json({ message: "Failed to process student data", error: (error as Error).message });
+          }
+        },
+        error: (error) => {
+          console.error('CSV parsing error:', error);
+          res.status(400).json({ message: "Failed to parse CSV file", error: error.message });
+        }
+      });
+
+    } catch (error) {
+      console.error("Failed to upload students:", error);
+      res.status(500).json({ message: "Failed to upload students", error: (error as Error).message });
+    }
+  });
+
+  // Get student invitations for an exam
+  app.get("/api/exams/:id/invitations", requireTeacher, async (req, res) => {
+    try {
+      const examId = parseInt(req.params.id);
+      const invitations = await storage.getExamInvitations(examId);
+      res.json(invitations);
+    } catch (error) {
+      console.error("Failed to fetch invitations:", error);
+      res.status(500).json({ message: "Failed to fetch invitations", error: (error as Error).message });
+    }
+  });
+
   // Create question
   app.post("/api/questions", async (req, res) => {
     try {
