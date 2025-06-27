@@ -216,11 +216,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Test endpoint to verify routing
-  app.get("/api/test", (req, res) => {
-    res.json({ message: "API routes are working", timestamp: new Date().toISOString() });
-  });
-
   // Create submission
   app.post("/api/submissions", async (req, res) => {
     try {
