@@ -4,11 +4,12 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
-import { isAdmin, isTeacherOrAbove } from "@/lib/authUtils";
+import { isSuperAdmin, isAdmin, isTeacherOrAbove } from "@/lib/authUtils";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import Dashboard from "@/components/dashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
+import SuperAdminDashboard from "@/pages/SuperAdminDashboard";
 import TakeExam from "@/pages/take-exam";
 import StudentLogin from "@/pages/StudentLogin";
 import StudentDashboard from "@/pages/StudentDashboard";
@@ -30,13 +31,18 @@ function Router() {
         <Route path="/" component={Landing} />
       ) : (
         <>
+          {/* Super Admin Routes */}
+          {user && user.role && isSuperAdmin(user.role) && (
+            <Route path="/super-admin" component={SuperAdminDashboard} />
+          )}
+          
           {/* Admin Routes */}
-          {user && isAdmin(user.role) && (
+          {user && user.role && isAdmin(user.role) && (
             <Route path="/admin" component={AdminDashboard} />
           )}
           
           {/* Teacher/Admin Routes */}
-          {user && isTeacherOrAbove(user.role) && (
+          {user && user.role && isTeacherOrAbove(user.role) && (
             <Route path="/" component={Dashboard} />
           )}
           

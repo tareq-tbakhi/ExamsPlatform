@@ -3,6 +3,7 @@ export function isUnauthorizedError(error: Error): boolean {
 }
 
 export const ROLES = {
+  SUPER_ADMIN: 'super_admin',
   ADMIN: 'admin',
   TEACHER_SUPERVISOR: 'teacher_supervisor', 
   TEACHER: 'teacher',
@@ -15,14 +16,18 @@ export function hasPermission(userRole: string, requiredRoles: UserRole[]): bool
   return requiredRoles.includes(userRole as UserRole);
 }
 
+export function isSuperAdmin(userRole: string): boolean {
+  return userRole === ROLES.SUPER_ADMIN;
+}
+
 export function isAdmin(userRole: string): boolean {
-  return userRole === ROLES.ADMIN;
+  return hasPermission(userRole, [ROLES.SUPER_ADMIN, ROLES.ADMIN]);
 }
 
 export function isTeacherOrAbove(userRole: string): boolean {
-  return hasPermission(userRole, [ROLES.ADMIN, ROLES.TEACHER_SUPERVISOR, ROLES.TEACHER]);
+  return hasPermission(userRole, [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.TEACHER_SUPERVISOR, ROLES.TEACHER]);
 }
 
 export function isSupervisorOrAbove(userRole: string): boolean {
-  return hasPermission(userRole, [ROLES.ADMIN, ROLES.TEACHER_SUPERVISOR]);
+  return hasPermission(userRole, [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.TEACHER_SUPERVISOR]);
 }
