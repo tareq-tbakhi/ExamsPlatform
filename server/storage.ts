@@ -2,7 +2,7 @@ import {
   users, exams, questions, submissions, proctoringViolations, videoQuestions, videoAnswers,
   aiAnalysisResults, analysisViolations, analysisTimeline, aiReports,
   questionGrades, codingTestCases, codingSubmissions,
-  type User, type InsertUser, type Exam, type InsertExam, type Question, type InsertQuestion, 
+  type User, type InsertUser, type UpsertUser, type Exam, type InsertExam, type Question, type InsertQuestion, 
   type Submission, type InsertSubmission, type ExamWithQuestions, type ExamWithStats, 
   type SubmissionWithExam, type ProctoringViolation, type InsertProctoringViolation,
   type VideoQuestion, type InsertVideoQuestion, type VideoAnswer, type InsertVideoAnswer,
@@ -29,7 +29,7 @@ export interface IStorage {
   createExam(exam: InsertExam): Promise<Exam>;
   getExam(id: number): Promise<Exam | undefined>;
   getExamWithQuestions(id: number): Promise<ExamWithQuestions | undefined>;
-  getExamsByCreator(createdBy: number): Promise<ExamWithStats[]>;
+  getExamsByCreator(createdBy: string): Promise<ExamWithStats[]>;
   updateExam(id: number, exam: Partial<InsertExam>): Promise<Exam | undefined>;
   deleteExam(id: number): Promise<boolean>;
 
@@ -173,7 +173,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getExamsByCreator(createdBy: number): Promise<ExamWithStats[]> {
+  async getExamsByCreator(createdBy: string): Promise<ExamWithStats[]> {
     const userExams = await db
       .select()
       .from(exams)
