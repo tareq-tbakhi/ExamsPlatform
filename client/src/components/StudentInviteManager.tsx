@@ -112,7 +112,7 @@ export default function StudentInviteManager({ examId, examTitle }: StudentInvit
 
     return (
       <Badge variant={variants[status as keyof typeof variants] || "destructive"}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {status ? status.charAt(0).toUpperCase() + status.slice(1) : "Unknown"}
       </Badge>
     );
   };
