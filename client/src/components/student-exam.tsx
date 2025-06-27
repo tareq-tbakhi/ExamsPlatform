@@ -428,7 +428,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
 
   // Main exam interface
   return (
-    <div className="min-h-screen bg-gray-50 relative">
+    <div className="min-h-screen h-screen bg-gray-50 relative overflow-y-auto">
       {/* Proctoring Manager - AI Monitoring System */}
       {proctoringEnabled && examStarted && (
         <ProctoringManager
@@ -440,25 +440,10 @@ export default function StudentExam({ examId }: StudentExamProps) {
         />
       )}
       
-      {/* Main content with proper spacing to avoid proctoring button overlap */}
-      <div className="max-w-4xl mx-auto px-4 py-6 pt-20 relative z-10">
-        {/* Proctoring Status Indicator */}
-        {proctoringEnabled && examStarted && (
-          <div className="mb-4">
-            <div className="bg-red-100 border-l-4 border-red-500 p-4 rounded">
-              <div className="flex items-center">
-                <Shield className="h-5 w-5 text-red-600 mr-2" />
-                <div>
-                  <p className="text-red-800 font-medium">AI Proctored Exam Active</p>
-                  <p className="text-red-700 text-sm">
-                    Video recording, screen sharing, and face detection are active. 
-                    Violations: {violations.length} recorded
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      {/* Main content - fullscreen optimized */}
+      <div className="w-full h-full px-4 py-4 pt-16 relative z-10">
+        <div className="max-w-4xl mx-auto h-full">
+        {/* Compact Status (Optional - can be removed for more space) */}
 
         {/* Exam Header */}
         <Card className="mb-6">
@@ -764,6 +749,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );
