@@ -24,7 +24,11 @@ interface SubmissionWithAnalysis extends SubmissionWithExam {
   } | null;
 }
 
-export default function ResultsView() {
+interface ResultsViewProps {
+  selectedExamId?: number | null;
+}
+
+export default function ResultsView({ selectedExamId }: ResultsViewProps) {
   const [selectedSubmission, setSelectedSubmission] = useState<SubmissionWithExam | null>(null);
   const [expandedExams, setExpandedExams] = useState<Set<number>>(new Set());
   
@@ -122,6 +126,14 @@ export default function ResultsView() {
     submissions: enhancedSubmissions.filter(sub => sub.examId === exam.id)
   }));
 
+  // Filter for specific exam if selectedExamId is provided
+  const filteredExamSubmissions = selectedExamId 
+    ? examSubmissions.filter(exam => exam.id === selectedExamId)
+    : examSubmissions;
+
+  // Get selected exam details for header
+  const selectedExam = selectedExamId ? exams.find(exam => exam.id === selectedExamId) : null;
+
   const toggleExamExpansion = (examId: number) => {
     const newExpanded = new Set(expandedExams);
     if (newExpanded.has(examId)) {
@@ -202,6 +214,27 @@ export default function ResultsView() {
 
   return (
     <div className="space-y-6">
+      {/* Header for specific exam results */}
+      {selectedExam && (
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-6 border border-purple-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Results for: {selectedExam.title}
+              </h2>
+              <p className="text-gray-600">
+                Subject: {selectedExam.subject} • {selectedExam.questionsCount} questions • {filteredExamSubmissions[0]?.submissions.length || 0} submissions
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="text-sm">
+                {selectedExam.status}
+              </Badge>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
@@ -212,9 +245,9 @@ export default function ResultsView() {
               </div>
               <div className="ml-4">
                 <div className="text-2xl font-bold text-gray-900">
-                  {exams.length}
+                  {selectedExam ? 1 : exams.length}
                 </div>
-                <div className="text-sm text-gray-600">Total Exams</div>
+                <div className="text-sm text-gray-600">{selectedExam ? 'Selected Exam' : 'Total Exams'}</div>
               </div>
             </div>
           </CardContent>
@@ -228,9 +261,9 @@ export default function ResultsView() {
               </div>
               <div className="ml-4">
                 <div className="text-2xl font-bold text-gray-900">
-                  {recentSubmissions.length}
+                  {selectedExam ? filteredExamSubmissions[0]?.submissions.length || 0 : recentSubmissions.length}
                 </div>
-                <div className="text-sm text-gray-600">Total Submissions</div>
+                <div className="text-sm text-gray-600">{selectedExam ? 'Exam Submissions' : 'Total Submissions'}</div>
               </div>
             </div>
           </CardContent>
@@ -289,7 +322,7 @@ export default function ResultsView() {
             </CardContent>
           </Card>
         ) : (
-          examSubmissions.map((exam) => (
+          filteredExamSubmissions.map((exam) => (
             <Card key={exam.id}>
               <Collapsible 
                 open={expandedExams.has(exam.id)} 
