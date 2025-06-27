@@ -895,6 +895,151 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate request data
       const schema = z.object({
         topic: z.string().min(1),
+        count: z.number().min(1).max(50),
+        difficulty: z.enum(['easy', 'medium', 'hard']),
+        type: z.enum(['multiple_choice', 'true_false', 'short_answer', 'essay', 'coding', 'video_response', 'audio_response']),
+        language: z.string().optional().default('en'),
+        examId: z.number()
+      });
+
+      const validatedData = schema.parse(requestData);
+      
+      const questions = await generateQuestions(
+        validatedData.topic,
+        validatedData.count,
+        validatedData.difficulty,
+        validatedData.type,
+        validatedData.language
+      );
+
+      // Save questions to database
+      const savedQuestions = [];
+      for (const question of questions) {
+        const savedQuestion = await storage.createQuestion({
+          examId: validatedData.examId,
+          type: question.type,
+          question: question.question,
+          options: question.options || [],
+          correctAnswer: question.correctAnswer,
+          points: question.points,
+          order: savedQuestions.length + 1,
+          weight: 1,
+          autoGraded: true,
+          metadata: question.metadata || {}
+        });
+        savedQuestions.push(savedQuestion);
+      }
+
+      console.log(`Generated and saved ${savedQuestions.length} questions`);
+      res.json({ questions: savedQuestions });
+    } catch (error) {
+      console.error("Failed to generate questions:", error);
+      res.status(500).json({ message: "Failed to generate questions", error: (error as Error).message });
+    }
+  });
+
+  // Validate video/audio answer using OpenAI
+  app.post("/api/validate-answer", async (req, res) => {
+    try {
+      const { questionId, submissionId, transcription, questionType, audioQuality, confidence } = req.body;
+      
+      // Get the question details
+      const question = await storage.getQuestion(questionId);
+      if (!question) {
+        return res.status(404).json({ success: false, error: "Question not found" });
+      }
+
+      // Use OpenAI to validate the answer
+      const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert exam evaluator. Evaluate the student's ${questionType} response based on the question requirements. 
+
+              Criteria for evaluation:
+              - Content accuracy and relevance (40%)
+              - Completeness of answer (30%)
+              - Clarity and coherence (20%)
+              - Language proficiency (10%)
+
+              Provide a score from 0-100 and detailed feedback.
+              If the transcription confidence is low (< 0.7), consider partial credit.
+              
+              Return JSON in this format:
+              {
+                "score": number,
+                "isValid": boolean,
+                "feedback": "detailed feedback",
+                "contentAnalysis": {
+                  "accuracy": number,
+                  "completeness": number,
+                  "clarity": number,
+                  "language": number
+                }
+              }`
+            },
+            {
+              role: "user",
+              content: `Question: ${question.question}
+              Expected Answer: ${question.correctAnswer}
+              Student's Response: ${transcription}
+              Transcription Confidence: ${confidence}
+              Question Type: ${questionType}
+              Audio Quality: ${JSON.stringify(audioQuality)}`
+            }
+          ],
+          response_format: { type: "json_object" }
+        })
+      });
+
+      const openaiResult = await openaiResponse.json();
+      
+      if (!openaiResponse.ok) {
+        throw new Error(`OpenAI API error: ${openaiResult.error?.message || "Unknown error"}`);
+      }
+
+      const evaluation = JSON.parse(openaiResult.choices[0].message.content);
+      
+      // Save the video/audio answer to database
+      const videoAnswer = await storage.createVideoAnswer({
+        submissionId,
+        videoQuestionId: questionId, // Map questionId to videoQuestionId
+        transcript: transcription,
+        confidence,
+        videoUrl: null // We'll update this after file upload
+      });
+
+      console.log("Answer validated and saved:", videoAnswer);
+
+      res.json({
+        success: true,
+        score: evaluation.score,
+        isValid: evaluation.isValid,
+        feedback: evaluation.feedback,
+        contentAnalysis: evaluation.contentAnalysis,
+        videoAnswerId: videoAnswer.id
+      });
+    } catch (error) {
+      console.error("Failed to validate answer:", error);
+      res.status(500).json({ success: false, error: (error as Error).message });
+    }
+  });
+
+  // Generate questions using AI (continued)
+  app.post("/api/generate-questions", async (req, res) => {
+    try {
+      console.log("AI Question Generation Request received:", req.body);
+      
+      // Validate request data
+      const schema = z.object({
+        topic: z.string().min(1),
         questionType: z.enum(["multiple_choice", "true_false", "short_answer", "essay", "coding", "video_response", "audio_response"]),
         difficulty: z.enum(["easy", "medium", "hard"]),
         count: z.number().min(1).max(20),
