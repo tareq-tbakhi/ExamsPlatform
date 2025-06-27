@@ -70,7 +70,7 @@ export default function ExamList() {
         title: "Exam published successfully",
         description: "Students can now access your exam.",
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/exams/creator/${userId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/exams"] });
     },
     onError: () => {
       toast({
