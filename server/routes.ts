@@ -1138,7 +1138,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get video answers for video questions
       const videoAnswers = await storage.getVideoAnswersBySubmission(submissionId);
-      console.log(`Debug - Found ${videoAnswers.length} video answers for submission ${submissionId}:`, videoAnswers);
       
       // Get proctoring videos
       let proctoringVideos: any[] = [];
