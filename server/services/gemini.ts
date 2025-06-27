@@ -10,20 +10,18 @@ export interface ViolationAnalysis {
   description: string;
   recommendations: string[];
   suspiciousActivities: string[];
-  facialRecognition?: {
-    identityVerification: {
-      faceVisibilityPercentage: number; // 0-100
-      identityConfidenceScore: number; // 0-100
-      multipleFacesDetected: boolean;
-      photoSpoofingDetected: boolean;
-      consistentIdentity: boolean;
+  screenActivity?: {
+    applicationSwitching: {
+      unauthorizedApps: string[];
+      switchingFrequency: number;
+      timeOutsideExam: number; // seconds
+      suspiciousPatterns: string[];
     };
-    eyeTracking: {
-      gazeDirection: string;
-      lookingAwayDuration: number; // seconds
-      screenFocusPercentage: number; // 0-100
-      suspiciousGazePatterns: string[];
-      attentionScore: number; // 0-100
+    keyboardActivity: {
+      copyPasteAttempts: number;
+      shortcutUsage: string[];
+      typingPatterns: string;
+      suspiciousKeystrokes: number;
     };
   };
   behaviorAnalysis?: {

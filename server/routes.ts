@@ -381,6 +381,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get single exam with questions by ID
+  app.get("/api/exams/:id", async (req, res) => {
+    try {
+      const examId = parseInt(req.params.id);
+      const exam = await storage.getExamWithQuestions(examId);
+      
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+      
+      res.json(exam);
+    } catch (error) {
+      console.error("Failed to fetch exam:", error);
+      res.status(500).json({ message: "Failed to fetch exam", error: (error as Error).message });
+    }
+  });
+
   // Server is started in server/index.ts
   const httpServer = new Server(app);
   return httpServer;

@@ -115,8 +115,9 @@ The application uses eight main entities:
 
 ### AI-Powered Monitoring System
 - **Continuous Video Recording**: 40-second chunks with automatic upload and storage
-- **Screen Recording**: Full desktop capture with tab switching detection
-- **Face Detection**: Real-time monitoring using computer vision for identity verification
+- **Screen Recording**: Full desktop capture with application switching detection
+- **Application Monitoring**: Real-time tracking of unauthorized software usage
+- **Keyboard Activity Analysis**: Detection of copy/paste violations and suspicious shortcuts
 - **Browser Lockdown**: Prevents copy/paste, developer tools, right-click, and other cheating attempts
 - **Violation Detection**: Automated classification of security violations (Critical, Major, Minor)
 
@@ -127,15 +128,15 @@ The application uses eight main entities:
 - **Multi-language Support**: Optimized for Arabic language with fallback support
 
 ### Security Violation Categories
-- **Critical**: No face detected, multiple faces, identity mismatch, camera access denied
+- **Critical**: Unauthorized application usage, external search attempts, major keyboard violations, audio assistance
 - **Major**: Tab switching, copy/paste attempts, developer tools access, window focus loss
-- **Minor**: Right-click attempts, brief face loss, keyboard shortcuts, text selection
+- **Minor**: Right-click attempts, keyboard shortcuts, text selection, minor navigation deviations
 
 ## AI-Powered Analysis Features
 
 ### Gemini AI Integration
-- **Violation Analysis**: Real-time AI analysis of proctoring violations using Gemini computer vision
-- **Video Recording Analysis**: Comprehensive AI review of exam recordings for suspicious behavior
+- **Screen Activity Analysis**: Real-time AI analysis of application switching and keyboard violations using Gemini
+- **Video Recording Analysis**: Comprehensive AI review of exam recordings for suspicious behavior patterns
 - **Arabic Audio Transcription**: Advanced speech-to-text with confidence scoring for video responses
 - **Automated Report Generation**: AI-generated violation reports with severity assessment and recommendations
 - **Smart Evidence Capture**: Automatic screenshot capture during violations for AI analysis
@@ -189,6 +190,12 @@ Changelog:
   * Audio anomaly detection: unusual sounds and technology usage indicators
   * Ambient noise analysis: comprehensive environment assessment
   * Enhanced dashboard UI: behavioral and audio analysis sections with visual indicators
+- June 27, 2025. Shifted focus from face detection to screen activity monitoring:
+  * Replaced facial recognition analysis with application switching detection
+  * Enhanced keyboard activity monitoring with copy/paste violation tracking
+  * Updated AI analysis to prioritize screen behavior over facial features
+  * Modified violation categories to emphasize unauthorized application usage
+  * Maintained behavioral and audio analysis for comprehensive monitoring
 ```
 
 ## User Preferences
