@@ -16,7 +16,6 @@ import StudentDashboard from "@/pages/StudentDashboard";
 import AcceptInvitation from "@/pages/AcceptInvitation";
 import AccessDenied from "@/pages/AccessDenied";
 import StudentExamAccess from "@/pages/StudentExamAccess";
-import ResultsPage from "@/pages/ResultsPage";
 import { AIAssistantTrigger } from "@/components/ai-assistant/ai-assistant-trigger";
 
 function Router() {
@@ -53,7 +52,7 @@ function Router() {
           {user && user.role && isTeacherOrAbove(user.role) && (
             <>
               <Route path="/" component={Dashboard} />
-              <Route path="/results/:examId" component={ResultsPage} />
+
             </>
           )}
           

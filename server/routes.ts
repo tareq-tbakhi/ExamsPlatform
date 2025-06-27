@@ -1189,6 +1189,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get submissions by exam ID
+  app.get("/api/submissions/exam/:examId", isAuthenticated, async (req, res) => {
+    try {
+      const examId = parseInt(req.params.examId);
+      const submissions = await storage.getSubmissionsByExam(examId);
+      res.json(submissions);
+    } catch (error) {
+      console.error("Error fetching submissions by exam:", error);
+      res.status(500).json({ error: "Failed to get submissions by exam" });
+    }
+  });
+
   // Get recent submissions
   app.get("/api/submissions/recent", async (req, res) => {
     try {

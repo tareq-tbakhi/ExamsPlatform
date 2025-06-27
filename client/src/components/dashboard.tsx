@@ -455,7 +455,10 @@ export default function Dashboard() {
               </TabsContent>
 
               <TabsContent value="exams" className="space-y-6">
-                <ExamList />
+                <ExamList onSelectExam={(examId, tab) => {
+                  setSelectedExamId(examId);
+                  setActiveTab(tab);
+                }} />
               </TabsContent>
 
               <TabsContent value="results" className="space-y-6">
