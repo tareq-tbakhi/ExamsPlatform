@@ -1,7 +1,7 @@
 import { 
   users, exams, questions, submissions, proctoringViolations, videoQuestions, videoAnswers,
   aiAnalysisResults, analysisViolations, analysisTimeline, aiReports,
-  questionGrades, codingTestCases, codingSubmissions, examInvitations, userInvitations,
+  questionGrades, codingTestCases, codingSubmissions, examInvitations, userInvitations, examAssignments,
   type User, type InsertUser, type UpsertUser, type Exam, type InsertExam, type Question, type InsertQuestion, 
   type Submission, type InsertSubmission, type ExamWithQuestions, type ExamWithStats, 
   type SubmissionWithExam, type ProctoringViolation, type InsertProctoringViolation,
@@ -10,7 +10,8 @@ import {
   type InsertAnalysisViolation, type AnalysisTimeline, type InsertAnalysisTimeline,
   type AiReport, type InsertAiReport, type QuestionGrade, type InsertQuestionGrade,
   type CodingTestCase, type InsertCodingTestCase, type CodingSubmission, type InsertCodingSubmission,
-  type ExamInvitation, type InsertExamInvitation, type UserInvitation, type InsertUserInvitation
+  type ExamInvitation, type InsertExamInvitation, type UserInvitation, type InsertUserInvitation,
+  type ExamAssignment, type InsertExamAssignment
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -110,6 +111,13 @@ export interface IStorage {
   getUserInvitationByEmail(email: string): Promise<UserInvitation | undefined>;
   updateUserInvitationStatus(id: number, status: string, acceptedAt?: Date): Promise<UserInvitation | undefined>;
   deleteUserInvitation(id: number): Promise<boolean>;
+
+  // Exam Assignments (Team Management)
+  createExamAssignment(assignment: InsertExamAssignment): Promise<ExamAssignment>;
+  getExamAssignmentsByUser(userId: string): Promise<ExamAssignment[]>;
+  getExamAssignmentsByExam(examId: number): Promise<ExamAssignment[]>;
+  deleteExamAssignment(id: number): Promise<boolean>;
+  getAccessibleExams(userId: string): Promise<ExamWithStats[]>;
 }
 
 export class DatabaseStorage implements IStorage {
