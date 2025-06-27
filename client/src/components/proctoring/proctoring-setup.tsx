@@ -341,10 +341,10 @@ export default function ProctoringSetup({ onSetupComplete, examTitle }: Proctori
                 <div className="bg-red-50 p-4 rounded-lg border border-red-200">
                   <h4 className="font-medium text-red-800 mb-2">Critical Violations</h4>
                   <ul className="text-sm text-red-700 space-y-1">
-                    <li>• No face detected</li>
-                    <li>• Multiple people detected</li>
-                    <li>• Identity mismatch</li>
-                    <li>• Camera access denied</li>
+                    <li>• Unauthorized application usage</li>
+                    <li>• Search engine access detected</li>
+                    <li>• Multiple browser windows</li>
+                    <li>• Screen sharing denied</li>
                   </ul>
                 </div>
 
