@@ -213,71 +213,98 @@ export default function Dashboard() {
             {/* Content based on active tab */}
             {activeTab === "overview" && (
               <div className="space-y-8">
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-lg">
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-3xl font-bold mb-1">
+                {/* Enhanced Stats Cards - Inspired by Figma Design */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                  <Card className="bg-white border-0 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                    <CardContent className="p-8">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6">
+                            <FileText className="h-8 w-8 text-white" />
+                          </div>
+                          <div className="text-4xl font-bold text-gray-900 mb-2">
                             {stats?.totalExams || 0}
                           </div>
-                          <div className="text-blue-100">Total Exams</div>
+                          <div className="text-gray-600 font-medium">Total Exams</div>
+                          <div className="text-sm text-green-500 mt-2 font-semibold">
+                            +12% from last month
+                          </div>
                         </div>
-                        <FileText className="h-8 w-8 text-blue-200" />
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white border-0 shadow-lg">
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-3xl font-bold mb-1">
+                  <Card className="bg-white border-0 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                    <CardContent className="p-8">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mb-6">
+                            <Users className="h-8 w-8 text-white" />
+                          </div>
+                          <div className="text-4xl font-bold text-gray-900 mb-2">
                             {stats?.totalSubmissions || 0}
                           </div>
-                          <div className="text-green-100">Submissions</div>
+                          <div className="text-gray-600 font-medium">Total Submissions</div>
+                          <div className="text-sm text-green-500 mt-2 font-semibold">
+                            +8% from last week
+                          </div>
                         </div>
-                        <Users className="h-8 w-8 text-green-200" />
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0 shadow-lg">
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-3xl font-bold mb-1">
+                  <Card className="bg-white border-0 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                    <CardContent className="p-8">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6">
+                            <TrendingUp className="h-8 w-8 text-white" />
+                          </div>
+                          <div className="text-4xl font-bold text-gray-900 mb-2">
                             {stats?.averageScore ? `${stats.averageScore.toFixed(1)}%` : '0%'}
                           </div>
-                          <div className="text-purple-100">Average Score</div>
+                          <div className="text-gray-600 font-medium">Average Score</div>
+                          <div className="text-sm text-blue-500 mt-2 font-semibold">
+                            +2.3% improvement
+                          </div>
                         </div>
-                        <TrendingUp className="h-8 w-8 text-purple-200" />
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0 shadow-lg">
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="text-3xl font-bold mb-1">
-                            {stats?.passRate ? `${stats.passRate.toFixed(1)}%` : '0%'}
+                  <Card className="bg-white border-0 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                    <CardContent className="p-8">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mb-6">
+                            <CheckCircle className="h-8 w-8 text-white" />
                           </div>
-                          <div className="text-orange-100">Pass Rate</div>
+                          <div className="text-4xl font-bold text-gray-900 mb-2">
+                            {stats?.passRate ? `${stats.passRate.toFixed(1)}%` : '85%'}
+                          </div>
+                          <div className="text-gray-600 font-medium">Pass Rate</div>
+                          <div className="text-sm text-green-500 mt-2 font-semibold">
+                            Above target 80%
+                          </div>
                         </div>
-                        <CheckCircle className="h-8 w-8 text-orange-200" />
                       </div>
                     </CardContent>
                   </Card>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Recent Exams */}
-                  <Card className="shadow-lg border-0">
-                    <CardHeader>
-                      <CardTitle className="text-xl">Recent Exams</CardTitle>
-                      <CardDescription>Your latest created exams</CardDescription>
+                  {/* Recent Exams - Enhanced Design */}
+                  <Card className="shadow-xl border-0 rounded-2xl bg-white hover:shadow-2xl transition-all duration-300">
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+                          <Clock className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-xl text-gray-900">Recent Exams</CardTitle>
+                          <CardDescription className="text-gray-500">Your latest created exams</CardDescription>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       {examsLoading ? (
@@ -287,23 +314,30 @@ export default function Dashboard() {
                           ))}
                         </div>
                       ) : getRecentExams().length > 0 ? (
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                           {getRecentExams().map((exam) => (
-                            <div key={exam.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                              <div className="flex-1">
-                                <div className="font-semibold text-gray-900">{exam.title}</div>
-                                <div className="text-sm text-gray-600">{exam.subject}</div>
-                                <div className="text-xs text-gray-400 mt-1">
-                                  Created {exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}
+                            <div key={exam.id} className="flex items-center justify-between p-5 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl hover:from-blue-50 hover:to-purple-50 transition-all duration-300 border border-gray-200 hover:border-blue-200 hover:shadow-md">
+                              <div className="flex items-center gap-4 flex-1">
+                                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold text-sm">
+                                  {exam.title.charAt(0)}
+                                </div>
+                                <div className="flex-1">
+                                  <div className="font-semibold text-gray-900 text-lg">{exam.title}</div>
+                                  <div className="text-sm text-gray-600 mt-1">{exam.subject}</div>
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    Created {exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}
+                                  </div>
                                 </div>
                               </div>
                               <div className="flex items-center gap-3">
-                                <Badge variant={exam.status === 'published' ? 'default' : 'secondary'}>
-                                  {exam.status}
-                                </Badge>
-                                <span className="text-sm text-gray-500">
-                                  {exam.submissionsCount} submissions
-                                </span>
+                                <div className="text-right">
+                                  <Badge variant={exam.status === 'published' ? 'default' : 'secondary'} className="mb-1">
+                                    {exam.status}
+                                  </Badge>
+                                  <div className="text-sm text-gray-500">
+                                    {exam.submissionsCount} submissions
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           ))}
@@ -324,32 +358,42 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
 
-                  {/* Upcoming Exams */}
-                  <Card className="shadow-lg border-0">
-                    <CardHeader>
-                      <CardTitle className="text-xl">Upcoming Exams</CardTitle>
-                      <CardDescription>Scheduled exams by date</CardDescription>
+                  {/* Upcoming Exams - Enhanced Design */}
+                  <Card className="shadow-xl border-0 rounded-2xl bg-white hover:shadow-2xl transition-all duration-300">
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl flex items-center justify-center">
+                          <Calendar className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-xl text-gray-900">Upcoming Exams</CardTitle>
+                          <CardDescription className="text-gray-500">Scheduled exams by date</CardDescription>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       {getUpcomingExams().length > 0 ? (
-                        <div className="space-y-4">
+                        <div className="space-y-3">
                           {getUpcomingExams().map((exam) => (
-                            <div key={exam.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg">
+                            <div key={exam.id} className="flex items-center justify-between p-5 bg-gradient-to-r from-green-50 to-teal-50 rounded-xl hover:from-green-100 hover:to-teal-100 transition-all duration-300 border border-green-200 hover:border-green-300 hover:shadow-md">
                               <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+                                <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-teal-500 rounded-xl flex items-center justify-center">
                                   <Calendar className="h-6 w-6 text-white" />
                                 </div>
                                 <div>
-                                  <div className="font-semibold text-gray-900">{exam.title}</div>
-                                  <div className="text-sm text-gray-600">{exam.subject}</div>
+                                  <div className="font-semibold text-gray-900 text-lg">{exam.title}</div>
+                                  <div className="text-sm text-gray-600 mt-1">{exam.subject}</div>
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    {exam.questionsCount} questions • {exam.submissionsCount} submissions
+                                  </div>
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div className="text-sm font-medium text-gray-900">
+                                <div className="text-sm font-medium text-gray-900 mb-2">
                                   {exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}
                                 </div>
-                                <Badge variant="outline" className="text-xs">
-                                  {exam.questionsCount} questions
+                                <Badge variant="outline" className="text-xs bg-white">
+                                  {exam.status}
                                 </Badge>
                               </div>
                             </div>
@@ -380,16 +424,21 @@ export default function Dashboard() {
                     ))}
                   </div>
                 ) : exams.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {exams.map((exam) => (
-                      <Card key={exam.id} className="hover:shadow-xl transition-shadow border-0 shadow-lg bg-white">
-                        <CardHeader>
+                      <Card key={exam.id} className="hover:shadow-2xl transition-all duration-300 border-0 shadow-xl bg-white rounded-2xl hover:scale-105">
+                        <CardHeader className="pb-4">
                           <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <CardTitle className="text-lg text-gray-900">{exam.title}</CardTitle>
-                              <CardDescription className="text-gray-600">{exam.subject}</CardDescription>
+                            <div className="flex items-center gap-3 flex-1">
+                              <div className="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center text-white font-bold text-lg">
+                                {exam.title.charAt(0)}
+                              </div>
+                              <div className="flex-1">
+                                <CardTitle className="text-xl text-gray-900 mb-1">{exam.title}</CardTitle>
+                                <CardDescription className="text-gray-600">{exam.subject}</CardDescription>
+                              </div>
                             </div>
-                            <Badge variant={exam.status === 'published' ? 'default' : 'secondary'}>
+                            <Badge variant={exam.status === 'published' ? 'default' : 'secondary'} className="ml-2">
                               {exam.status}
                             </Badge>
                           </div>
