@@ -810,6 +810,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create exam
+  app.post("/api/exams", async (req, res) => {
+    try {
+      console.log("Creating exam with data:", JSON.stringify(req.body, null, 2));
+      const examData = insertExamSchema.parse(req.body);
+      console.log("Parsed exam data:", JSON.stringify(examData, null, 2));
+      const exam = await storage.createExam(examData);
+      console.log("Exam created successfully:", exam);
+      res.json(exam);
+    } catch (error) {
+      console.error("Failed to create exam. Error details:", error);
+      if (error instanceof z.ZodError) {
+        console.error("Validation errors:", error.errors);
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create exam", error: (error as Error).message });
+    }
+  });
+
+  // Create question
+  app.post("/api/questions", async (req, res) => {
+    try {
+      console.log("Creating question with data:", req.body);
+      const questionData = insertQuestionSchema.parse(req.body);
+      const question = await storage.createQuestion(questionData);
+      console.log("Question created successfully:", question);
+      res.json(question);
+    } catch (error) {
+      console.error("Failed to create question:", error);
+      res.status(500).json({ message: "Failed to create question", error: (error as Error).message });
+    }
+  });
+
   // Generate questions using AI
   app.post("/api/generate-questions", async (req, res) => {
     try {
