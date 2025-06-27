@@ -3,6 +3,13 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+
+// TypeScript declaration for global auto-save function
+declare global {
+  interface Window {
+    videoRecorderAutoSave?: () => Promise<void>;
+  }
+}
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -666,7 +673,19 @@ export default function StudentExam({ examId }: StudentExamProps) {
                 </Button>
 
                 <Button
-                  onClick={() => setCurrentQuestionIndex(Math.min(exam.questions.length - 1, currentQuestionIndex + 1))}
+                  onClick={async () => {
+                    const currentQuestion = exam.questions[currentQuestionIndex];
+                    
+                    // Auto-save video/audio recordings before moving to next question
+                    if (currentQuestion.type === "video_response" || currentQuestion.type === "audio_response") {
+                      if (window.videoRecorderAutoSave) {
+                        await window.videoRecorderAutoSave();
+                        console.log(`Auto-saved ${currentQuestion.type} for question ${currentQuestion.id}`);
+                      }
+                    }
+                    
+                    setCurrentQuestionIndex(Math.min(exam.questions.length - 1, currentQuestionIndex + 1));
+                  }}
                   disabled={currentQuestionIndex === exam.questions.length - 1}
                   className="px-6 py-2"
                 >
