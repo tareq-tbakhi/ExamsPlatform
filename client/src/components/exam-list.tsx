@@ -37,11 +37,8 @@ export default function ExamList() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Mock user ID - in real app this would come from authentication
-  const userId = 1;
-
   const { data: exams = [], isLoading } = useQuery<ExamWithStats[]>({
-    queryKey: [`/api/exams/creator/${userId}`],
+    queryKey: ["/api/exams"],
   });
 
   const deleteExamMutation = useMutation({
@@ -53,7 +50,7 @@ export default function ExamList() {
         title: "Exam deleted successfully",
         description: "The exam has been removed from your account.",
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/exams/creator/${userId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/exams"] });
     },
     onError: () => {
       toast({
