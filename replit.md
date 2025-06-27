@@ -274,6 +274,15 @@ Changelog:
   * Integrated authentication system with existing exam platform using updated router logic
   * Added user management API endpoints for admin functions and user profile access
   * Migrated from simple username/password to secure Replit SSO with comprehensive user profiles
+- June 27, 2025. Added CSV/Excel bulk student invitation system:
+  * Created comprehensive exam invitations database table with status tracking and unique tokens
+  * Built API endpoints for CSV upload processing with Papa Parse integration for robust file parsing
+  * Implemented bulk invitation creation with email validation and flexible column name detection
+  * Added StudentInviteManager component with file upload, progress tracking, and invitation management
+  * Integrated invitation management into exam list with Users button for easy access
+  * Added invitation status tracking (pending, sent, accessed, completed) with visual indicators
+  * Built comprehensive error handling for invalid emails and malformed CSV files
+  * Created role-based security ensuring only teachers/admins can manage student invitations
 ```
 
 ## User Preferences
