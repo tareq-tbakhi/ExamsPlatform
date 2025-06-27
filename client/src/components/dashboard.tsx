@@ -30,7 +30,7 @@ import ExamCreator from "@/components/exam-creator";
 import ExamList from "@/components/exam-list";
 import ResultsView from "@/components/results-view";
 import type { ExamWithStats } from "@shared/schema";
-import logoImage from "@assets/image_1751011948568.png";
+import logoImage from "@assets/image_1751014034866.png";
 
 // Publish Exam Button Component
 function PublishExamButton({ examId }: { examId: number }) {
@@ -336,10 +336,6 @@ export default function Dashboard() {
                 <div className="space-y-8">
                   <div className="flex items-center justify-between">
                     <h2 className="text-2xl font-bold text-gray-900">Recent Exams</h2>
-                    <Button onClick={() => setActiveTab("create")} className="bg-gradient-to-r from-purple-500 to-blue-500">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create New Exam
-                    </Button>
                   </div>
 
                   {examsLoading ? (
