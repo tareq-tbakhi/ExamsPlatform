@@ -428,7 +428,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
 
   // Main exam interface
   return (
-    <div className="min-h-screen bg-gray-50 pt-2 pb-8">
+    <div className="min-h-screen bg-gray-50">
       {/* Proctoring Manager - AI Monitoring System */}
       {proctoringEnabled && examStarted && (
         <ProctoringManager
@@ -440,7 +440,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
         />
       )}
       
-      <div className="max-w-4xl mx-auto px-4">
+      <div className="max-w-4xl mx-auto px-4 py-6 relative z-10">
         {/* Proctoring Status Indicator */}
         {proctoringEnabled && examStarted && (
           <div className="mb-4">
@@ -509,30 +509,39 @@ export default function StudentExam({ examId }: StudentExamProps) {
 
         {/* Question Card */}
         {currentQuestion && (
-          <Card className="mb-6">
-            <CardContent className="pt-6">
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex items-center space-x-3">
-                  <Badge className="bg-primary text-white">
+          <Card className="mb-6 border-2 border-gray-200 shadow-md">
+            <CardContent className="p-8">
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center space-x-4">
+                  <Badge className="bg-blue-600 text-white px-3 py-1 text-sm">
                     Question {currentQuestionIndex + 1}
                   </Badge>
-                  <span className="text-sm text-gray-600 capitalize">
+                  <span className="text-sm font-medium text-gray-600 capitalize bg-gray-100 px-3 py-1 rounded-full">
                     {currentQuestion.type.replace('_', ' ')}
                   </span>
-                  <span className="text-sm text-gray-600">• {currentQuestion.points} points</span>
+                  <span className="text-sm font-medium text-green-600 bg-green-100 px-3 py-1 rounded-full">
+                    {currentQuestion.points} points
+                  </span>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => toggleFlag(currentQuestion.id)}
-                  className={flaggedQuestions.has(currentQuestion.id) ? 'text-orange-600' : 'text-gray-400'}
+                  className={flaggedQuestions.has(currentQuestion.id) ? 'text-orange-600 hover:bg-orange-50' : 'text-gray-400 hover:bg-gray-50'}
                 >
-                  <Flag className="h-4 w-4" />
+                  <Flag className="h-5 w-5" />
                 </Button>
               </div>
 
-              <div className="mb-6">
-                <p className="text-lg text-gray-900 mb-4">{currentQuestion.question}</p>
+              {/* Question Text - More Prominent */}
+              <div className="mb-8 p-6 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
+                <h3 className="text-xl font-medium text-gray-900 leading-relaxed">
+                  {currentQuestion.question}
+                </h3>
+              </div>
+
+              {/* Answer Area */}
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
 
                 {/* Multiple Choice */}
                 {currentQuestion.type === "multiple_choice" && currentQuestion.options && (
@@ -658,11 +667,13 @@ export default function StudentExam({ examId }: StudentExamProps) {
                 )}
               </div>
 
-              <div className="flex justify-between">
+              {/* Navigation and Actions */}
+              <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
                 <Button
                   variant="outline"
                   onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
                   disabled={currentQuestionIndex === 0}
+                  className="px-6 py-2"
                 >
                   <ChevronLeft className="h-4 w-4 mr-2" />
                   Previous
@@ -671,6 +682,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
                 <Button
                   onClick={() => setCurrentQuestionIndex(Math.min(exam.questions.length - 1, currentQuestionIndex + 1))}
                   disabled={currentQuestionIndex === exam.questions.length - 1}
+                  className="px-6 py-2"
                 >
                   Next
                   <ChevronRight className="h-4 w-4 ml-2" />
