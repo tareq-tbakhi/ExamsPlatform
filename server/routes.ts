@@ -123,16 +123,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Try multiple patterns to match videos to submissions
         // Pattern 1: Direct submission ID match (_submissionId_)
-        // Pattern 2: Exam ID match for submissions from same exam
-        // Pattern 3: Recent videos from same exam (fallback for testing)
+        // Pattern 2: Session ID match (videos recorded during exam session)
+        // Pattern 3: Exam ID match for submissions from same exam (fallback)
         let filteredFiles = files.filter(file => file.includes(`_${submissionId}_`) && file.endsWith('.webm'));
         
+        if (filteredFiles.length === 0 && submission.sessionId) {
+          // Try session ID match - videos recorded with session ID during exam
+          filteredFiles = files.filter(file => 
+            file.includes(`_${submission.sessionId}_`) && file.endsWith('.webm')
+          );
+          console.log(`Using session ID ${submission.sessionId} match for submission ${submissionId}: ${filteredFiles.length} files`);
+        }
+        
         if (filteredFiles.length === 0) {
-          // Try exam ID match - get videos from same exam
+          // Fallback: Try exam ID match for testing
           filteredFiles = files.filter(file => 
             file.includes(`_${submission.examId}_`) && file.endsWith('.webm')
           );
-          console.log(`Using exam ID ${submission.examId} match for submission ${submissionId}: ${filteredFiles.length} files`);
+          console.log(`Using exam ID ${submission.examId} fallback match for submission ${submissionId}: ${filteredFiles.length} files`);
         }
         
         console.log(`Filtered files for submission ${submissionId}:`, filteredFiles);
