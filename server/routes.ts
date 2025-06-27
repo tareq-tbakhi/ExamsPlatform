@@ -28,28 +28,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const enhancedAnalysis = await analyzeVideoRecording(videoPath, examContext);
       console.log('Gemini AI analysis completed:', enhancedAnalysis);
 
-      // Store enhanced violations in database
+      // Store AI analysis results in new database tables
       if (submissionId) {
         try {
-          for (const violation of enhancedAnalysis.violations) {
-            await storage.createProctoringViolation({
-              submissionId: parseInt(submissionId),
-              type: violation.severity,
-              category: 'enhanced_ai_analysis',
+          // Create main analysis result entry
+          const analysisResult = await storage.createAiAnalysisResult({
+            submissionId: parseInt(submissionId),
+            videoPath,
+            overallSuspicion: Math.round(enhancedAnalysis.overallSuspicion * 100),
+            summary: enhancedAnalysis.summary
+          });
+
+          // Store violations
+          if (enhancedAnalysis.violations.length > 0) {
+            const violationsToInsert = enhancedAnalysis.violations.map(violation => ({
+              analysisId: analysisResult.id,
+              severity: violation.severity,
+              confidence: Math.round(violation.confidence * 100),
               description: violation.description,
-              evidence: JSON.stringify({
-                confidence: violation.confidence,
-                recommendations: violation.recommendations,
-                suspiciousActivities: violation.suspiciousActivities,
-                screenActivity: violation.screenActivity,
-                behaviorAnalysis: violation.behaviorAnalysis,
-                audioAnalysis: violation.audioAnalysis,
-                analysisMethod: 'gemini_enhanced_analysis'
-              })
-            });
+              recommendations: violation.recommendations,
+              suspiciousActivities: violation.suspiciousActivities
+            }));
+            await storage.createAnalysisViolations(violationsToInsert);
           }
+
+          // Store timeline
+          if (enhancedAnalysis.timeline.length > 0) {
+            const timelineToInsert = enhancedAnalysis.timeline.map(item => ({
+              analysisId: analysisResult.id,
+              timestamp: item.timestamp,
+              activity: item.activity,
+              severity: item.severity
+            }));
+            await storage.createAnalysisTimeline(timelineToInsert);
+          }
+
+          console.log(`AI analysis results stored for submission ${submissionId} with ${enhancedAnalysis.violations.length} violations`);
         } catch (dbError) {
-          console.error('Database error storing enhanced violations:', dbError);
+          console.error('Database error storing AI analysis results:', dbError);
           // Continue with response even if database fails
         }
       }
@@ -58,6 +74,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Enhanced analysis error:', error);
       res.status(500).json({ message: "Failed to perform enhanced analysis", error: (error as Error).message });
+    }
+  });
+
+  // Get stored AI analysis results for a submission
+  app.get("/api/analyze/results/:submissionId", async (req, res) => {
+    try {
+      const submissionId = parseInt(req.params.submissionId);
+      const analysisResults = await storage.getAnalysisResultsBySubmission(submissionId);
+      res.json(analysisResults);
+    } catch (error) {
+      console.error('Failed to fetch AI analysis results:', error);
+      res.status(500).json({ message: "Failed to fetch analysis results", error: (error as Error).message });
     }
   });
 
