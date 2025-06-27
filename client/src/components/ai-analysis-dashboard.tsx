@@ -2,15 +2,9 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { queryClient } from "@/lib/queryClient";
+import { Brain, FileText, Play, XCircle, AlertTriangle, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, CheckCircle, XCircle, FileText, Video, Mic, Brain, Eye, User, Monitor, Keyboard } from "lucide-react";
 
 interface ViolationAnalysis {
   severity: 'critical' | 'major' | 'minor';
@@ -120,35 +114,6 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
     }
   });
 
-  // Analyze video recording mutation
-  const analyzeVideoMutation = useMutation({
-    mutationFn: async (videoPath: string): Promise<VideoAnalysis> => {
-      const response = await fetch('/api/analyze/video-recording', {
-        method: 'POST',
-        body: JSON.stringify({ 
-          videoPath, 
-          examContext: `Exam: ${examTitle} - Submission: ${submissionId}` 
-        }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      return response.json();
-    },
-    onSuccess: (data: VideoAnalysis) => {
-      setActiveAnalysis(data);
-      toast({
-        title: "Analysis Complete",
-        description: "Video analysis has been completed successfully."
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Analysis Failed",
-        description: "Failed to analyze video recording.",
-        variant: "destructive"
-      });
-    }
-  });
-
   // Enhanced analysis mutation
   const enhancedAnalysisMutation = useMutation({
     mutationFn: async (): Promise<VideoAnalysis> => {
@@ -179,6 +144,35 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
       toast({
         title: "Enhanced Analysis Failed",
         description: "Failed to perform enhanced AI analysis.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Analyze video recording mutation
+  const analyzeVideoMutation = useMutation({
+    mutationFn: async (videoPath: string): Promise<VideoAnalysis> => {
+      const response = await fetch('/api/analyze/video-recording', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          videoPath, 
+          examContext: `Exam: ${examTitle} - Submission: ${submissionId}` 
+        }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      return response.json();
+    },
+    onSuccess: (data: VideoAnalysis) => {
+      setActiveAnalysis(data);
+      toast({
+        title: "Analysis Complete",
+        description: "Video analysis has been completed successfully."
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Analysis Failed",
+        description: "Failed to analyze video recording.",
         variant: "destructive"
       });
     }
@@ -252,201 +246,37 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
 
         <TabsContent value="violations" className="space-y-4">
           <Card>
-                    screenActivity: {
-                      applicationSwitching: {
-                        unauthorizedApps: ['web browser', 'messaging app', 'note-taking software'],
-                        switchingFrequency: Math.floor(Math.random() * 15) + 8,
-                        timeOutsideExam: Math.floor(Math.random() * 180) + 45,
-                        suspiciousPatterns: ['Rapid switching during difficult questions', 'Extended time in unauthorized applications']
-                      },
-                      keyboardActivity: {
-                        copyPasteAttempts: Math.floor(Math.random() * 8) + 3,
-                        shortcutUsage: ['Ctrl+C', 'Ctrl+V', 'Alt+Tab', 'Ctrl+Shift+I'],
-                        typingPatterns: 'Inconsistent with normal exam behavior',
-                        suspiciousKeystrokes: Math.floor(Math.random() * 25) + 15
-                      }
-                    },
-                    behaviorAnalysis: {
-                      emotionDetection: {
-                        stress: Math.floor(Math.random() * 30) + 65,
-                        anxiety: Math.floor(Math.random() * 25) + 60,
-                        frustration: Math.floor(Math.random() * 20) + 35,
-                        confidence: Math.floor(Math.random() * 25) + 30
-                      },
-                      movementAnalysis: {
-                        suspiciousMovements: ['Reaching for hidden materials', 'Hand movements toward secondary device', 'Covering camera intermittently'],
-                        postureCompliance: Math.floor(Math.random() * 20) + 65,
-                        headMovementPattern: 'Frequent turning away from screen',
-                        eyeGazeDirection: 'Multiple unauthorized directions'
-                      },
-                      microExpressions: {
-                        detected: true,
-                        type: ['Deception indicators', 'Stress markers', 'Cognitive overload signs'],
-                        suspicionLevel: Math.floor(Math.random() * 25) + 55
-                      }
-                    },
-                    audioAnalysis: {
-                      multipleSpeakers: true,
-                      backgroundVoices: true,
-                      whisperingDetected: true,
-                      voicePatternMatch: Math.floor(Math.random() * 20) + 65,
-                      audioAnomalies: ['Background conversation', 'Phone notification sounds', 'Keyboard typing from other source'],
-                      ambientNoise: 'Moderate background activity with suspicious sounds'
-                    }
-                  },
-                  {
-                    severity: 'major' as const,
-                    confidence: 0.85,
-                    description: 'Behavioral analysis detected high stress levels and micro-expressions consistent with deceptive behavior patterns.',
-                    recommendations: [
-                      'Review behavioral timeline for stress spikes',
-                      'Correlate with exam question difficulty',
-                      'Consider psychological evaluation protocols'
-                    ],
-                    suspiciousActivities: [
-                      'Elevated stress indicators throughout exam',
-                      'Micro-expressions indicating deception',
-                      'Inconsistent voice patterns'
-                    ],
-                    facialRecognition: {
-                      identityVerification: {
-                        faceVisibilityPercentage: Math.floor(Math.random() * 15) + 80,
-                        identityConfidenceScore: Math.floor(Math.random() * 15) + 80,
-                        multipleFacesDetected: false,
-                        photoSpoofingDetected: false,
-                        consistentIdentity: true
-                      },
-                      eyeTracking: {
-                        gazeDirection: 'screen-focused with periodic deviations',
-                        lookingAwayDuration: Math.floor(Math.random() * 15) + 15,
-                        screenFocusPercentage: Math.floor(Math.random() * 15) + 80,
-                        suspiciousGazePatterns: ['Reading from notes below screen', 'Glancing at secondary monitor'],
-                        attentionScore: Math.floor(Math.random() * 15) + 75
-                      }
-                    },
-                    behaviorAnalysis: {
-                      emotionDetection: {
-                        stress: Math.floor(Math.random() * 20) + 70,
-                        anxiety: Math.floor(Math.random() * 25) + 55,
-                        frustration: Math.floor(Math.random() * 20) + 30,
-                        confidence: Math.floor(Math.random() * 20) + 45
-                      },
-                      movementAnalysis: {
-                        suspiciousMovements: ['Nervous fidgeting', 'Covering mouth while speaking'],
-                        postureCompliance: Math.floor(Math.random() * 15) + 80,
-                        headMovementPattern: 'Periodic head turning',
-                        eyeGazeDirection: 'Generally compliant with deviations'
-                      },
-                      microExpressions: {
-                        detected: true,
-                        type: ['Stress indicators', 'Brief deception markers'],
-                        suspicionLevel: Math.floor(Math.random() * 15) + 40
-                      }
-                    },
-                    audioAnalysis: {
-                      multipleSpeakers: false,
-                      backgroundVoices: true,
-                      whisperingDetected: false,
-                      voicePatternMatch: Math.floor(Math.random() * 10) + 85,
-                      audioAnomalies: ['Occasional background sounds'],
-                      ambientNoise: 'Quiet environment with minor disruptions'
-                    }
-                  }
-                ],
-                timeline: [
-                  {
-                    timestamp: Date.now() - 300000,
-                    activity: 'Identity verification initiated - multiple faces detected',
-                    severity: 'critical' as const
-                  },
-                  {
-                    timestamp: Date.now() - 240000,
-                    activity: 'Stress level spike detected - micro-expressions analyzed',
-                    severity: 'major' as const
-                  },
-                  {
-                    timestamp: Date.now() - 180000,
-                    activity: 'Suspicious gaze pattern - looking away for extended period',
-                    severity: 'major' as const
-                  },
-                  {
-                    timestamp: Date.now() - 120000,
-                    activity: 'Audio anomaly detected - background conversation',
-                    severity: 'critical' as const
-                  },
-                  {
-                    timestamp: Date.now() - 60000,
-                    activity: 'Eye tracking shows attention to unauthorized materials',
-                    severity: 'critical' as const
-                  }
-                ],
-                summary: "Comprehensive analysis reveals multiple security concerns including identity verification issues, suspicious behavioral patterns, elevated stress indicators, and audio anomalies. The combination of facial recognition alerts, eye tracking violations, and behavioral analysis suggests potential academic misconduct requiring immediate review."
-              };
-              
-              setActiveAnalysis(enhancedAnalysis);
-              toast({
-                title: "Enhanced Analysis Complete",
-                description: `Advanced facial recognition, behavioral psychology, and audio analysis complete. Found ${enhancedAnalysis.violations.length} violations.`
-              });
-            }}
-            disabled={!videos?.proctoringVideos?.length}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-          >
-            <Brain className="h-4 w-4 mr-2" />
-            Enhanced AI Analysis
-          </Button>
-        </div>
-      </div>
-
-      <Tabs defaultValue="violations" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="violations">Violations</TabsTrigger>
-          <TabsTrigger value="videos">Recordings</TabsTrigger>
-          <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
-          <TabsTrigger value="report">AI Report</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="violations" className="space-y-4">
-          <Card>
             <CardHeader>
               <CardTitle>Detected Violations</CardTitle>
               <CardDescription>
-                Security violations detected during the exam session
+                Security violations captured during the exam session
               </CardDescription>
             </CardHeader>
             <CardContent>
               {violationsLoading ? (
-                <div>Loading violations...</div>
-              ) : violations && violations.length > 0 ? (
-                <div className="space-y-3">
+                <div className="text-center py-8">
+                  <div className="animate-spin h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                  <p>Loading violations...</p>
+                </div>
+              ) : violations?.length ? (
+                <div className="space-y-4">
                   {violations.map((violation: any, index: number) => (
-                    <Alert key={index} className="border-l-4" style={{
-                      borderLeftColor: violation.type === 'critical' ? '#ef4444' : 
-                                     violation.type === 'major' ? '#f97316' : '#eab308'
-                    }}>
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          {getSeverityIcon(violation.type)}
-                          <Badge className={getSeverityColor(violation.type)}>
-                            {violation.type.toUpperCase()}
-                          </Badge>
-                          <span className="font-medium">{violation.category}</span>
-                        </div>
-                        <span className="text-sm text-muted-foreground">
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`px-2 py-1 rounded text-white text-xs ${getSeverityColor(violation.type)}`}>
+                          {violation.type.toUpperCase()}
+                        </span>
+                        <span className="text-sm text-gray-500">
                           {new Date(violation.timestamp).toLocaleTimeString()}
                         </span>
                       </div>
-                      <AlertDescription className="mt-2">
-                        {violation.description}
-                      </AlertDescription>
-                    </Alert>
+                      <p className="font-medium">{violation.description}</p>
+                      <p className="text-sm text-gray-600 mt-1">{violation.category}</p>
+                    </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No violations detected
-                </div>
+                <p className="text-center text-gray-500 py-8">No violations detected</p>
               )}
             </CardContent>
           </Card>
@@ -457,123 +287,50 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
             <CardHeader>
               <CardTitle>Recorded Videos</CardTitle>
               <CardDescription>
-                View and analyze proctoring recordings and video answers
+                Video recordings from the exam session for AI analysis
               </CardDescription>
             </CardHeader>
             <CardContent>
               {videosLoading ? (
-                <div className="text-center py-8">Loading videos...</div>
-              ) : videos && (videos.proctoringVideos?.length > 0 || videos.answerVideos?.length > 0) ? (
-                <div className="space-y-6">
-                  {videos.proctoringVideos?.length > 0 && (
-                    <div>
-                      <h4 className="font-medium mb-3 flex items-center gap-2">
-                        <Video className="h-4 w-4" />
-                        Proctoring Recordings ({videos.proctoringVideos.length})
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {videos.proctoringVideos.map((video: any, index: number) => (
-                          <Card key={index} className="p-4">
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">Chunk {index + 1}</span>
-                                <Badge variant="secondary">
-                                  {Math.round(video.size / 1024)}KB
-                                </Badge>
-                              </div>
-                              <video 
-                                controls 
-                                className="w-full rounded-lg"
-                                style={{ maxHeight: '200px' }}
-                              >
-                                <source src={video.url} type="video/webm" />
-                                Your browser does not support video playback.
-                              </video>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => analyzeVideoMutation.mutate(video.url)}
-                                  disabled={analyzeVideoMutation.isPending}
-                                >
-                                  <Brain className="h-3 w-3 mr-1" />
-                                  Analyze with AI
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => window.open(video.url, '_blank')}
-                                >
-                                  <Video className="h-3 w-3 mr-1" />
-                                  Open Full Size
-                                </Button>
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
+                <div className="text-center py-8">
+                  <div className="animate-spin h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                  <p>Loading videos...</p>
+                </div>
+              ) : videos?.proctoringVideos?.length || videos?.answerVideos?.length ? (
+                <div className="space-y-4">
+                  {videos.proctoringVideos?.map((video: any, index: number) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">{video.filename}</p>
+                          <p className="text-sm text-gray-600">
+                            {video.type} • {(video.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(video.url, '_blank')}
+                          >
+                            <Play className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => analyzeVideoMutation.mutate(video.url)}
+                            disabled={analyzeVideoMutation.isPending}
+                          >
+                            <Brain className="h-4 w-4 mr-2" />
+                            Analyze
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  )}
-
-                  {videos.answerVideos?.length > 0 && (
-                    <div>
-                      <h4 className="font-medium mb-3 flex items-center gap-2">
-                        <Mic className="h-4 w-4" />
-                        Video Answers ({videos.answerVideos.length})
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {videos.answerVideos.map((video: any, index: number) => (
-                          <Card key={index} className="p-4">
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">Answer {index + 1}</span>
-                                <Badge variant="secondary">
-                                  {Math.round(video.size / 1024)}KB
-                                </Badge>
-                              </div>
-                              <video 
-                                controls 
-                                className="w-full rounded-lg"
-                                style={{ maxHeight: '200px' }}
-                              >
-                                <source src={video.url} type="video/webm" />
-                                Your browser does not support video playback.
-                              </video>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  // Analyze Arabic audio if applicable
-                                  fetch('/api/analyze/arabic-audio', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ audioData: video.url })
-                                  }).then(res => res.json()).then(result => {
-                                    toast({
-                                      title: "Audio Analysis Complete",
-                                      description: `Confidence: ${Math.round(result.confidence * 100)}%`
-                                    });
-                                  });
-                                }}
-                              >
-                                <Mic className="h-3 w-3 mr-1" />
-                                Analyze Audio
-                              </Button>
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Video className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No recorded videos found for this submission</p>
-                  <p className="text-sm mt-2">
-                    Videos will appear here when proctoring is active during exams
-                  </p>
-                </div>
+                <p className="text-center text-gray-500 py-8">No videos recorded</p>
               )}
             </CardContent>
           </Card>
@@ -588,7 +345,7 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {analyzeVideoMutation.isPending ? (
+              {analyzeVideoMutation.isPending || enhancedAnalysisMutation.isPending ? (
                 <div className="text-center py-8">
                   <div className="animate-spin h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
                   <p>Analyzing video recording with Gemini AI...</p>
@@ -601,217 +358,95 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                       <span className="font-medium text-blue-700 dark:text-blue-300">Enhanced AI Analysis Active</span>
                     </div>
                     <p className="text-sm text-gray-600 dark:text-gray-300">
-                      Advanced AI analysis with facial recognition, identity verification, eye tracking, gaze detection, 
-                      behavioral psychology, emotion analysis, micro-expressions, voice pattern matching, and audio anomaly detection.
+                      Advanced AI analysis with screen monitoring, behavioral analysis, audio processing, and comprehensive violation detection.
                     </p>
                   </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold">Overall Suspicion Level</h3>
-                    <Badge variant={activeAnalysis.overallSuspicion > 70 ? "destructive" : 
-                                  activeAnalysis.overallSuspicion > 40 ? "default" : "secondary"}>
-                      {activeAnalysis.overallSuspicion}%
-                    </Badge>
-                  </div>
-                  <Progress value={activeAnalysis.overallSuspicion} className="w-full" />
-                  
-                  <div>
-                    <h4 className="font-medium mb-3">AI-Detected Violations</h4>
-                    <div className="space-y-3">
-                      {activeAnalysis.violations.map((violation, index) => (
-                        <Card key={index} className="p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <Badge className={getSeverityColor(violation.severity)}>
-                              {violation.severity.toUpperCase()}
-                            </Badge>
-                            <span className="text-sm">Confidence: {Math.round(violation.confidence * 100)}%</span>
-                          </div>
-                          <p className="text-sm mb-2">{violation.description}</p>
-                          
-                          {/* Screen Activity & Keyboard Monitoring Section */}
-                          {violation.screenActivity && (
-                            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Monitor className="w-4 h-4 text-blue-600" />
-                                <span className="font-medium text-blue-700 dark:text-blue-300">Screen Activity & Keyboard Monitoring</span>
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                                <div>
-                                  <p className="font-medium text-gray-600 dark:text-gray-300">Application Switching:</p>
-                                  <div className="space-y-1">
-                                    <div className="flex justify-between">
-                                      <span>Switch Frequency:</span>
-                                      <span className="text-red-600">{violation.screenActivity.applicationSwitching.switchingFrequency}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span>Time Outside Exam:</span>
-                                      <span className="text-red-600">{violation.screenActivity.applicationSwitching.timeOutsideExam}s</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span>Unauthorized Apps:</span>
-                                      <span className="text-red-600">{violation.screenActivity.applicationSwitching.unauthorizedApps.length}</span>
-                                    </div>
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      Apps: {violation.screenActivity.applicationSwitching.unauthorizedApps.join(', ')}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div>
-                                  <p className="font-medium text-gray-600 dark:text-gray-300 mb-1">
-                                    <Keyboard className="w-3 h-3 inline mr-1" />
-                                    Keyboard Activity:
-                                  </p>
-                                  <div className="space-y-1">
-                                    <div className="flex justify-between">
-                                      <span>Copy/Paste Attempts:</span>
-                                      <span className="text-red-600">{violation.screenActivity.keyboardActivity.copyPasteAttempts}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span>Suspicious Keystrokes:</span>
-                                      <span className="text-red-600">{violation.screenActivity.keyboardActivity.suspiciousKeystrokes}</span>
-                                    </div>
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      Shortcuts: {violation.screenActivity.keyboardActivity.shortcutUsage.join(', ')}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      Pattern: {violation.screenActivity.keyboardActivity.typingPatterns}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              {violation.screenActivity.applicationSwitching.suspiciousPatterns.length > 0 && (
-                                <div className="mt-2 p-2 bg-orange-100 dark:bg-orange-900/30 rounded">
-                                  <p className="text-xs font-medium text-orange-800 dark:text-orange-200">
-                                    Suspicious Patterns: {violation.screenActivity.applicationSwitching.suspiciousPatterns.join(', ')}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          
-                          {/* Behavioral Analysis Section */}
-                          {violation.behaviorAnalysis && (
-                            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Brain className="w-4 h-4 text-blue-600" />
-                                <span className="font-medium text-blue-700 dark:text-blue-300">Behavioral Analysis</span>
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                                <div>
-                                  <p className="font-medium text-gray-600 dark:text-gray-300">Emotions:</p>
-                                  <div className="space-y-1">
-                                    <div className="flex justify-between">
-                                      <span>Stress:</span>
-                                      <span className="text-red-600">{violation.behaviorAnalysis.emotionDetection.stress}%</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span>Anxiety:</span>
-                                      <span className="text-orange-600">{violation.behaviorAnalysis.emotionDetection.anxiety}%</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span>Confidence:</span>
-                                      <span className="text-green-600">{violation.behaviorAnalysis.emotionDetection.confidence}%</span>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div>
-                                  <p className="font-medium text-gray-600 dark:text-gray-300">Movement:</p>
-                                  <div className="space-y-1">
-                                    <div className="flex justify-between">
-                                      <span>Posture:</span>
-                                      <span>{violation.behaviorAnalysis.movementAnalysis.postureCompliance}%</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span>Gaze:</span>
-                                      <span className="capitalize">{violation.behaviorAnalysis.movementAnalysis.eyeGazeDirection}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              {violation.behaviorAnalysis.microExpressions.detected && (
-                                <div className="mt-2 p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded">
-                                  <p className="text-xs font-medium text-yellow-800 dark:text-yellow-200">
-                                    Micro-expressions: {violation.behaviorAnalysis.microExpressions.type.join(', ')}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          )}
 
-                          {/* Audio Analysis Section */}
-                          {violation.audioAnalysis && (
-                            <div className="mb-3 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Mic className="w-4 h-4 text-purple-600" />
-                                <span className="font-medium text-purple-700 dark:text-purple-300">Audio Analysis</span>
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                                <div>
-                                  <div className="flex justify-between">
-                                    <span>Multiple Speakers:</span>
-                                    <span className={violation.audioAnalysis.multipleSpeakers ? "text-red-600" : "text-green-600"}>
-                                      {violation.audioAnalysis.multipleSpeakers ? "Yes" : "No"}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Background Voices:</span>
-                                    <span className={violation.audioAnalysis.backgroundVoices ? "text-red-600" : "text-green-600"}>
-                                      {violation.audioAnalysis.backgroundVoices ? "Yes" : "No"}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Whispering:</span>
-                                    <span className={violation.audioAnalysis.whisperingDetected ? "text-red-600" : "text-green-600"}>
-                                      {violation.audioAnalysis.whisperingDetected ? "Yes" : "No"}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="flex justify-between">
-                                    <span>Voice Pattern:</span>
-                                    <span>{violation.audioAnalysis.voicePatternMatch}%</span>
-                                  </div>
-                                  <div className="flex justify-between">
-                                    <span>Environment:</span>
-                                    <span className="capitalize">{violation.audioAnalysis.ambientNoise}</span>
-                                  </div>
-                                </div>
-                              </div>
-                              {violation.audioAnalysis.audioAnomalies.length > 0 && (
-                                <div className="mt-2 p-2 bg-red-100 dark:bg-red-900/30 rounded">
-                                  <p className="text-xs font-medium text-red-800 dark:text-red-200">
-                                    Audio Anomalies: {violation.audioAnalysis.audioAnomalies.join(', ')}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {violation.suspiciousActivities.length > 0 && (
-                            <div className="text-xs text-muted-foreground">
-                              <strong>Activities:</strong> {violation.suspiciousActivities.join(', ')}
-                            </div>
-                          )}
-                          {violation.recommendations.length > 0 && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              <strong>Recommendations:</strong> {violation.recommendations.join(', ')}
-                            </div>
-                          )}
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-medium mb-3">Analysis Summary</h4>
-                    <Card className="p-4">
-                      <p className="text-sm">{activeAnalysis.summary}</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Overall Suspicion</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-bold text-red-600">{activeAnalysis.overallSuspicion}%</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Violations Found</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-bold">{activeAnalysis.violations.length}</div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg">Timeline Events</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-3xl font-bold">{activeAnalysis.timeline.length}</div>
+                      </CardContent>
                     </Card>
                   </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Detected Violations</h3>
+                    {activeAnalysis.violations.map((violation, index) => (
+                      <Card key={index}>
+                        <CardHeader>
+                          <div className="flex items-center gap-2">
+                            {getSeverityIcon(violation.severity)}
+                            <span className={`px-2 py-1 rounded text-white text-xs ${getSeverityColor(violation.severity)}`}>
+                              {violation.severity.toUpperCase()}
+                            </span>
+                            <span className="text-sm text-gray-500">
+                              Confidence: {(violation.confidence * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="font-medium mb-2">{violation.description}</p>
+                          
+                          {violation.recommendations.length > 0 && (
+                            <div className="mb-3">
+                              <p className="text-sm font-medium mb-1">Recommendations:</p>
+                              <ul className="text-sm text-gray-600 list-disc list-inside">
+                                {violation.recommendations.map((rec, idx) => (
+                                  <li key={idx}>{rec}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {violation.behaviorAnalysis && (
+                            <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded">
+                              <p className="text-sm font-medium mb-2">Behavioral Analysis:</p>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>Stress: {violation.behaviorAnalysis.emotionDetection.stress}%</div>
+                                <div>Anxiety: {violation.behaviorAnalysis.emotionDetection.anxiety}%</div>
+                                <div>Frustration: {violation.behaviorAnalysis.emotionDetection.frustration}%</div>
+                                <div>Confidence: {violation.behaviorAnalysis.emotionDetection.confidence}%</div>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Analysis Summary</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-gray-700 dark:text-gray-300">{activeAnalysis.summary}</p>
+                    </CardContent>
+                  </Card>
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  Click "Analyze Recording" to start AI analysis
+                <div className="text-center py-8">
+                  <p className="text-gray-500 mb-4">No analysis available yet</p>
+                  <p className="text-sm text-gray-400">Use the Enhanced AI Analysis button to start comprehensive analysis</p>
                 </div>
               )}
             </CardContent>
@@ -823,30 +458,29 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
             <CardHeader>
               <CardTitle>Event Timeline</CardTitle>
               <CardDescription>
-                Chronological timeline of detected activities
+                Chronological timeline of detected activities and violations
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {activeAnalysis?.timeline ? (
-                <ScrollArea className="h-96">
-                  <div className="space-y-3">
-                    {activeAnalysis.timeline.map((event, index) => (
-                      <div key={index} className="flex items-center gap-4 p-3 border rounded-lg">
-                        <div className="text-sm font-mono bg-muted px-2 py-1 rounded">
+              {activeAnalysis?.timeline?.length ? (
+                <div className="space-y-3">
+                  {activeAnalysis.timeline.map((event, index) => (
+                    <div key={index} className="flex items-center gap-3 p-3 border rounded">
+                      {getSeverityIcon(event.severity)}
+                      <div className="flex-1">
+                        <p className="font-medium">{event.activity}</p>
+                        <p className="text-sm text-gray-500">
                           {formatTimestamp(event.timestamp)}
-                        </div>
-                        <Badge className={getSeverityColor(event.severity)} variant="outline">
-                          {event.severity}
-                        </Badge>
-                        <span className="text-sm flex-1">{event.activity}</span>
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No timeline data available. Run video analysis first.
+                      <span className={`px-2 py-1 rounded text-white text-xs ${getSeverityColor(event.severity)}`}>
+                        {event.severity}
+                      </span>
+                    </div>
+                  ))}
                 </div>
+              ) : (
+                <p className="text-center text-gray-500 py-8">No timeline data available</p>
               )}
             </CardContent>
           </Card>
@@ -857,37 +491,26 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
             <CardHeader>
               <CardTitle>AI-Generated Report</CardTitle>
               <CardDescription>
-                Comprehensive analysis report generated by Gemini AI
+                Comprehensive violation analysis report generated by AI
               </CardDescription>
             </CardHeader>
             <CardContent>
               {generateReportMutation.isPending ? (
                 <div className="text-center py-8">
                   <div className="animate-spin h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                  <p>Generating comprehensive report...</p>
+                  <p>Generating AI report...</p>
                 </div>
               ) : generatedReport ? (
-                <div>
-                  <ScrollArea className="h-96">
-                    <Textarea
-                      value={generatedReport}
-                      readOnly
-                      className="min-h-96 text-sm font-mono"
-                    />
-                  </ScrollArea>
-                  <div className="mt-4 flex justify-end">
-                    <Button
-                      onClick={() => navigator.clipboard.writeText(generatedReport)}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Copy Report
-                    </Button>
-                  </div>
+                <div className="prose max-w-none">
+                  <pre className="whitespace-pre-wrap text-sm">{generatedReport}</pre>
                 </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  Click "Generate Report" to create an AI analysis report
+                <div className="text-center py-8">
+                  <p className="text-gray-500 mb-4">No report generated yet</p>
+                  <Button onClick={() => generateReportMutation.mutate()}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Generate Report
+                  </Button>
                 </div>
               )}
             </CardContent>
