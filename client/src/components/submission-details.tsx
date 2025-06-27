@@ -177,7 +177,36 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
                 {/* Student's Answer */}
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-2">Student's Answer:</p>
-                  {studentAnswer ? (
+                  {question.type === 'video_response' ? (
+                    // Handle video response questions
+                    (() => {
+                      const videoAnswer = videoAnswers?.find(va => va.videoQuestionId === question.id);
+                      return videoAnswer ? (
+                        <div className="p-3 rounded bg-blue-50 text-blue-800 border border-blue-200">
+                          <div className="mb-3">
+                            <video controls className="w-full max-h-40 rounded">
+                              <source src={videoAnswer.videoUrl} type="video/webm" />
+                              Your browser does not support the video tag.
+                            </video>
+                          </div>
+                          {videoAnswer.transcription && (
+                            <div className="text-sm">
+                              <strong>Transcription:</strong> {videoAnswer.transcription}
+                            </div>
+                          )}
+                          {videoAnswer.score && (
+                            <div className="text-sm mt-2">
+                              <strong>Score:</strong> {videoAnswer.score}%
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded bg-gray-50 text-gray-500 text-sm border border-gray-200">
+                          No video response provided
+                        </div>
+                      );
+                    })()
+                  ) : studentAnswer ? (
                     <div className={`p-3 rounded text-sm ${
                       isCorrect 
                         ? 'bg-green-50 text-green-800 border border-green-200' 
