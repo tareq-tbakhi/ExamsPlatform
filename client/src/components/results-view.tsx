@@ -21,7 +21,7 @@ interface SubmissionWithAnalysis extends SubmissionWithExam {
     behavioralScore: number;
     audioScore: number;
     summary: string;
-  };
+  } | null;
 }
 
 export default function ResultsView() {
@@ -92,8 +92,8 @@ export default function ResultsView() {
   });
 
   // Get AI analysis summary for submission from stored data
-  const getAIAnalysisSummary = (submissionId: number): SubmissionWithAnalysis["aiAnalysis"] | null => {
-    return submissionAnalysisQueries.data?.get(submissionId) || null;
+  const getAIAnalysisSummary = (submissionId: number) => {
+    return submissionAnalysisQueries.data?.get(submissionId) || undefined;
   };
 
   // Enhance submissions with AI analysis
@@ -331,7 +331,7 @@ export default function ResultsView() {
                               <TableHead>Score</TableHead>
                               <TableHead>Grade</TableHead>
                               <TableHead>AI Risk Level</TableHead>
-                              <TableHead>Gemini Analysis Summary</TableHead>
+                              <TableHead>Analysis Summary</TableHead>
                               <TableHead>Actions</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -362,35 +362,47 @@ export default function ResultsView() {
                                 </TableCell>
                                 <TableCell>
                                   <div className="space-y-1">
-                                    {getSuspicionBadge(submission.aiAnalysis?.overallSuspicion || 0)}
-                                    <div className="text-xs text-gray-500">
-                                      {submission.aiAnalysis?.overallSuspicion || 0}% suspicion
-                                    </div>
+                                    {submission.aiAnalysis ? (
+                                      <>
+                                        {getSuspicionBadge(submission.aiAnalysis.overallSuspicion)}
+                                        <div className="text-xs text-gray-500">
+                                          {submission.aiAnalysis.overallSuspicion}% suspicion
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <div className="text-xs text-gray-400">No analysis</div>
+                                    )}
                                   </div>
                                 </TableCell>
                                 <TableCell className="max-w-md">
                                   <div className="space-y-2">
-                                    <p className="text-sm text-gray-700">
-                                      {submission.aiAnalysis?.summary}
-                                    </p>
-                                    <div className="flex flex-wrap gap-2 text-xs">
-                                      {submission.aiAnalysis?.criticalViolations ? (
-                                        <Badge variant="destructive" className="text-xs">
-                                          {submission.aiAnalysis.criticalViolations} Critical
-                                        </Badge>
-                                      ) : null}
-                                      {submission.aiAnalysis?.majorViolations ? (
-                                        <Badge variant="secondary" className="text-xs">
-                                          {submission.aiAnalysis.majorViolations} Major
-                                        </Badge>
-                                      ) : null}
-                                      <span className="text-gray-500">
-                                        Screen: {submission.aiAnalysis?.screenActivityScore}%
-                                      </span>
-                                      <span className="text-gray-500">
-                                        Behavior: {submission.aiAnalysis?.behavioralScore}%
-                                      </span>
-                                    </div>
+                                    {submission.aiAnalysis ? (
+                                      <>
+                                        <p className="text-sm text-gray-700">
+                                          {submission.aiAnalysis.summary}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2 text-xs">
+                                          {submission.aiAnalysis.criticalViolations > 0 && (
+                                            <Badge variant="destructive" className="text-xs">
+                                              {submission.aiAnalysis.criticalViolations} Critical
+                                            </Badge>
+                                          )}
+                                          {submission.aiAnalysis.majorViolations > 0 && (
+                                            <Badge variant="secondary" className="text-xs">
+                                              {submission.aiAnalysis.majorViolations} Major
+                                            </Badge>
+                                          )}
+                                          <span className="text-gray-500">
+                                            Screen: {submission.aiAnalysis.screenActivityScore}%
+                                          </span>
+                                          <span className="text-gray-500">
+                                            Behavior: {submission.aiAnalysis.behavioralScore}%
+                                          </span>
+                                        </div>
+                                      </>
+                                    ) : (
+                                      <p className="text-sm text-gray-400">Run Enhanced AI Analysis</p>
+                                    )}
                                   </div>
                                 </TableCell>
                                 <TableCell>
