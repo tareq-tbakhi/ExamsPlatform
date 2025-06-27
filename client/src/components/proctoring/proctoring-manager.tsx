@@ -61,6 +61,7 @@ export default function ProctoringManager({
   // Generate unique session ID for this proctoring session
   const sessionIdRef = useRef<string>(generateSessionId());
   const { toast } = useToast();
+  const [showMonitoring, setShowMonitoring] = useState(false); // Hidden by default
   
   // Detect mobile device
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
@@ -730,9 +731,20 @@ export default function ProctoringManager({
       {/* Hidden canvas for face detection processing */}
       <canvas ref={canvasRef} className="hidden" />
       
-      {/* Enhanced Phase 1 Status Indicator */}
+      {/* Toggle Button - Always visible when active */}
       {isActive && (
-        <div className="fixed top-4 right-4 z-50 bg-black/90 text-white p-4 rounded-lg shadow-xl max-w-xs border border-gray-600">
+        <button
+          onClick={() => setShowMonitoring(!showMonitoring)}
+          className="fixed top-4 right-4 z-50 bg-gray-800/90 hover:bg-gray-700/90 text-white p-3 rounded-lg shadow-xl border border-gray-600 transition-all duration-200 text-xs font-medium"
+          title={showMonitoring ? "Hide Monitoring Panel" : "Show Monitoring Panel"}
+        >
+          {showMonitoring ? "Hide ✕" : "Monitor 🔍"}
+        </button>
+      )}
+
+      {/* Enhanced Phase 1 Status Indicator - Conditionally shown */}
+      {isActive && showMonitoring && (
+        <div className="fixed top-16 right-4 z-40 bg-black/90 text-white p-4 rounded-lg shadow-xl max-w-xs border border-gray-600">
           <div className="flex items-center space-x-2 mb-3">
             <div className={`w-3 h-3 rounded-full ${state.networkStatus === 'online' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
             <span className="text-sm font-bold">PHASE 1 PROCTORING</span>
