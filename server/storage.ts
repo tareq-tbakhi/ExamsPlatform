@@ -60,6 +60,7 @@ export interface IStorage {
   createAnalysisViolations(violations: InsertAnalysisViolation[]): Promise<AnalysisViolation[]>;
   createAnalysisTimeline(timeline: InsertAnalysisTimeline[]): Promise<AnalysisTimeline[]>;
   getAnalysisResultsBySubmission(submissionId: number): Promise<AiAnalysisResult[]>;
+  getTimelineByAnalysisId(analysisId: number): Promise<AnalysisTimeline[]>;
 
   // AI Reports
   createAiReport(report: InsertAiReport): Promise<AiReport>;
@@ -366,6 +367,14 @@ export class DatabaseStorage implements IStorage {
       .from(aiAnalysisResults)
       .where(eq(aiAnalysisResults.submissionId, submissionId))
       .orderBy(desc(aiAnalysisResults.analyzedAt));
+  }
+
+  async getTimelineByAnalysisId(analysisId: number): Promise<AnalysisTimeline[]> {
+    return await db
+      .select()
+      .from(analysisTimeline)
+      .where(eq(analysisTimeline.analysisId, analysisId))
+      .orderBy(analysisTimeline.timestamp);
   }
 
   async createAiReport(insertReport: InsertAiReport): Promise<AiReport> {
