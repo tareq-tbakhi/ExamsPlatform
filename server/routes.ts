@@ -1492,6 +1492,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public invitation acceptance routes (no authentication required)
+  app.get("/api/invitation/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      
+      const invitation = await storage.getUserInvitationByToken(token);
+      
+      if (!invitation || invitation.inviteStatus === 'expired' || 
+          (invitation.expiresAt && new Date(invitation.expiresAt) < new Date())) {
+        return res.status(404).json({ error: "Invitation not found or expired" });
+      }
+
+      res.json(invitation);
+    } catch (error) {
+      console.error("Failed to fetch invitation:", error);
+      res.status(500).json({ error: "Failed to fetch invitation" });
+    }
+  });
+
+  app.post("/api/accept-invitation", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      
+      if (!token || !password) {
+        return res.status(400).json({ error: "Token and password are required" });
+      }
+
+      const invitation = await storage.getUserInvitationByToken(token);
+      
+      if (!invitation || invitation.inviteStatus === 'accepted' || invitation.inviteStatus === 'expired' ||
+          (invitation.expiresAt && new Date(invitation.expiresAt) < new Date())) {
+        return res.status(400).json({ error: "Invalid or expired invitation" });
+      }
+
+      // Create the user account
+      const newUser = await storage.upsertUser({
+        id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`, // Generate unique ID
+        email: invitation.email,
+        firstName: invitation.firstName,
+        lastName: invitation.lastName,
+        role: invitation.role,
+        isActive: true,
+      });
+
+      // Mark invitation as accepted
+      await storage.updateUserInvitationStatus(invitation.id, 'accepted', new Date());
+
+      res.json({
+        success: true,
+        message: "Account created successfully",
+        user: {
+          email: newUser.email,
+          firstName: newUser.firstName,
+          lastName: newUser.lastName,
+          role: newUser.role,
+        }
+      });
+    } catch (error) {
+      console.error("Failed to accept invitation:", error);
+      res.status(500).json({ error: "Failed to create account" });
+    }
+  });
+
   // Server is started in server/index.ts
   const httpServer = new Server(app);
   return httpServer;
