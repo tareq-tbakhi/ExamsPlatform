@@ -100,6 +100,8 @@ export interface IStorage {
   getExamInvitations(examId: number): Promise<ExamInvitation[]>;
   updateInvitationStatus(id: number, status: string, accessedAt?: Date): Promise<ExamInvitation | undefined>;
   getInvitationByToken(token: string): Promise<ExamInvitation | undefined>;
+  getInvitationByStudentDetails(name: string, email: string, registrationNumber: string): Promise<ExamInvitation | undefined>;
+  getInvitationsByEmail(email: string): Promise<ExamInvitation[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -574,6 +576,27 @@ export class DatabaseStorage implements IStorage {
       .from(examInvitations)
       .where(eq(examInvitations.inviteToken, token));
     return invitation;
+  }
+
+  async getInvitationByStudentDetails(name: string, email: string, registrationNumber: string): Promise<ExamInvitation | undefined> {
+    const [invitation] = await db
+      .select()
+      .from(examInvitations)
+      .where(
+        and(
+          eq(examInvitations.studentName, name),
+          eq(examInvitations.studentEmail, email),
+          eq(examInvitations.registrationNumber, registrationNumber)
+        )
+      );
+    return invitation;
+  }
+
+  async getInvitationsByEmail(email: string): Promise<ExamInvitation[]> {
+    return await db
+      .select()
+      .from(examInvitations)
+      .where(eq(examInvitations.studentEmail, email));
   }
 }
 

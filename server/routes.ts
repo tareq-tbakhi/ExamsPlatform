@@ -1056,6 +1056,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Student Authentication and Access
+  app.post("/api/student/login", async (req, res) => {
+    try {
+      const { name, email, registrationNumber } = req.body;
+      
+      if (!name || !email || !registrationNumber) {
+        return res.status(400).json({ error: "All fields are required" });
+      }
+
+      // Find invitation matching the student details
+      const invitation = await storage.getInvitationByStudentDetails(name, email, registrationNumber);
+      
+      if (!invitation) {
+        return res.status(404).json({ error: "No invitation found. Please check your details or contact your instructor." });
+      }
+
+      // Update invitation status to accessed if it's the first time
+      if (invitation.status === "pending") {
+        await storage.updateInvitationStatus(invitation.id, "accessed", new Date());
+      }
+
+      // Return student session data
+      res.json({
+        success: true,
+        student: {
+          id: invitation.id,
+          name: invitation.studentName,
+          email: invitation.studentEmail,
+          registrationNumber: invitation.registrationNumber
+        }
+      });
+    } catch (error) {
+      console.error("Student login error:", error);
+      res.status(500).json({ error: "Authentication failed" });
+    }
+  });
+
+  app.get("/api/student/exams", async (req, res) => {
+    try {
+      const { email } = req.query;
+      
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      // Get all invitations for this student
+      const invitations = await storage.getInvitationsByEmail(email as string);
+      
+      if (!invitations.length) {
+        return res.json([]);
+      }
+
+      // Get exam details for each invitation
+      const assignedExams = [];
+      for (const invitation of invitations) {
+        const exam = await storage.getExam(invitation.examId);
+        if (exam) {
+          const questions = await storage.getQuestionsByExam(exam.id);
+          assignedExams.push({
+            id: exam.id,
+            title: exam.title,
+            subject: exam.subject,
+            duration: exam.duration,
+            questionsCount: questions.length,
+            status: exam.status,
+            invitationStatus: invitation.status,
+            accessedAt: invitation.accessedAt,
+            completedAt: invitation.completedAt,
+            score: invitation.score
+          });
+        }
+      }
+
+      res.json(assignedExams);
+    } catch (error) {
+      console.error("Get student exams error:", error);
+      res.status(500).json({ error: "Failed to fetch assigned exams" });
+    }
+  });
+
   // Create question
   app.post("/api/questions", async (req, res) => {
     try {
