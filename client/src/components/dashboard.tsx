@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Plus, 
   Calendar, 
@@ -19,11 +20,14 @@ import {
   Search,
   Bell,
   Send,
-  Share
+  Share,
+  ClipboardCheck,
+  GraduationCap
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import ExamCreator from "@/components/exam-creator";
+import ExamList from "@/components/exam-list";
 import ResultsView from "@/components/results-view";
 import type { ExamWithStats } from "@shared/schema";
 import logoImage from "@assets/image_1751011948568.png";
@@ -284,8 +288,37 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Content based on active tab */}
-            {activeTab === "overview" && (
+            {/* Tabbed Interface */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+              <TabsList className="grid w-full grid-cols-6 bg-white shadow-sm rounded-xl p-2">
+                <TabsTrigger value="overview" className="flex items-center gap-2 text-sm font-medium">
+                  <Home className="h-4 w-4" />
+                  Dashboard
+                </TabsTrigger>
+                <TabsTrigger value="create" className="flex items-center gap-2 text-sm font-medium">
+                  <Plus className="h-4 w-4" />
+                  Create Exam
+                </TabsTrigger>
+                <TabsTrigger value="exams" className="flex items-center gap-2 text-sm font-medium">
+                  <BookOpen className="h-4 w-4" />
+                  My Exams
+                </TabsTrigger>
+                <TabsTrigger value="results" className="flex items-center gap-2 text-sm font-medium">
+                  <BarChart3 className="h-4 w-4" />
+                  All Results
+                </TabsTrigger>
+                <TabsTrigger value="analytics" className="flex items-center gap-2 text-sm font-medium">
+                  <TrendingUp className="h-4 w-4" />
+                  Analytics
+                </TabsTrigger>
+                <TabsTrigger value="student" className="flex items-center gap-2 text-sm font-medium">
+                  <GraduationCap className="h-4 w-4" />
+                  Take Exam
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="overview" className="space-y-8">
+                {/* Dashboard Overview Content */}
               <div className="space-y-8">
                 {/* Enhanced Stats Cards - Inspired by Figma Design */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -651,11 +684,55 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-            )}
+              </TabsContent>
 
-            {activeTab === "results" && (
-              <ResultsView selectedExamId={selectedExamId} />
-            )}
+              <TabsContent value="create" className="space-y-6">
+                <ExamCreator />
+              </TabsContent>
+
+              <TabsContent value="exams" className="space-y-6">
+                <ExamList />
+              </TabsContent>
+
+              <TabsContent value="results" className="space-y-6">
+                <ResultsView selectedExamId={selectedExamId} />
+              </TabsContent>
+
+              <TabsContent value="analytics" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Advanced Analytics</CardTitle>
+                    <CardDescription>
+                      Detailed performance insights and trends analysis
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-600">
+                      Advanced analytics features coming soon...
+                    </p>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="student" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Take an Exam</CardTitle>
+                    <CardDescription>
+                      Enter an exam code or click on a shared exam link to begin taking an exam
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-blue-700">
+                        <strong>For testing:</strong> Go to "My Exams" tab, create and publish an exam, 
+                        then use the "Take Test" button to test your exam.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         </div>
       </div>

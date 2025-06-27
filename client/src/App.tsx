@@ -11,7 +11,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
-      <Route path="/exam/:examId" component={TakeExam} />
+      <Route path="/take-exam/:examId" component={TakeExam} />
       <Route component={NotFound} />
     </Switch>
   );
