@@ -187,13 +187,8 @@ export default function StudentExam({ examId }: StudentExamProps) {
       createDraftSubmissionMutation.mutate(draftSubmissionData);
     }
     
-    // Check if proctoring is enabled for this exam
-    const examSettings = exam?.settings as any;
-    if (examSettings?.proctoringEnabled) {
-      setProctoringEnabled(true);
-    } else {
-      setExamStarted(true);
-    }
+    // Enable proctoring protection for all exams by default
+    setProctoringEnabled(true);
   };
 
   const handleProctoringSetupComplete = () => {
