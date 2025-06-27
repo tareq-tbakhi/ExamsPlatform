@@ -1685,6 +1685,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Student Exam Invitation API (public access for invitation verification)
+  app.get('/api/exam-invitation/:token', async (req, res) => {
+    try {
+      const token = req.params.token;
+      
+      if (!token) {
+        return res.status(400).json({ error: 'Token required' });
+      }
+
+      const invitation = await storage.getInvitationByToken(token);
+      
+      if (!invitation) {
+        return res.status(404).json({ error: 'Invitation not found' });
+      }
+
+      // Get exam details
+      const exam = await storage.getExam(invitation.examId);
+      
+      if (!exam) {
+        return res.status(404).json({ error: 'Exam not found' });
+      }
+
+      res.json({
+        id: invitation.id,
+        examId: invitation.examId,
+        studentEmail: invitation.studentEmail,
+        studentName: invitation.studentName,
+        registrationNumber: invitation.registrationNumber,
+        inviteStatus: invitation.inviteStatus,
+        inviteToken: invitation.inviteToken,
+        exam: {
+          title: exam.title,
+          subject: exam.subject,
+          duration: exam.duration,
+          instructions: exam.instructions,
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching exam invitation:', error);
+      res.status(500).json({ error: 'Failed to fetch invitation' });
+    }
+  });
+
   // Server is started in server/index.ts
   const httpServer = new Server(app);
   return httpServer;
