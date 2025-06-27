@@ -196,7 +196,8 @@ export function VideoRecorder({
     try {
       // First, transcribe the recording
       const formData = new FormData();
-      formData.append('audio', blob, `question_${questionId}_${Date.now()}.${questionType === "video_response" ? "webm" : "webm"}`);
+      const fieldName = questionType === "video_response" ? "video" : "audio";
+      formData.append(fieldName, blob, `question_${questionId}_${Date.now()}.webm`);
       formData.append('questionId', questionId.toString());
       formData.append('submissionId', submissionId.toString());
       formData.append('type', questionType);
@@ -214,6 +215,26 @@ export function VideoRecorder({
       if (transcriptionResponse.transcription) {
         setTranscription(transcriptionResponse.transcription);
         onRecordingComplete(transcriptionResponse.transcription, transcriptionResponse.confidence || 0.8);
+
+        // Upload the video file to be stored as an answer
+        const videoFormData = new FormData();
+        videoFormData.append('video', blob, `answer_${questionId}_${Date.now()}.webm`);
+        videoFormData.append('questionId', questionId.toString());
+        videoFormData.append('submissionId', submissionId.toString());
+        videoFormData.append('transcript', transcriptionResponse.transcription);
+        videoFormData.append('confidence', (transcriptionResponse.confidence || 0.8).toString());
+        videoFormData.append('duration', recordingTime.toString());
+
+        try {
+          const uploadRes = await fetch('/api/upload-video-answer', {
+            method: 'POST',
+            body: videoFormData
+          });
+          const uploadResponse = await uploadRes.json();
+          console.log('Video answer uploaded successfully:', uploadResponse);
+        } catch (uploadError) {
+          console.error('Failed to upload video answer:', uploadError);
+        }
 
         // Now validate the answer using OpenAI
         const validationRes = await fetch('/api/validate-answer', {
