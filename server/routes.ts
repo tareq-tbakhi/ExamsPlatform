@@ -199,15 +199,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
           filteredFiles = files.filter(file => 
             file.includes(`_${submission.sessionId}_`) && file.endsWith('.webm')
           );
-          console.log(`Using session ID ${submission.sessionId} match for submission ${submissionId}: ${filteredFiles.length} files`);
+          console.log(`Session ID match for ${submission.sessionId}: found ${filteredFiles.length} files:`, filteredFiles);
         }
         
         if (filteredFiles.length === 0) {
-          // Fallback: Try exam ID match for testing
-          filteredFiles = files.filter(file => 
+          // Enhanced fallback: Try exam ID match plus timestamp-based sorting for most recent videos
+          const examFiles = files.filter(file => 
             file.includes(`_${submission.examId}_`) && file.endsWith('.webm')
           );
-          console.log(`Using exam ID ${submission.examId} fallback match for submission ${submissionId}: ${filteredFiles.length} files`);
+          
+          // Sort by modification time to get most recent videos for this exam
+          if (examFiles.length > 0) {
+            const fileStats = examFiles.map(filename => {
+              try {
+                const filePath = path.join(proctoringDir, filename);
+                const stats = fs.statSync(filePath);
+                return { filename, mtime: stats.mtime.getTime() };
+              } catch (error) {
+                return { filename, mtime: 0 };
+              }
+            });
+            
+            // Sort by modification time (newest first) and take files from around submission time
+            fileStats.sort((a, b) => b.mtime - a.mtime);
+            const submissionTime = submission.submittedAt ? new Date(submission.submittedAt).getTime() : Date.now();
+            
+            // Filter videos that were created within 2 hours of submission time
+            const timeWindow = 2 * 60 * 60 * 1000; // 2 hours
+            filteredFiles = fileStats
+              .filter(file => Math.abs(file.mtime - submissionTime) < timeWindow)
+              .map(file => file.filename);
+              
+            console.log(`Exam ID ${submission.examId} + time window match for submission ${submissionId}: ${filteredFiles.length} files out of ${examFiles.length} total exam files`);
+          }
         }
         
         console.log(`Filtered files for submission ${submissionId}:`, filteredFiles);
@@ -315,7 +339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const videoFile = req.files.video as UploadedFile;
       const { examId, submissionId, sessionId, type } = req.body;
       
-      console.log(`Uploading proctoring video: ${videoFile.name}, Type: ${type}, Exam: ${examId}, Session: ${sessionId}`);
+      console.log(`Uploading proctoring video: ${videoFile.name}, Type: ${type}, Exam: ${examId}, Submission: ${submissionId}, Session: ${sessionId}`);
 
       // Create upload directory if it doesn't exist
       const uploadDir = path.join(process.cwd(), 'uploads', 'proctoring');
@@ -382,9 +406,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/submissions", async (req, res) => {
     try {
       console.log("Submissions endpoint hit with data:", req.body);
+      console.log("Session ID in submission:", req.body.sessionId);
+      
       const submissionData = insertSubmissionSchema.parse(req.body);
       const submission = await storage.createSubmission(submissionData);
+      
       console.log("Submission created successfully:", submission);
+      console.log("Created submission has session ID:", submission.sessionId);
+      
       res.json(submission);
     } catch (error) {
       console.error("Failed to create submission:", error);
