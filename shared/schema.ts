@@ -322,3 +322,26 @@ export type InsertCodingTestCase = z.infer<typeof insertCodingTestCaseSchema>;
 
 export type CodingSubmission = typeof codingSubmissions.$inferSelect;
 export type InsertCodingSubmission = z.infer<typeof insertCodingSubmissionSchema>;
+
+// Exam invitations table for CSV/Excel student uploads
+export const examInvitations = pgTable("exam_invitations", {
+  id: serial("id").primaryKey(),
+  examId: integer("exam_id").references(() => exams.id, { onDelete: "cascade" }).notNull(),
+  studentEmail: varchar("student_email", { length: 255 }).notNull(),
+  studentName: varchar("student_name", { length: 255 }),
+  registrationNumber: varchar("registration_number", { length: 100 }),
+  inviteStatus: varchar("invite_status", { length: 50 }).default("pending"), // pending, sent, accessed, completed
+  inviteToken: varchar("invite_token", { length: 255 }).unique(),
+  accessedAt: timestamp("accessed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertExamInvitationSchema = createInsertSchema(examInvitations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type ExamInvitation = typeof examInvitations.$inferSelect;
+export type InsertExamInvitation = z.infer<typeof insertExamInvitationSchema>;

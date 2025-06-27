@@ -92,6 +92,13 @@ export interface IStorage {
   getCodingTestCasesByQuestion(questionId: number): Promise<CodingTestCase[]>;
   createCodingSubmission(submission: InsertCodingSubmission): Promise<CodingSubmission>;
   getCodingSubmissionsBySubmission(submissionId: number): Promise<CodingSubmission[]>;
+
+  // Exam Invitations
+  createExamInvitation(invitation: InsertExamInvitation): Promise<ExamInvitation>;
+  createBulkExamInvitations(invitations: InsertExamInvitation[]): Promise<ExamInvitation[]>;
+  getExamInvitations(examId: number): Promise<ExamInvitation[]>;
+  updateInvitationStatus(id: number, status: string, accessedAt?: Date): Promise<ExamInvitation | undefined>;
+  getInvitationByToken(token: string): Promise<ExamInvitation | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
