@@ -633,10 +633,10 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                                   </div>
                                 </div>
                               </div>
-                              {violation.facialRecognition.eyeTracking.suspiciousGazePatterns.length > 0 && (
+                              {violation.screenActivity.applicationSwitching.suspiciousPatterns.length > 0 && (
                                 <div className="mt-2 p-2 bg-orange-100 dark:bg-orange-900/30 rounded">
                                   <p className="text-xs font-medium text-orange-800 dark:text-orange-200">
-                                    Suspicious Gaze: {violation.facialRecognition.eyeTracking.suspiciousGazePatterns.join(', ')}
+                                    Suspicious Patterns: {violation.screenActivity.applicationSwitching.suspiciousPatterns.join(', ')}
                                   </p>
                                 </div>
                               )}
