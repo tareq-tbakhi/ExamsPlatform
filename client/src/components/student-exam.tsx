@@ -30,6 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import { uploadQueue } from "@/lib/upload-queue";
 import ProctoringManager from "@/components/proctoring/proctoring-manager";
 import ProctoringSetup from "@/components/proctoring/proctoring-setup";
+import { VideoRecorder } from "@/components/video-recorder";
 import type { ExamWithQuestions, Question } from "@shared/schema";
 
 interface StudentExamProps {
@@ -69,6 +70,21 @@ export default function StudentExam({ examId }: StudentExamProps) {
     defaultValues: {
       studentName: "",
       studentEmail: "",
+    },
+  });
+
+  // Create draft submission for video/audio recording
+  const createDraftSubmissionMutation = useMutation({
+    mutationFn: async (submissionData: any) => {
+      const response = await apiRequest("POST", "/api/submissions", submissionData);
+      return response.json();
+    },
+    onSuccess: (result) => {
+      setSubmissionId(result.id);
+      console.log(`Created draft submission with ID: ${result.id}`);
+    },
+    onError: (error) => {
+      console.error("Failed to create draft submission:", error);
     },
   });
 
@@ -156,6 +172,20 @@ export default function StudentExam({ examId }: StudentExamProps) {
   const startExam = (studentData: StudentInfo) => {
     setStudentInfo(studentData);
     setTimeRemaining((exam?.duration || 60) * 60); // Convert minutes to seconds
+    
+    // Create draft submission for video/audio recording
+    if (exam) {
+      const draftSubmissionData = {
+        examId: exam.id,
+        studentName: studentData.studentName,
+        studentEmail: studentData.studentEmail || undefined,
+        answers: {},
+        totalPoints: exam.totalPoints,
+        timeSpent: 0,
+        sessionId: proctoringSessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      };
+      createDraftSubmissionMutation.mutate(draftSubmissionData);
+    }
     
     // Check if proctoring is enabled for this exam
     const examSettings = exam?.settings as any;
@@ -565,6 +595,70 @@ export default function StudentExam({ examId }: StudentExamProps) {
                     placeholder="Enter your essay response..."
                     rows={8}
                     className="w-full"
+                  />
+                )}
+
+                {/* Video Response */}
+                {currentQuestion.type === "video_response" && submissionId && (
+                  <VideoRecorder
+                    questionId={currentQuestion.id}
+                    submissionId={submissionId}
+                    questionType="video_response"
+                    onRecordingComplete={(transcription, confidence) => {
+                      handleAnswerChange(currentQuestion.id, {
+                        transcription,
+                        confidence,
+                        type: 'video_response'
+                      });
+                    }}
+                    onValidationComplete={(isValid, feedback, score) => {
+                      // Update the answer with validation results
+                      const currentAnswer = answers[currentQuestion.id] || {};
+                      handleAnswerChange(currentQuestion.id, {
+                        ...currentAnswer,
+                        isValid,
+                        feedback,
+                        score,
+                        validated: true
+                      });
+                      toast({
+                        title: isValid ? "Answer Validated" : "Answer Needs Improvement",
+                        description: `Score: ${score}% - ${feedback.substring(0, 100)}...`,
+                        variant: isValid ? "default" : "destructive"
+                      });
+                    }}
+                  />
+                )}
+
+                {/* Audio Response */}
+                {currentQuestion.type === "audio_response" && submissionId && (
+                  <VideoRecorder
+                    questionId={currentQuestion.id}
+                    submissionId={submissionId}
+                    questionType="audio_response"
+                    onRecordingComplete={(transcription, confidence) => {
+                      handleAnswerChange(currentQuestion.id, {
+                        transcription,
+                        confidence,
+                        type: 'audio_response'
+                      });
+                    }}
+                    onValidationComplete={(isValid, feedback, score) => {
+                      // Update the answer with validation results
+                      const currentAnswer = answers[currentQuestion.id] || {};
+                      handleAnswerChange(currentQuestion.id, {
+                        ...currentAnswer,
+                        isValid,
+                        feedback,
+                        score,
+                        validated: true
+                      });
+                      toast({
+                        title: isValid ? "Answer Validated" : "Answer Needs Improvement",
+                        description: `Score: ${score}% - ${feedback.substring(0, 100)}...`,
+                        variant: isValid ? "default" : "destructive"
+                      });
+                    }}
                   />
                 )}
               </div>
