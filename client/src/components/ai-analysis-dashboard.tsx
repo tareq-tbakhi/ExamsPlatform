@@ -151,15 +151,24 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
 
   // Analyze video recording mutation
   const analyzeVideoMutation = useMutation({
-    mutationFn: async (videoPath: string): Promise<VideoAnalysis> => {
-      const response = await fetch('/api/analyze/video-recording', {
+    mutationFn: async (videoUrl: string): Promise<VideoAnalysis> => {
+      // Extract video path from URL
+      const videoPath = videoUrl.replace('/api/videos/proctoring/', 'uploads/proctoring/');
+      
+      const response = await fetch('/api/analyze/enhanced-analysis', {
         method: 'POST',
         body: JSON.stringify({ 
           videoPath, 
-          examContext: `Exam: ${examTitle} - Submission: ${submissionId}` 
+          examContext: `Exam: ${examTitle} - Submission: ${submissionId}`,
+          submissionId 
         }),
         headers: { 'Content-Type': 'application/json' }
       });
+      
+      if (!response.ok) {
+        throw new Error(`Analysis failed: ${response.status} ${response.statusText}`);
+      }
+      
       return response.json();
     },
     onSuccess: (data: VideoAnalysis) => {
