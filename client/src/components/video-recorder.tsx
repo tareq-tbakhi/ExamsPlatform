@@ -208,9 +208,7 @@ export function VideoRecorder({
   useEffect(() => {
     // Reset state for new question
     setRecordedBlob(null);
-    setIsProcessing(false);
     setRecordingTime(0);
-    setValidationStatus({});
     setTranscription("");
     setEditableTranscript("");
     setContinuousTranscriptionActive(false);
@@ -378,8 +376,6 @@ export function VideoRecorder({
   };
 
   const processRecording = async (blob: Blob) => {
-    setIsProcessing(true);
-    
     try {
       // Use editable transcript if user has edited it, otherwise use live transcription
       const finalTranscript = isEditingTranscript ? editableTranscript : (transcriberRef.current?.getFullTranscript() || '');
@@ -391,61 +387,9 @@ export function VideoRecorder({
       setEditableTranscript(finalTranscript);
       onRecordingComplete(finalTranscript, confidence);
 
-      // Upload the video file to be stored as an answer
-      const videoFormData = new FormData();
-      videoFormData.append('video', blob, `answer_${questionId}_${Date.now()}.webm`);
-      videoFormData.append('questionId', questionId.toString());
-      videoFormData.append('submissionId', submissionId.toString());
-      videoFormData.append('transcript', finalTranscript);
-      videoFormData.append('confidence', confidence.toString());
-      videoFormData.append('duration', recordingTime.toString());
-
-      try {
-        const uploadRes = await fetch('/api/upload-video-answer', {
-          method: 'POST',
-          body: videoFormData
-        });
-        const uploadResponse = await uploadRes.json();
-        console.log('Video answer uploaded successfully:', uploadResponse);
-      } catch (uploadError) {
-        console.error('Failed to upload video answer:', uploadError);
-      }
-
-      // Now validate the answer using OpenAI
-      const validationRes = await fetch('/api/validate-answer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          questionId,
-          submissionId,
-          transcription: finalTranscript,
-          questionType
-        })
-      });
-      const validationResponse = await validationRes.json();
-
-      if (validationResponse.isValid !== undefined) {
-        const validation = {
-          isValid: validationResponse.isValid,
-          feedback: validationResponse.feedback || "Answer processed successfully",
-          score: validationResponse.score || 0,
-          completed: true
-        };
-        
-        setValidationStatus(validation);
-        
-        onValidationComplete(
-          validation.isValid,
-          validation.feedback,
-          validation.score
-        );
-      }
-
       toast({
-        title: "Processing Complete",
-        description: "Your recording has been transcribed and validated"
+        title: "Recording Complete",
+        description: "Your recording has been transcribed and saved"
       });
 
     } catch (error) {
@@ -455,8 +399,6 @@ export function VideoRecorder({
         description: "Failed to process recording. Please try again.",
         variant: "destructive"
       });
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -647,7 +589,7 @@ export function VideoRecorder({
           {!isRecording ? (
             <Button
               onClick={startRecording}
-              disabled={isProcessing}
+              disabled={false}
               className="bg-red-500 hover:bg-red-600 text-white"
             >
               {questionType === "video_response" ? <Video className="h-4 w-4 mr-2" /> : <Mic className="h-4 w-4 mr-2" />}
@@ -666,7 +608,7 @@ export function VideoRecorder({
         </div>
 
         {/* Editable Transcription Display */}
-        {(transcription || editableTranscript || isProcessing) && (
+        {(transcription || editableTranscript) && (
           <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center justify-between mb-2">
               <h4 className="font-medium text-blue-800">Live Transcription</h4>
@@ -713,12 +655,7 @@ export function VideoRecorder({
                     </Button>
                   </div>
                 )}
-                {isProcessing && (
-                  <div className="flex items-center space-x-2 text-blue-600">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                    <span className="text-xs">Processing...</span>
-                  </div>
-                )}
+
               </div>
             </div>
             <div className="bg-white p-3 rounded border border-blue-200 min-h-[60px]">
