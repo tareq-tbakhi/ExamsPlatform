@@ -106,7 +106,7 @@ class UploadQueue {
     }
     formData.append('type', upload.type);
     
-    console.log(`Uploading: ${upload.filename} with sessionId: ${upload.sessionId}`);
+    console.log(`Uploading: ${upload.filename} with sessionId: ${upload.sessionId}, submissionId: ${upload.submissionId}`);
 
     const response = await fetch('/api/upload-proctoring-video', {
       method: 'POST',
