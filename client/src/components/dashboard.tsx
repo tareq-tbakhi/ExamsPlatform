@@ -160,7 +160,7 @@ export default function Dashboard() {
                 ExamCraft
               </h1>
             </div>
-            <p className="text-sm text-gray-600 mt-2 ml-18">AI-Powered Exam Platform</p>
+            
           </div>
           
           <nav className="p-6 space-y-3">
