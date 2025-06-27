@@ -12,12 +12,13 @@ declare global {
   }
 }
 
-// Arabic Speech Recognition Class for client-side transcription
-class ArabicVideoTranscriber {
+// Multi-language Speech Recognition Class for client-side transcription
+class MultiLanguageVideoTranscriber {
   recognition: any = null;
   transcript: string = '';
   isRecording: boolean = false;
   continuousMode: boolean = true;
+  currentLanguage: string = 'ar-SA'; // Default to Arabic
   onTranscriptUpdate: (finalText: string, interimText: string) => void = () => {};
 
   constructor() {
@@ -34,8 +35,8 @@ class ArabicVideoTranscriber {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     this.recognition = new SpeechRecognition();
     
-    // Configure for Arabic
-    this.recognition.lang = 'ar-SA'; // Arabic (Saudi Arabia)
+    // Configure for Arabic and English support
+    this.recognition.lang = this.currentLanguage;
     this.recognition.continuous = true;
     this.recognition.interimResults = true;
     this.recognition.maxAlternatives = 1;
@@ -175,7 +176,7 @@ export function VideoRecorder({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const transcriberRef = useRef<ArabicVideoTranscriber | null>(null);
+  const transcriberRef = useRef<MultiLanguageVideoTranscriber | null>(null);
   
   const { toast } = useToast();
 
@@ -183,7 +184,7 @@ export function VideoRecorder({
   useEffect(() => {
     // Initialize transcriber if not exists
     if (!transcriberRef.current) {
-      transcriberRef.current = new ArabicVideoTranscriber();
+      transcriberRef.current = new MultiLanguageVideoTranscriber();
       transcriberRef.current.onTranscriptUpdate = (finalText: string, interimText: string) => {
         const fullText = finalText + interimText;
         setTranscription(fullText);
