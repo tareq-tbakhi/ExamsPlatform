@@ -27,6 +27,12 @@ export function VideoRecorder({
   const [isProcessing, setIsProcessing] = useState(false);
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [validationStatus, setValidationStatus] = useState<{
+    isValid?: boolean;
+    feedback?: string;
+    score?: number;
+    completed?: boolean;
+  }>({});
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -34,6 +40,16 @@ export function VideoRecorder({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   
   const { toast } = useToast();
+
+  // Reset component state when question changes
+  useEffect(() => {
+    setTranscription("");
+    setRecordedBlob(null);
+    setIsRecording(false);
+    setIsProcessing(false);
+    setRecordingTime(0);
+    setValidationStatus({});
+  }, [questionId]);
 
   // Request camera/microphone permissions or reuse existing stream
   useEffect(() => {
@@ -215,10 +231,19 @@ export function VideoRecorder({
         const validationResponse = await validationRes.json();
 
         if (validationResponse.isValid !== undefined) {
+          const validation = {
+            isValid: validationResponse.isValid,
+            feedback: validationResponse.feedback || "Answer processed successfully",
+            score: validationResponse.score || 0,
+            completed: true
+          };
+          
+          setValidationStatus(validation);
+          
           onValidationComplete(
-            validationResponse.isValid,
-            validationResponse.feedback || "Answer processed successfully",
-            validationResponse.score || 0
+            validation.isValid,
+            validation.feedback,
+            validation.score
           );
         }
       }
@@ -347,11 +372,52 @@ export function VideoRecorder({
           )}
         </div>
 
-        {/* Transcription Display */}
-        {transcription && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <h4 className="font-medium mb-2">Transcription:</h4>
-            <p className="text-sm text-gray-700">{transcription}</p>
+        {/* Real-time Transcription Display */}
+        {(transcription || isProcessing) && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-medium text-blue-800">Live Transcription</h4>
+              {isProcessing && (
+                <div className="flex items-center space-x-2 text-blue-600">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                  <span className="text-xs">Processing...</span>
+                </div>
+              )}
+            </div>
+            <div className="bg-white p-3 rounded border border-blue-200 min-h-[60px]">
+              {transcription ? (
+                <p className="text-sm text-gray-800 leading-relaxed">{transcription}</p>
+              ) : (
+                <p className="text-sm text-gray-400 italic">Your speech will appear here in real-time...</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Validation Status Display */}
+        {validationStatus.completed && (
+          <div className={`mt-4 p-4 rounded-lg border ${
+            validationStatus.isValid 
+              ? 'bg-green-50 border-green-200' 
+              : 'bg-yellow-50 border-yellow-200'
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className={`font-medium ${
+                validationStatus.isValid ? 'text-green-800' : 'text-yellow-800'
+              }`}>
+                AI Validation Result
+              </h4>
+              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                validationStatus.isValid 
+                  ? 'bg-green-100 text-green-800' 
+                  : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                Score: {validationStatus.score}%
+              </div>
+            </div>
+            <div className="bg-white p-3 rounded border">
+              <p className="text-sm text-gray-700">{validationStatus.feedback}</p>
+            </div>
           </div>
         )}
 
