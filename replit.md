@@ -217,6 +217,13 @@ Changelog:
   * Fixed JavaScript initialization error in AI Analysis Dashboard component
   * Corrected suspicion percentage display formatting across all components (divided by 100)
   * Implemented green "Stored in Database" indicators for cached reports with generation timestamps
+- June 27, 2025. Enhanced Event Timeline to read from database after analysis completion:
+  * Added new timeline endpoint /api/timeline/:submissionId to fetch stored timeline data
+  * Implemented getTimelineByAnalysisId method in storage layer with proper database ordering
+  * Updated Event Timeline tab to prioritize stored database data over current analysis memory
+  * Added visual indicators showing "Stored in Database" status with event count metadata
+  * Enhanced timeline display with fallback to current analysis when no stored data exists
+  * Improved user experience with loading states and clear data source indicators
 ```
 
 ## User Preferences

@@ -251,6 +251,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get stored timeline data for a submission
+  app.get("/api/timeline/:submissionId", async (req, res) => {
+    try {
+      const submissionId = parseInt(req.params.submissionId);
+      
+      // Get all analysis results for this submission
+      const analysisResults = await storage.getAnalysisResultsBySubmission(submissionId);
+      
+      // Collect timeline data from all analysis results
+      const allTimeline = [];
+      for (const analysis of analysisResults) {
+        const timeline = await storage.getTimelineByAnalysisId(analysis.id);
+        allTimeline.push(...timeline);
+      }
+      
+      // Sort by timestamp
+      allTimeline.sort((a, b) => a.timestamp - b.timestamp);
+      
+      console.log(`Retrieved ${allTimeline.length} timeline events for submission ${submissionId}`);
+      res.json(allTimeline);
+    } catch (error) {
+      console.error('Failed to fetch timeline data:', error);
+      res.status(500).json({ message: "Failed to fetch timeline data", error: (error as Error).message });
+    }
+  });
+
   // Stats endpoint
   app.get("/api/stats", async (req, res) => {
     try {

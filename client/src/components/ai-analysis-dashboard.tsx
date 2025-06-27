@@ -102,6 +102,13 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
     enabled: true
   });
 
+  // Fetch stored timeline data
+  const { data: storedTimeline, isLoading: timelineLoading } = useQuery({
+    queryKey: ['/api/timeline', submissionId],
+    queryFn: () => fetch(`/api/timeline/${submissionId}`).then(res => res.json()),
+    enabled: true
+  });
+
   // Auto-load existing report when stored reports are available
   useEffect(() => {
     if (storedReports && storedReports.length > 0 && !generatedReport) {
@@ -565,14 +572,53 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
         <TabsContent value="timeline" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Event Timeline</CardTitle>
-              <CardDescription>
-                Chronological timeline of detected activities and violations
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Event Timeline</CardTitle>
+                  <CardDescription>
+                    Chronological timeline of detected activities and violations (from database)
+                  </CardDescription>
+                </div>
+                {storedTimeline && storedTimeline.length > 0 && (
+                  <div className="text-right">
+                    <div className="text-sm text-green-600 font-medium">
+                      ✓ Stored in Database
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {storedTimeline.length} events recorded
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
-              {activeAnalysis?.timeline?.length ? (
+              {timelineLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                  <p>Loading timeline data...</p>
+                </div>
+              ) : storedTimeline && storedTimeline.length > 0 ? (
                 <div className="space-y-3">
+                  {storedTimeline.map((event: any, index: number) => (
+                    <div key={index} className="flex items-center gap-3 p-3 border rounded">
+                      {getSeverityIcon(event.severity)}
+                      <div className="flex-1">
+                        <p className="font-medium">{event.activity}</p>
+                        <p className="text-sm text-gray-500">
+                          {formatTimestamp(event.timestamp)}
+                        </p>
+                      </div>
+                      <span className={`px-2 py-1 rounded text-white text-xs ${getSeverityColor(event.severity)}`}>
+                        {event.severity}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : activeAnalysis?.timeline?.length ? (
+                <div className="space-y-3">
+                  <div className="text-sm text-amber-600 mb-3">
+                    ⚠️ Showing current analysis data (not yet stored in database)
+                  </div>
                   {activeAnalysis.timeline.map((event, index) => (
                     <div key={index} className="flex items-center gap-3 p-3 border rounded">
                       {getSeverityIcon(event.severity)}
