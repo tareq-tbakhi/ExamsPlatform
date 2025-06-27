@@ -24,6 +24,7 @@ interface VideoQuestionProps {
   onAnswerSubmit: (answer: VideoAnswerData) => void;
   onNext: () => void;
   isLastQuestion: boolean;
+  submissionId?: number;
 }
 
 interface VideoAnswerData {
@@ -37,7 +38,8 @@ export default function VideoQuestionComponent({
   question, 
   onAnswerSubmit, 
   onNext, 
-  isLastQuestion 
+  isLastQuestion,
+  submissionId 
 }: VideoQuestionProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
@@ -255,6 +257,9 @@ export default function VideoQuestionComponent({
       formData.append('transcript', transcript);
       formData.append('confidence', transcriptionConfidence.toString());
       formData.append('duration', (question.maxDuration - timeRemaining).toString());
+      if (submissionId) {
+        formData.append('submissionId', submissionId.toString());
+      }
 
       const response = await fetch('/api/upload-video-answer', {
         method: 'POST',

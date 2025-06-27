@@ -947,12 +947,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           videoAnswer = await storage.createVideoAnswer({
             submissionId: parseInt(submissionId),
-            questionId: parseInt(questionId),
+            videoQuestionId: parseInt(questionId),
             videoUrl,
-            transcription: transcript || null,
-            confidence: confidence ? parseFloat(confidence) : null,
-            duration: duration ? parseInt(duration) : null,
-            score: null // Will be set during grading
+            transcript: transcript || null,
+            confidence: confidence ? parseInt(confidence) : null,
+            duration: duration ? parseInt(duration) : null
           });
           console.log("Video answer saved to database:", videoAnswer.id);
         } catch (dbError) {
