@@ -496,6 +496,58 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
           </Card>
         </TabsContent>
 
+        <TabsContent value="stored" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Stored AI Analysis Results</CardTitle>
+              <CardDescription>
+                Previously completed AI analysis results stored in database
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {storedAnalysis?.length ? (
+                <div className="space-y-4">
+                  {storedAnalysis.map((analysis: any, index: number) => (
+                    <Card key={analysis.id}>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="text-lg">Analysis #{analysis.id}</CardTitle>
+                            <CardDescription>
+                              Analyzed on {new Date(analysis.analyzedAt).toLocaleString()}
+                            </CardDescription>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-red-600">
+                              {analysis.overallSuspicion}%
+                            </div>
+                            <div className="text-sm text-gray-500">suspicion</div>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <p className="text-sm text-gray-600">{analysis.summary}</p>
+                          <div className="flex gap-2 text-xs">
+                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                              Video: {analysis.videoPath}
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <p>No stored AI analysis results found for this submission.</p>
+                  <p className="text-sm mt-2">Run an Enhanced AI Analysis to generate and store results.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="timeline" className="space-y-4">
           <Card>
             <CardHeader>
