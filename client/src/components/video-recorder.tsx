@@ -136,6 +136,7 @@ interface VideoRecorderProps {
   questionType: "video_response" | "audio_response";
   onRecordingComplete: (transcription: string, confidence: number) => void;
   onValidationComplete: (isValid: boolean, feedback: string, score: number) => void;
+  onAutoSave?: () => void; // Callback for when auto-save is triggered
 }
 
 export function VideoRecorder({
@@ -143,7 +144,8 @@ export function VideoRecorder({
   submissionId,
   questionType,
   onRecordingComplete,
-  onValidationComplete
+  onValidationComplete,
+  onAutoSave
 }: VideoRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
@@ -170,9 +172,9 @@ export function VideoRecorder({
   
   const { toast } = useToast();
 
-  // Initialize transcriber once and maintain across questions
+  // Initialize transcriber once and reset for each question
   useEffect(() => {
-    // Only initialize transcriber once, don't reset on question change
+    // Initialize transcriber if not exists
     if (!transcriberRef.current) {
       transcriberRef.current = new ArabicVideoTranscriber();
       transcriberRef.current.onTranscriptUpdate = (finalText: string, interimText: string) => {
@@ -183,25 +185,27 @@ export function VideoRecorder({
           setEditableTranscript(fullText);
         }
       };
-      
-      // Automatically start continuous transcription for the exam session
-      setTimeout(() => {
-        if (transcriberRef.current) {
-          transcriberRef.current.enableContinuousMode();
-          setContinuousTranscriptionActive(true);
-          console.log('Started continuous Arabic transcription for exam session');
-        }
-      }, 1000); // Small delay to ensure component is ready
     }
-  }, []); // Remove questionId dependency to prevent resets
+  }, []);
 
-  // Only reset video recording state when question changes, keep transcription
+  // Reset everything when question changes - individual recording per question
   useEffect(() => {
+    // Reset state for new question
     setRecordedBlob(null);
     setIsProcessing(false);
     setRecordingTime(0);
     setValidationStatus({});
-    // DON'T reset transcription or stop recording - keep it continuous
+    setTranscription("");
+    setEditableTranscript("");
+    setContinuousTranscriptionActive(false);
+    
+    // Reset transcriber for new question
+    if (transcriberRef.current) {
+      transcriberRef.current.transcript = '';
+      transcriberRef.current.continuousMode = false;
+    }
+    
+    console.log(`Reset video recorder for question ${questionId}`);
   }, [questionId]);
 
   // Request camera/microphone permissions or reuse existing stream
@@ -241,6 +245,11 @@ export function VideoRecorder({
             ? "Camera and microphone are ready for recording"
             : "Microphone is ready for recording"
         });
+
+        // Auto-start recording once permissions are granted
+        setTimeout(() => {
+          startRecording();
+        }, 1000);
       } catch (error) {
         console.error("Permission denied:", error);
         toast({
@@ -320,6 +329,7 @@ export function VideoRecorder({
       // Start JavaScript-based Arabic transcription
       if (transcriberRef.current) {
         transcriberRef.current.startTranscription();
+        setContinuousTranscriptionActive(true);
       }
 
       toast({
