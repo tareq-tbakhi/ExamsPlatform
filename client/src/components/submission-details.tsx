@@ -189,9 +189,9 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
                               Your browser does not support the video tag.
                             </video>
                           </div>
-                          {videoAnswer.transcription && (
+                          {videoAnswer.transcript && (
                             <div className="text-sm">
-                              <strong>Transcription:</strong> {videoAnswer.transcription}
+                              <strong>Transcription:</strong> {videoAnswer.transcript}
                             </div>
                           )}
                           {videoAnswer.score && (
@@ -267,11 +267,11 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
                       </video>
                     </div>
                   )}
-                  {answer.transcription && (
+                  {answer.transcript && (
                     <div className="mt-3">
                       <p className="text-sm font-medium text-gray-700 mb-2">Transcription:</p>
                       <div className="p-3 bg-gray-50 rounded text-sm">
-                        {answer.transcription}
+                        {answer.transcript}
                       </div>
                       {answer.confidence && (
                         <p className="text-xs text-gray-500 mt-1">
