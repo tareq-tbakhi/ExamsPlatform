@@ -45,15 +45,6 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
   }
 
   const { submission, exam, answers, proctoringVideos, videoAnswers } = data;
-  
-  // Debug logging for video answers
-  console.log('Debug - submission data:', { 
-    submissionId: submission.id,
-    videoAnswersCount: videoAnswers?.length || 0,
-    videoAnswers: videoAnswers,
-    hasVideoAnswers: !!videoAnswers && videoAnswers.length > 0
-  });
-  
   const scorePercentage = submission.score ? Math.round((submission.score / submission.totalPoints) * 100) : 0;
 
   const getAnswerStatus = (questionId: number, correctAnswer?: string | null) => {
