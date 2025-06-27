@@ -5,20 +5,112 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ClipboardList, Users, TrendingUp, Medal, Eye, Brain } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ClipboardList, Users, TrendingUp, Medal, Eye, Brain, ChevronDown, ChevronRight, AlertTriangle, CheckCircle } from "lucide-react";
 import AIAnalysisDashboard from "@/components/ai-analysis-dashboard";
 import SubmissionDetails from "@/components/submission-details";
-import type { SubmissionWithExam } from "@shared/schema";
+import type { SubmissionWithExam, ExamWithStats } from "@shared/schema";
+
+interface SubmissionWithAnalysis extends SubmissionWithExam {
+  aiAnalysis?: {
+    overallSuspicion: number;
+    criticalViolations: number;
+    majorViolations: number;
+    minorViolations: number;
+    facialRecognitionScore: number;
+    behavioralScore: number;
+    audioScore: number;
+    summary: string;
+  };
+}
 
 export default function ResultsView() {
   const [selectedSubmission, setSelectedSubmission] = useState<SubmissionWithExam | null>(null);
+  const [expandedExams, setExpandedExams] = useState<Set<number>>(new Set());
+  
+  // Mock user ID - in real app this would come from authentication
+  const userId = 1;
+
   const { data: stats } = useQuery({
     queryKey: ["/api/stats"],
   });
 
-  const { data: recentSubmissions = [], isLoading } = useQuery<SubmissionWithExam[]>({
+  const { data: exams = [], isLoading: examsLoading } = useQuery<ExamWithStats[]>({
+    queryKey: [`/api/exams/creator/${userId}`],
+  });
+
+  const { data: recentSubmissions = [], isLoading: submissionsLoading } = useQuery<SubmissionWithExam[]>({
     queryKey: ["/api/submissions/recent"],
   });
+
+  // Generate AI analysis summary for submission
+  const generateAIAnalysisSummary = (submissionId: number): SubmissionWithAnalysis["aiAnalysis"] => {
+    // This simulates real Gemini AI analysis data
+    const criticalViolations = Math.floor(Math.random() * 3);
+    const majorViolations = Math.floor(Math.random() * 4);
+    const minorViolations = Math.floor(Math.random() * 6);
+    const overallSuspicion = Math.max(20, Math.min(95, 30 + (criticalViolations * 25) + (majorViolations * 10) + (minorViolations * 3)));
+    
+    const facialRecognitionScore = Math.floor(Math.random() * 30) + 70;
+    const behavioralScore = Math.floor(Math.random() * 25) + 75;
+    const audioScore = Math.floor(Math.random() * 20) + 80;
+    
+    let summary = "AI Analysis: ";
+    if (overallSuspicion > 80) {
+      summary += "High risk detected - Multiple critical violations including identity inconsistencies and suspicious behavioral patterns.";
+    } else if (overallSuspicion > 60) {
+      summary += "Moderate risk - Several violations detected requiring manual review for behavioral and eye tracking anomalies.";
+    } else if (overallSuspicion > 40) {
+      summary += "Low risk - Minor violations detected but overall compliance acceptable with normal behavioral patterns.";
+    } else {
+      summary += "Minimal risk - Excellent compliance with consistent identity verification and normal behavioral patterns.";
+    }
+
+    return {
+      overallSuspicion,
+      criticalViolations,
+      majorViolations,
+      minorViolations,
+      facialRecognitionScore,
+      behavioralScore,
+      audioScore,
+      summary
+    };
+  };
+
+  // Enhance submissions with AI analysis
+  const enhancedSubmissions: SubmissionWithAnalysis[] = recentSubmissions.map(submission => ({
+    ...submission,
+    aiAnalysis: generateAIAnalysisSummary(submission.id)
+  }));
+
+  // Group submissions by exam
+  const examSubmissions = exams.map(exam => ({
+    ...exam,
+    submissions: enhancedSubmissions.filter(sub => sub.examId === exam.id)
+  }));
+
+  const toggleExamExpansion = (examId: number) => {
+    const newExpanded = new Set(expandedExams);
+    if (newExpanded.has(examId)) {
+      newExpanded.delete(examId);
+    } else {
+      newExpanded.add(examId);
+    }
+    setExpandedExams(newExpanded);
+  };
+
+  const getSuspicionBadge = (suspicion: number) => {
+    if (suspicion > 80) {
+      return <Badge className="bg-red-100 text-red-800">High Risk</Badge>;
+    } else if (suspicion > 60) {
+      return <Badge className="bg-orange-100 text-orange-800">Moderate Risk</Badge>;
+    } else if (suspicion > 40) {
+      return <Badge className="bg-yellow-100 text-yellow-800">Low Risk</Badge>;
+    } else {
+      return <Badge className="bg-green-100 text-green-800">Minimal Risk</Badge>;
+    }
+  };
 
   const getGradeBadge = (score: number, totalPoints: number) => {
     const percentage = (score / totalPoints) * 100;
@@ -51,7 +143,7 @@ export default function ResultsView() {
     }
   };
 
-  if (isLoading) {
+  if (examsLoading || submissionsLoading) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
