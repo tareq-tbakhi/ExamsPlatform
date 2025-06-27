@@ -54,24 +54,8 @@ function updateUserSession(
   user.expires_at = user.claims?.exp;
 }
 
-async function upsertUser(
-  claims: any,
-) {
-  const email = claims["email"] as string;
-  const SUPER_ADMIN_EMAIL = "mehdawiadham@gmail.com";
-  
-  let role = "student"; // Default role
-  
-  if (email === SUPER_ADMIN_EMAIL) {
-    role = "super_admin";
-  } else {
-    // Check invitation for role assignment
-    const invitation = await storage.getUserInvitationByEmail(email);
-    if (invitation && invitation.role) {
-      role = invitation.role;
-    }
-  }
-  
+// Helper function to create user account with proper role
+async function createUserAccount(claims: any, role: string) {
   await storage.upsertUser({
     id: claims["sub"] as string,
     email: claims["email"] as string,
@@ -110,38 +94,60 @@ export async function setupAuth(app: Express) {
       // Super admin can always log in
       const user = {};
       updateUserSession(user, tokens);
-      await upsertUser(claims);
+      await createUserAccount(claims, "super_admin");
       verified(null, user);
       return;
     }
     
-    // Check if user has a valid invitation  
-    const invitation = await storage.getUserInvitationByEmail(email);
-    if (!invitation) {
-      // No invitation found - deny access
+    // Check for platform invitation (admin/teacher access)
+    const platformInvitation = await storage.getUserInvitationByEmail(email);
+    
+    // Check for exam invitation (student access)
+    const examInvitations = await storage.getInvitationsByEmail(email);
+    
+    let userRole = "student";
+    let hasValidAccess = false;
+    
+    // Check platform invitation first (for admin/teacher roles)
+    if (platformInvitation && 
+        platformInvitation.inviteStatus === 'pending' && 
+        (!platformInvitation.expiresAt || new Date() <= platformInvitation.expiresAt)) {
+      
+      userRole = platformInvitation.role;
+      hasValidAccess = true;
+      
+      // Mark platform invitation as accepted
+      await storage.updateUserInvitationStatus(platformInvitation.id, 'accepted', new Date());
+    }
+    
+    // Check exam invitations (for student access)
+    else if (examInvitations && examInvitations.length > 0) {
+      // Check if user has any valid exam invitations
+      const validExamInvitation = examInvitations.find(inv => 
+        inv.inviteStatus === 'pending' || inv.inviteStatus === 'sent'
+      );
+      
+      if (validExamInvitation) {
+        userRole = "student";
+        hasValidAccess = true;
+        
+        // Mark first exam invitation as accessed (but not completed)
+        await storage.updateInvitationStatus(validExamInvitation.id, 'accessed', new Date());
+      }
+    }
+    
+    if (!hasValidAccess) {
+      // No valid invitation found - deny access
       verified(null, false);
       return;
     }
     
-    if (invitation.inviteStatus !== 'pending') {
-      // Invitation already used or expired
-      verified(null, false);
-      return;
-    }
-    
-    // Check if invitation has expired
-    if (invitation.expiresAt && new Date() > invitation.expiresAt) {
-      verified(null, false);
-      return;
-    }
-    
-    // Valid invitation found - allow login and activate invitation
+    // Valid invitation found - allow login with appropriate role
     const user = {};
     updateUserSession(user, tokens);
-    await upsertUser(claims);
     
-    // Mark invitation as accepted
-    await storage.updateUserInvitationStatus(invitation.id, 'accepted', new Date());
+    // Create user account with the determined role
+    await createUserAccount(claims, userRole);
     
     verified(null, user);
   };

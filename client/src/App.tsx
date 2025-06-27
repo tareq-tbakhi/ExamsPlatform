@@ -15,6 +15,7 @@ import StudentLogin from "@/pages/StudentLogin";
 import StudentDashboard from "@/pages/StudentDashboard";
 import AcceptInvitation from "@/pages/AcceptInvitation";
 import AccessDenied from "@/pages/AccessDenied";
+import StudentExamAccess from "@/pages/StudentExamAccess";
 import { AIAssistantTrigger } from "@/components/ai-assistant/ai-assistant-trigger";
 
 function Router() {
