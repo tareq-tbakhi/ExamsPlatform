@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { transcriptionService } from "./transcription";
 import type { 
   Question, 
   Submission, 
@@ -253,6 +254,125 @@ Respond with JSON in this format:
   }
 
   /**
+   * Grade a video response question
+   */
+  async gradeVideoResponse(question: Question, answer: any): Promise<GradingResult> {
+    try {
+      const videoPath = answer.videoPath || answer.filePath;
+      if (!videoPath) {
+        return {
+          questionId: question.id,
+          score: 0,
+          maxScore: question.points,
+          isCorrect: false,
+          feedback: "No video file provided",
+          gradingType: "manual"
+        };
+      }
+
+      // Transcribe the video audio
+      const transcriptionResult = await transcriptionService.transcribeVideoAudio(videoPath, "ar");
+      
+      // Extract expected keywords from question metadata
+      const expectedKeywords = question.metadata?.keywords as string[] || [];
+      
+      // Analyze the transcription for grading
+      const analysis = await transcriptionService.analyzeTranscriptionForGrading(
+        transcriptionResult.text,
+        question.question,
+        expectedKeywords,
+        question.points
+      );
+
+      const detailedFeedback = `Transcription (${transcriptionResult.confidence}% confidence): "${transcriptionResult.text.substring(0, 100)}..."
+      
+Audio Quality: Clarity ${transcriptionResult.quality.clarity}%, Volume ${transcriptionResult.quality.volume}%
+Content Analysis: ${analysis.feedback}
+Keywords Covered: ${analysis.keywordsCovered.join(", ")}
+Completeness: ${analysis.completeness}%, Relevance: ${analysis.relevance}%`;
+
+      return {
+        questionId: question.id,
+        score: analysis.score,
+        maxScore: question.points,
+        isCorrect: analysis.score >= (question.points * 0.7), // 70% threshold
+        feedback: detailedFeedback,
+        gradingType: "ai"
+      };
+    } catch (error) {
+      console.error("Failed to grade video response:", error);
+      return {
+        questionId: question.id,
+        score: 0,
+        maxScore: question.points,
+        isCorrect: false,
+        feedback: "Unable to process video response automatically. Manual review required.",
+        gradingType: "manual"
+      };
+    }
+  }
+
+  /**
+   * Grade an audio response question
+   */
+  async gradeAudioResponse(question: Question, answer: any): Promise<GradingResult> {
+    try {
+      const audioPath = answer.audioPath || answer.filePath;
+      if (!audioPath) {
+        return {
+          questionId: question.id,
+          score: 0,
+          maxScore: question.points,
+          isCorrect: false,
+          feedback: "No audio file provided",
+          gradingType: "manual"
+        };
+      }
+
+      // Transcribe the audio
+      const transcriptionResult = await transcriptionService.transcribeAudio(audioPath, "ar");
+      
+      // Extract expected keywords from question metadata
+      const expectedKeywords = question.metadata?.keywords as string[] || [];
+      
+      // Analyze the transcription for grading
+      const analysis = await transcriptionService.analyzeTranscriptionForGrading(
+        transcriptionResult.text,
+        question.question,
+        expectedKeywords,
+        question.points
+      );
+
+      const detailedFeedback = `Transcription (${transcriptionResult.confidence}% confidence): "${transcriptionResult.text.substring(0, 100)}..."
+      
+Audio Quality: Clarity ${transcriptionResult.quality.clarity}%, Volume ${transcriptionResult.quality.volume}%
+Content Analysis: ${analysis.feedback}
+Keywords Covered: ${analysis.keywordsCovered.join(", ")}
+Completeness: ${analysis.completeness}%, Relevance: ${analysis.relevance}%
+Sentiment: ${transcriptionResult.sentiment.score > 0 ? 'Positive' : 'Neutral/Negative'} (${transcriptionResult.sentiment.confidence}% confidence)`;
+
+      return {
+        questionId: question.id,
+        score: analysis.score,
+        maxScore: question.points,
+        isCorrect: analysis.score >= (question.points * 0.7), // 70% threshold
+        feedback: detailedFeedback,
+        gradingType: "ai"
+      };
+    } catch (error) {
+      console.error("Failed to grade audio response:", error);
+      return {
+        questionId: question.id,
+        score: 0,
+        maxScore: question.points,
+        isCorrect: false,
+        feedback: "Unable to process audio response automatically. Manual review required.",
+        gradingType: "manual"
+      };
+    }
+  }
+
+  /**
    * Execute coding tests (simplified for demonstration)
    */
   private async executeCodingTests(code: string, language: string, testCases: CodingTestCase[]) {
@@ -364,26 +484,30 @@ Respond with JSON in this format:
           scoreBreakdown.coding.count++;
           break;
 
+        case "video_response":
+          result = await this.gradeVideoResponse(question, answer);
+          scoreBreakdown.videoResponse.earned += result.score;
+          scoreBreakdown.videoResponse.total += result.maxScore;
+          scoreBreakdown.videoResponse.count++;
+          break;
+
+        case "audio_response":
+          result = await this.gradeAudioResponse(question, answer);
+          scoreBreakdown.audioResponse.earned += result.score;
+          scoreBreakdown.audioResponse.total += result.maxScore;
+          scoreBreakdown.audioResponse.count++;
+          break;
+
         default:
-          // For video_response and audio_response, require manual grading
+          // For unknown question types, require manual grading
           result = {
             questionId: question.id,
             score: 0,
             maxScore: question.points,
             isCorrect: false,
-            feedback: "Requires manual grading",
+            feedback: "Unknown question type - requires manual grading",
             gradingType: "manual"
           };
-          
-          if (question.type === "video_response") {
-            scoreBreakdown.videoResponse.earned += result.score;
-            scoreBreakdown.videoResponse.total += result.maxScore;
-            scoreBreakdown.videoResponse.count++;
-          } else if (question.type === "audio_response") {
-            scoreBreakdown.audioResponse.earned += result.score;
-            scoreBreakdown.audioResponse.total += result.maxScore;
-            scoreBreakdown.audioResponse.count++;
-          }
       }
 
       questionGrades.push(result);
