@@ -163,13 +163,13 @@ export default function ProctoringSettings({ settings, onSettingsChange }: Proct
                 <div className="flex items-center space-x-3">
                   <Eye className="h-5 w-5 text-blue-600" />
                   <div>
-                    <Label className="font-medium">Face Detection</Label>
-                    <p className="text-sm text-gray-600">AI-powered monitoring</p>
+                    <Label className="font-medium">Behavioral Monitoring</Label>
+                    <p className="text-sm text-gray-600">AI-powered behavior analysis</p>
                   </div>
                 </div>
                 <Switch
-                  checked={proctoringConfig.faceDetection}
-                  onCheckedChange={(checked) => handleSettingChange('faceDetection', checked)}
+                  checked={proctoringConfig.behavioralMonitoring || true}
+                  onCheckedChange={(checked) => handleSettingChange('behavioralMonitoring', checked)}
                 />
               </div>
 

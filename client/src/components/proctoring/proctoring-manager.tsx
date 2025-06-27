@@ -24,7 +24,6 @@ interface ViolationData {
 interface ProctoringState {
   videoRecording: boolean;
   screenRecording: boolean;
-  faceDetection: boolean;
   browserLocked: boolean;
   violations: ViolationData[];
   uploadStatus: UploadStatus;
@@ -63,7 +62,6 @@ export default function ProctoringManager({
   const [state, setState] = useState<ProctoringState>({
     videoRecording: false,
     screenRecording: false,
-    faceDetection: false,
     browserLocked: false,
     violations: [],
     uploadStatus: {
@@ -94,7 +92,6 @@ export default function ProctoringManager({
   const screenRecorderRef = useRef<MediaRecorder | null>(null);
   const videoStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
-  const faceDetectionIntervalRef = useRef<number | null>(null);
   const videoChunksRef = useRef<Blob[]>([]);
   const screenChunksRef = useRef<Blob[]>([]);
 
@@ -135,10 +132,9 @@ export default function ProctoringManager({
   const initializeProctoring = async () => {
     console.log(`Starting proctoring for exam ${examId} with session ${sessionIdRef.current}`);
     try {
-      // Phase 1: Core Recording Features
+      // Phase 1: Core Recording Features (Face detection removed - focusing on screen activity)
       await startVideoRecording();
       await startScreenRecording();
-      startFaceDetection();
       
       // Phase 2: Advanced Monitoring
       await initializeMultiMonitorDetection();
@@ -160,7 +156,7 @@ export default function ProctoringManager({
 
       toast({
         title: "Complete Proctoring System Active",
-        description: "All 3 phases enabled: Recording optimization, advanced monitoring, and complete browser lockdown."
+        description: "All 3 phases enabled: Screen recording, advanced monitoring, and complete browser lockdown."
       });
     } catch (error) {
       console.error("Failed to initialize proctoring:", error);
@@ -282,79 +278,7 @@ export default function ProctoringManager({
     }
   };
 
-  const startFaceDetection = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-
-    if (!ctx) return;
-
-    // Simple face detection using basic image analysis
-    // In production, you would use TensorFlow.js face detection models
-    const detectFaces = () => {
-      if (!video.videoWidth || !video.videoHeight) return;
-
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const faces = analyzeFaces(imageData);
-
-      if (faces.length === 0) {
-        reportViolation({
-          type: 'critical',
-          category: 'no_face',
-          description: 'No face detected in camera feed'
-        });
-      } else if (faces.length > 1) {
-        reportViolation({
-          type: 'critical',
-          category: 'multiple_faces',
-          description: `Multiple faces detected: ${faces.length} faces`
-        });
-      }
-    };
-
-    faceDetectionIntervalRef.current = window.setInterval(detectFaces, 3000);
-    setState(prev => ({ ...prev, faceDetection: true }));
-  };
-
-  const analyzeFaces = (imageData: ImageData): any[] => {
-    // Simplified face detection logic
-    // In production, integrate TensorFlow.js or similar ML library
-    const data = imageData.data;
-    const width = imageData.width;
-    const height = imageData.height;
-    
-    // Basic skin tone detection as proxy for face presence
-    let skinPixels = 0;
-    const totalPixels = width * height;
-    
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      
-      // Simple skin tone detection
-      if (r > 95 && g > 40 && b > 20 && 
-          Math.max(r, g, b) - Math.min(r, g, b) > 15 &&
-          Math.abs(r - g) > 15 && r > g && r > b) {
-        skinPixels++;
-      }
-    }
-    
-    const skinRatio = skinPixels / totalPixels;
-    
-    // Return mock face array based on skin detection
-    if (skinRatio > 0.02) {
-      return [{ confidence: skinRatio }]; // One face detected
-    }
-    
-    return []; // No face detected
-  };
+  // Face detection removed - focusing on screen activity and behavioral monitoring instead
 
   const enableBrowserLockdown = () => {
     // Prevent context menu
@@ -697,10 +621,7 @@ export default function ProctoringManager({
       screenStreamRef.current.getTracks().forEach(track => track.stop());
     }
 
-    // Stop face detection
-    if (faceDetectionIntervalRef.current) {
-      clearInterval(faceDetectionIntervalRef.current);
-    }
+    // Face detection removed - focusing on screen activity and behavioral monitoring
 
     // Phase 2: Stop advanced monitoring
     multiMonitorDetector.stopMonitoring();
@@ -714,7 +635,6 @@ export default function ProctoringManager({
       ...prev,
       videoRecording: false,
       screenRecording: false,
-      faceDetection: false,
       browserLocked: false,
       applicationMonitoring: false,
       audioMonitoring: false,
