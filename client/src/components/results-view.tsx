@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@radix-ui/r
 import { ClipboardList, Users, TrendingUp, Medal, Eye, Brain, ChevronDown, ChevronRight, AlertTriangle, CheckCircle } from "lucide-react";
 import AIAnalysisDashboard from "@/components/ai-analysis-dashboard";
 import SubmissionDetails from "@/components/submission-details";
+import GradingDashboard from "@/components/grading-dashboard";
 import type { SubmissionWithExam, ExamWithStats } from "@shared/schema";
 
 interface SubmissionWithAnalysis extends SubmissionWithExam {
@@ -501,6 +502,33 @@ export default function ResultsView({ selectedExamId }: ResultsViewProps) {
                                           <AIAnalysisDashboard 
                                             submissionId={selectedSubmission.id}
                                             examTitle={selectedSubmission.examTitle}
+                                          />
+                                        )}
+                                      </DialogContent>
+                                    </Dialog>
+                                    <Dialog>
+                                      <DialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          title="Auto-Grade Submission"
+                                          onClick={() => setSelectedSubmission(submission)}
+                                        >
+                                          <Medal className="h-4 w-4" />
+                                        </Button>
+                                      </DialogTrigger>
+                                      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+                                        <DialogHeader>
+                                          <DialogTitle>Automated Grading System</DialogTitle>
+                                          <DialogDescription>
+                                            Comprehensive grading and analytics for {submission.studentName}'s submission
+                                          </DialogDescription>
+                                        </DialogHeader>
+                                        {selectedSubmission && (
+                                          <GradingDashboard 
+                                            submissionId={selectedSubmission.id}
+                                            examId={selectedSubmission.examId}
+                                            studentName={selectedSubmission.studentName}
                                           />
                                         )}
                                       </DialogContent>
