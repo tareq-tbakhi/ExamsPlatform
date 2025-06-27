@@ -6,6 +6,7 @@ import { z } from "zod";
 import { insertExamSchema, insertQuestionSchema, insertSubmissionSchema, insertProctoringViolationSchema, insertVideoQuestionSchema, insertVideoAnswerSchema } from "@shared/schema";
 import { generateQuestions, type GenerateQuestionsRequest } from "./services/openai";
 import { analyzeViolationImage, analyzeVideoRecording, generateViolationReport, analyzeArabicAudioTranscription } from "./services/gemini";
+import { setupAuth, isAuthenticated, requireAdmin, requireSupervisor, requireTeacher } from "./replitAuth";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -16,6 +17,72 @@ interface RequestWithFiles extends Express.Request {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup Replit Authentication
+  await setupAuth(app);
+
+  // Authentication routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // User management routes (Admin only)
+  app.get('/api/admin/users', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.patch('/api/admin/users/:id/role', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { role } = req.body;
+      
+      if (!['admin', 'teacher_supervisor', 'teacher', 'student'].includes(role)) {
+        return res.status(400).json({ message: "Invalid role" });
+      }
+      
+      const user = await storage.updateUserRole(id, role);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
+  app.patch('/api/admin/users/:id/status', isAuthenticated, requireAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { isActive } = req.body;
+      
+      const user = await storage.activateUser(id, isActive);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json(user);
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
 
   // Enhanced analysis endpoint
   app.post("/api/analyze/enhanced-analysis", async (req, res) => {
