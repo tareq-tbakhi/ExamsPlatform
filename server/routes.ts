@@ -6,6 +6,7 @@ import { z } from "zod";
 import { insertExamSchema, insertQuestionSchema, insertSubmissionSchema, insertProctoringViolationSchema, insertVideoQuestionSchema, insertVideoAnswerSchema } from "@shared/schema";
 import { generateQuestions, type GenerateQuestionsRequest } from "./services/openai";
 import { analyzeViolationImage, analyzeVideoRecording, generateViolationReport, analyzeArabicAudioTranscription } from "./services/gemini";
+import { aiAssistantService } from "./services/ai-assistant";
 import { setupAuth, isAuthenticated, requireAdmin, requireSupervisor, requireTeacher, requireSuperAdmin } from "./replitAuth";
 import * as fs from "fs";
 import * as path from "path";
@@ -1646,6 +1647,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Failed to accept invitation:", error);
       res.status(500).json({ error: "Failed to create account" });
+    }
+  });
+
+  // AI Assistant endpoints
+  app.post("/api/ai-assistant/chat", isAuthenticated, async (req, res) => {
+    try {
+      const { message, context } = req.body;
+      
+      if (!message || !context) {
+        return res.status(400).json({ error: "Message and context are required" });
+      }
+
+      const response = await aiAssistantService.generateChatResponse({ message, context });
+      
+      res.json({ response });
+    } catch (error) {
+      console.error("AI Assistant chat error:", error);
+      res.status(500).json({ error: "Failed to generate AI response" });
+    }
+  });
+
+  app.post("/api/ai-assistant/suggestions", isAuthenticated, async (req, res) => {
+    try {
+      const { context } = req.body;
+      
+      if (!context) {
+        return res.status(400).json({ error: "Context is required" });
+      }
+
+      const suggestions = await aiAssistantService.generateContextualSuggestions({ context });
+      
+      res.json({ suggestions });
+    } catch (error) {
+      console.error("AI Assistant suggestions error:", error);
+      res.status(500).json({ error: "Failed to generate suggestions" });
     }
   });
 
