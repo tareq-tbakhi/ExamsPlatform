@@ -6,7 +6,7 @@ import { z } from "zod";
 import { insertExamSchema, insertQuestionSchema, insertSubmissionSchema, insertProctoringViolationSchema, insertVideoQuestionSchema, insertVideoAnswerSchema } from "@shared/schema";
 import { generateQuestions, type GenerateQuestionsRequest } from "./services/openai";
 import { analyzeViolationImage, analyzeVideoRecording, generateViolationReport, analyzeArabicAudioTranscription } from "./services/gemini";
-import { setupAuth, isAuthenticated, requireAdmin, requireSupervisor, requireTeacher } from "./replitAuth";
+import { setupAuth, isAuthenticated, requireAdmin, requireSupervisor, requireTeacher, requireSuperAdmin } from "./replitAuth";
 import * as fs from "fs";
 import * as path from "path";
 import Papa from "papaparse";
@@ -83,6 +83,134 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating user status:", error);
       res.status(500).json({ message: "Failed to update user status" });
+    }
+  });
+
+  // User Invitation Management Routes (Super Admin only)
+  app.post('/api/admin/invite-user', isAuthenticated, requireSuperAdmin, async (req, res) => {
+    try {
+      const { email, firstName, lastName, role } = req.body;
+      const user = req.user as any;
+      const invitedBy = user.claims.sub;
+
+      // Check if user already has an invitation or account
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User already exists" });
+      }
+
+      const existingInvitation = await storage.getUserInvitationByEmail(email);
+      if (existingInvitation) {
+        return res.status(400).json({ message: "User already has a pending invitation" });
+      }
+
+      // Generate unique invitation token
+      const inviteToken = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+      const invitation = await storage.createUserInvitation({
+        email,
+        firstName,
+        lastName,
+        role,
+        invitedBy,
+        inviteToken,
+        inviteStatus: 'pending',
+        expiresAt
+      });
+
+      // In a real application, send email here
+      const inviteUrl = `${req.protocol}://${req.get('host')}/invite/${inviteToken}`;
+      
+      res.json({ 
+        invitation, 
+        inviteUrl,
+        message: "User invitation created successfully" 
+      });
+    } catch (error) {
+      console.error("Error creating user invitation:", error);
+      res.status(500).json({ message: "Failed to create user invitation" });
+    }
+  });
+
+  app.get('/api/admin/user-invitations', isAuthenticated, requireSuperAdmin, async (req, res) => {
+    try {
+      const invitations = await storage.getUserInvitations();
+      res.json(invitations);
+    } catch (error) {
+      console.error("Error fetching user invitations:", error);
+      res.status(500).json({ message: "Failed to fetch user invitations" });
+    }
+  });
+
+  app.delete('/api/admin/user-invitations/:id', isAuthenticated, requireSuperAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteUserInvitation(parseInt(id));
+      
+      if (!success) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+      
+      res.json({ message: "Invitation deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user invitation:", error);
+      res.status(500).json({ message: "Failed to delete user invitation" });
+    }
+  });
+
+  app.get('/api/invite/:token', async (req, res) => {
+    try {
+      const { token } = req.params;
+      const invitation = await storage.getUserInvitationByToken(token);
+      
+      if (!invitation) {
+        return res.status(404).json({ message: "Invalid invitation token" });
+      }
+
+      if (invitation.inviteStatus !== 'pending') {
+        return res.status(400).json({ message: "Invitation already used" });
+      }
+
+      if (new Date() > invitation.expiresAt) {
+        return res.status(400).json({ message: "Invitation expired" });
+      }
+
+      res.json({ invitation });
+    } catch (error) {
+      console.error("Error validating invitation:", error);
+      res.status(500).json({ message: "Failed to validate invitation" });
+    }
+  });
+
+  app.post('/api/accept-invitation/:token', async (req, res) => {
+    try {
+      const { token } = req.params;
+      const invitation = await storage.getUserInvitationByToken(token);
+      
+      if (!invitation) {
+        return res.status(404).json({ message: "Invalid invitation token" });
+      }
+
+      if (invitation.inviteStatus !== 'pending') {
+        return res.status(400).json({ message: "Invitation already used" });
+      }
+
+      if (new Date() > invitation.expiresAt) {
+        return res.status(400).json({ message: "Invitation expired" });
+      }
+
+      // Mark invitation as accepted
+      await storage.updateUserInvitationStatus(invitation.id, 'accepted', new Date());
+
+      // Redirect to login to complete account setup via Replit Auth
+      res.json({ 
+        message: "Invitation accepted. Please log in to complete setup.",
+        redirectTo: "/api/login"
+      });
+    } catch (error) {
+      console.error("Error accepting invitation:", error);
+      res.status(500).json({ message: "Failed to accept invitation" });
     }
   });
 
