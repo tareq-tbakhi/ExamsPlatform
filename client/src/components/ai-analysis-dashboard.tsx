@@ -88,6 +88,13 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
     queryFn: () => fetch(`/api/videos/submission/${submissionId}`).then(res => res.json())
   });
 
+  // Fetch stored AI analysis results
+  const { data: storedAnalysis, refetch: refetchAnalysis } = useQuery({
+    queryKey: ['/api/analyze/results', submissionId],
+    queryFn: () => fetch(`/api/analyze/results/${submissionId}`).then(res => res.json()),
+    enabled: true
+  });
+
   // Generate violation report mutation
   const generateReportMutation = useMutation({
     mutationFn: async () => {
@@ -135,6 +142,7 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
     },
     onSuccess: (data: VideoAnalysis) => {
       setActiveAnalysis(data);
+      refetchAnalysis(); // Fetch newly stored analysis results
       toast({
         title: "Enhanced Analysis Complete",
         description: `Advanced Gemini AI analysis completed. Found ${data.violations.length} violations.`
@@ -245,10 +253,11 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
       </div>
 
       <Tabs defaultValue="violations" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="violations">Violations</TabsTrigger>
           <TabsTrigger value="videos">Recordings</TabsTrigger>
           <TabsTrigger value="analysis">AI Analysis</TabsTrigger>
+          <TabsTrigger value="stored">Stored Results</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
           <TabsTrigger value="report">AI Report</TabsTrigger>
         </TabsList>
