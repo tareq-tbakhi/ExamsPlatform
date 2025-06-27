@@ -1,9 +1,12 @@
 import { 
   users, exams, questions, submissions, proctoringViolations, videoQuestions, videoAnswers,
+  aiAnalysisResults, analysisViolations, analysisTimeline,
   type User, type InsertUser, type Exam, type InsertExam, type Question, type InsertQuestion, 
   type Submission, type InsertSubmission, type ExamWithQuestions, type ExamWithStats, 
   type SubmissionWithExam, type ProctoringViolation, type InsertProctoringViolation,
-  type VideoQuestion, type InsertVideoQuestion, type VideoAnswer, type InsertVideoAnswer
+  type VideoQuestion, type InsertVideoQuestion, type VideoAnswer, type InsertVideoAnswer,
+  type AiAnalysisResult, type InsertAiAnalysisResult, type AnalysisViolation, 
+  type InsertAnalysisViolation, type AnalysisTimeline, type InsertAnalysisTimeline
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -50,6 +53,12 @@ export interface IStorage {
   createVideoAnswer(answer: InsertVideoAnswer): Promise<VideoAnswer>;
   getVideoAnswersBySubmission(submissionId: number): Promise<VideoAnswer[]>;
   updateVideoAnswer(id: number, answer: Partial<InsertVideoAnswer>): Promise<VideoAnswer | undefined>;
+
+  // AI Analysis Results
+  createAiAnalysisResult(analysis: InsertAiAnalysisResult): Promise<AiAnalysisResult>;
+  createAnalysisViolations(violations: InsertAnalysisViolation[]): Promise<AnalysisViolation[]>;
+  createAnalysisTimeline(timeline: InsertAnalysisTimeline[]): Promise<AnalysisTimeline[]>;
+  getAnalysisResultsBySubmission(submissionId: number): Promise<AiAnalysisResult[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -319,6 +328,39 @@ export class DatabaseStorage implements IStorage {
       .where(eq(videoAnswers.id, id))
       .returning();
     return answer || undefined;
+  }
+
+  // AI Analysis Results
+  async createAiAnalysisResult(insertAnalysis: InsertAiAnalysisResult): Promise<AiAnalysisResult> {
+    const [analysis] = await db
+      .insert(aiAnalysisResults)
+      .values(insertAnalysis)
+      .returning();
+    return analysis;
+  }
+
+  async createAnalysisViolations(insertViolations: InsertAnalysisViolation[]): Promise<AnalysisViolation[]> {
+    const violations = await db
+      .insert(analysisViolations)
+      .values(insertViolations)
+      .returning();
+    return violations;
+  }
+
+  async createAnalysisTimeline(insertTimeline: InsertAnalysisTimeline[]): Promise<AnalysisTimeline[]> {
+    const timeline = await db
+      .insert(analysisTimeline)
+      .values(insertTimeline)
+      .returning();
+    return timeline;
+  }
+
+  async getAnalysisResultsBySubmission(submissionId: number): Promise<AiAnalysisResult[]> {
+    return await db
+      .select()
+      .from(aiAnalysisResults)
+      .where(eq(aiAnalysisResults.submissionId, submissionId))
+      .orderBy(desc(aiAnalysisResults.analyzedAt));
   }
 }
 

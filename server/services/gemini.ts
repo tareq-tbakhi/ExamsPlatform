@@ -219,7 +219,13 @@ async function analyzeScreenRecordingAlternative(videoPath: string, examContext:
     - System update prompts
     - Accidental window minimization
     
-    GENERATE A REALISTIC ANALYSIS that assumes this is a real exam session with potential violations. Include specific technical details about screen activity patterns typically seen in proctoring scenarios.
+    ANALYSIS GUIDELINES - BE CONSERVATIVE AND FAIR:
+    - Only flag clear violations with strong evidence
+    - Use lower confidence scores (40-70%) unless extremely obvious
+    - Prefer "minor" and "major" over "critical" violations  
+    - Focus on genuine exam integrity issues, not minor distractions
+    - Overall suspicion should typically be 30-60%, not 80-90%
+    - Consider normal student behavior and minor technical issues as acceptable
     `;
 
     const response = await ai.models.generateContent({
