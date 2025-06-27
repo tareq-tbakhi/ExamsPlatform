@@ -14,6 +14,7 @@ import TakeExam from "@/pages/take-exam";
 import StudentLogin from "@/pages/StudentLogin";
 import StudentDashboard from "@/pages/StudentDashboard";
 import AcceptInvitation from "@/pages/AcceptInvitation";
+import { AIAssistantTrigger } from "@/components/ai-assistant/ai-assistant-trigger";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -73,6 +74,7 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <Router />
+        <AIAssistantTrigger />
       </TooltipProvider>
     </QueryClientProvider>
   );
