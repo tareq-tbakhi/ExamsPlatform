@@ -9,6 +9,8 @@ import { analyzeViolationImage, analyzeVideoRecording, generateViolationReport, 
 import { setupAuth, isAuthenticated, requireAdmin, requireSupervisor, requireTeacher } from "./replitAuth";
 import * as fs from "fs";
 import * as path from "path";
+import Papa from "papaparse";
+import * as crypto from "crypto";
 
 interface RequestWithFiles extends Express.Request {
   files?: { [key: string]: UploadedFile | UploadedFile[] };
