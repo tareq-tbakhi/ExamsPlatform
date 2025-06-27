@@ -395,6 +395,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Transcribe audio file
+  app.post("/api/transcribe/audio", async (req: RequestWithFiles, res) => {
+    try {
+      const { transcriptionService } = await import("./services/transcription");
+      
+      if (!req.files?.audio) {
+        return res.status(400).json({ message: "No audio file provided" });
+      }
+
+      const audioFile = Array.isArray(req.files.audio) ? req.files.audio[0] : req.files.audio;
+      const language = req.body.language || "ar";
+      
+      // Save uploaded file temporarily
+      const uploadPath = `uploads/temp/${Date.now()}_${audioFile.name}`;
+      await audioFile.mv(uploadPath);
+
+      // Transcribe the audio
+      const result = await transcriptionService.transcribeAudio(uploadPath, language);
+
+      // Clean up temporary file
+      try {
+        const fs = await import("fs");
+        fs.unlinkSync(uploadPath);
+      } catch (cleanupError) {
+        console.warn("Failed to clean up temporary file:", cleanupError);
+      }
+
+      console.log(`Audio transcription completed: ${result.wordCount} words, ${result.confidence}% confidence`);
+      res.json(result);
+    } catch (error) {
+      console.error('Failed to transcribe audio:', error);
+      res.status(500).json({ message: "Failed to transcribe audio", error: (error as Error).message });
+    }
+  });
+
+  // Transcribe video audio
+  app.post("/api/transcribe/video", async (req: RequestWithFiles, res) => {
+    try {
+      const { transcriptionService } = await import("./services/transcription");
+      
+      if (!req.files?.video) {
+        return res.status(400).json({ message: "No video file provided" });
+      }
+
+      const videoFile = Array.isArray(req.files.video) ? req.files.video[0] : req.files.video;
+      const language = req.body.language || "ar";
+      
+      // Save uploaded file temporarily
+      const uploadPath = `uploads/temp/${Date.now()}_${videoFile.name}`;
+      await videoFile.mv(uploadPath);
+
+      // Transcribe the video audio
+      const result = await transcriptionService.transcribeVideoAudio(uploadPath, language);
+
+      // Clean up temporary file
+      try {
+        const fs = await import("fs");
+        fs.unlinkSync(uploadPath);
+      } catch (cleanupError) {
+        console.warn("Failed to clean up temporary file:", cleanupError);
+      }
+
+      console.log(`Video transcription completed: ${result.wordCount} words, ${result.confidence}% confidence`);
+      res.json(result);
+    } catch (error) {
+      console.error('Failed to transcribe video:', error);
+      res.status(500).json({ message: "Failed to transcribe video", error: (error as Error).message });
+    }
+  });
+
+  // Get supported transcription formats
+  app.get("/api/transcribe/formats", async (req, res) => {
+    try {
+      const { transcriptionService } = await import("./services/transcription");
+      const formats = transcriptionService.getSupportedFormats();
+      res.json(formats);
+    } catch (error) {
+      console.error('Failed to get supported formats:', error);
+      res.status(500).json({ message: "Failed to get supported formats", error: (error as Error).message });
+    }
+  });
+
   // Stats endpoint
   app.get("/api/stats", async (req, res) => {
     try {
