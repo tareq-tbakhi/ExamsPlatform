@@ -13,6 +13,7 @@ import SuperAdminDashboard from "@/pages/SuperAdminDashboard";
 import TakeExam from "@/pages/take-exam";
 import StudentLogin from "@/pages/StudentLogin";
 import StudentDashboard from "@/pages/StudentDashboard";
+import AcceptInvitation from "@/pages/AcceptInvitation";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -27,6 +28,9 @@ function Router() {
 
   return (
     <Switch>
+      {/* Public routes - accessible without authentication */}
+      <Route path="/accept-invitation" component={AcceptInvitation} />
+      
       {isLoading || !isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (
