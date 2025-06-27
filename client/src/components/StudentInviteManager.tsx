@@ -23,19 +23,23 @@ export default function StudentInviteManager({ examId, examTitle }: StudentInvit
   const { toast } = useToast();
 
   // Fetch existing invitations
-  const { data: invitations = [], isLoading: loadingInvitations } = useQuery({
+  const { data: invitations = [], isLoading: loadingInvitations } = useQuery<ExamInvitation[]>({
     queryKey: ["/api/exams", examId, "invitations"],
   });
 
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      return await apiRequest(`/api/exams/${examId}/upload-students`, {
+      const response = await fetch(`/api/exams/${examId}/upload-students`, {
         method: "POST",
         body: formData,
       });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+      return await response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast({
         title: "Students uploaded successfully!",
         description: `${data.successfulInvitations} students invited to the exam.`,

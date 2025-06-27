@@ -224,6 +224,19 @@ export default function ExamList() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => {
+                            setSelectedExam(exam);
+                            setInviteDialogOpen(true);
+                          }}
+                          title="Manage Student Invitations"
+                          className="text-purple-600 hover:text-purple-700"
+                        >
+                          <Users className="h-4 w-4" />
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           disabled
                           title="Edit Exam (Coming Soon)"
                         >
@@ -396,5 +409,22 @@ export default function ExamList() {
         )}
       </CardContent>
     </Card>
+
+    {/* Student Invite Manager Dialog */}
+    <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            Manage Student Invitations - {selectedExam?.title}
+          </DialogTitle>
+        </DialogHeader>
+        {selectedExam && (
+          <StudentInviteManager
+            examId={selectedExam.id}
+            examTitle={selectedExam.title}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
