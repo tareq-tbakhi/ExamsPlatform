@@ -466,7 +466,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (enhancedAnalysis.violations.length > 0) {
             const violationsToInsert = enhancedAnalysis.violations.map(violation => ({
               analysisId: analysisResult.id,
-              severity: violation.severity,
+              severity: violation.severity || 'minor',
               confidence: Math.round(violation.confidence * 100),
               description: violation.description,
               recommendations: violation.recommendations,
@@ -481,7 +481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               analysisId: analysisResult.id,
               timestamp: item.timestamp,
               activity: item.activity,
-              severity: item.severity
+              severity: item.severity || 'minor'
             }));
             await storage.createAnalysisTimeline(timelineToInsert);
           }

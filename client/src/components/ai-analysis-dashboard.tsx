@@ -461,7 +461,7 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                           <div className="flex items-center gap-2">
                             {getSeverityIcon(violation.severity)}
                             <span className={`px-2 py-1 rounded text-white text-xs ${getSeverityColor(violation.severity)}`}>
-                              {violation.severity.toUpperCase()}
+                              {violation.severity?.toUpperCase() || 'UNKNOWN'}
                             </span>
                             <span className="text-sm text-gray-500">
                               Confidence: {(violation.confidence * 100).toFixed(1)}%
