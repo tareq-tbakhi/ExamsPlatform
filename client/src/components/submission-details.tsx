@@ -83,11 +83,16 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
       const answerData = studentAnswer;
       const videoAnswer = videoAnswers?.find(va => va.videoQuestionId === question.id);
       
-      if (answerData || videoAnswer) {
+      // Check if we have any video response data
+      const hasVideoData = (answerData && typeof answerData === 'object') || videoAnswer;
+      
+      if (hasVideoData) {
         return (
-          <div className="p-3 rounded bg-blue-50 text-blue-800 border border-blue-200">
-            {videoAnswer && (
-              <div className="mb-3">
+          <div className="p-3 rounded bg-blue-50 text-blue-800 border border-blue-200 space-y-3">
+            {/* Video file if available */}
+            {videoAnswer?.videoUrl && (
+              <div>
+                <p className="text-sm font-medium mb-2">Video Recording:</p>
                 <video controls className="w-full max-h-40 rounded">
                   <source src={videoAnswer.videoUrl} type="video/webm" />
                   Your browser does not support the video tag.
@@ -95,31 +100,40 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
               </div>
             )}
             
-            {/* Display transcription from answer data or video answer */}
-            {answerData && typeof answerData === 'object' && answerData.transcription ? (
+            {/* Transcription from answers data (primary source) */}
+            {answerData && typeof answerData === 'object' && answerData.transcription !== undefined ? (
               <div className="text-sm space-y-2">
                 <div>
-                  <strong>Transcription:</strong> {answerData.transcription}
+                  <strong>Student's Answer (Transcription):</strong>
+                  <div className="mt-1 p-2 bg-white rounded border">
+                    {answerData.transcription.trim() ? answerData.transcription : <em className="text-gray-500">No audio detected</em>}
+                  </div>
                 </div>
                 {answerData.confidence && (
                   <div>
-                    <strong>Confidence:</strong> {Math.round(answerData.confidence * 100)}%
+                    <strong>Transcription Confidence:</strong> {Math.round(answerData.confidence * 100)}%
                   </div>
                 )}
               </div>
             ) : videoAnswer?.transcript ? (
-              <div className="text-sm">
-                <strong>Transcription:</strong> {videoAnswer.transcript}
+              <div className="text-sm space-y-2">
+                <div>
+                  <strong>Student's Answer (Transcription):</strong>
+                  <div className="mt-1 p-2 bg-white rounded border">
+                    {videoAnswer.transcript.trim() ? videoAnswer.transcript : <em className="text-gray-500">No audio detected</em>}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="text-sm text-gray-500">
-                No transcription available
+                <strong>Student's Answer:</strong> Video recorded but no transcription available
               </div>
             )}
             
-            {videoAnswer?.score && (
-              <div className="text-sm mt-2">
-                <strong>Score:</strong> {videoAnswer.score}%
+            {/* Additional metadata */}
+            {videoAnswer?.duration && (
+              <div className="text-sm">
+                <strong>Recording Duration:</strong> {videoAnswer.duration} seconds
               </div>
             )}
           </div>
@@ -140,7 +154,7 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
             ? 'bg-red-50 text-red-800 border border-red-200'
             : 'bg-gray-50 text-gray-700 border border-gray-200'
         }`}>
-          {String(studentAnswer)}
+          <strong>Student's Answer:</strong> {String(studentAnswer)}
         </div>
       );
     } else {
