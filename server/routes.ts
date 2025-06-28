@@ -1260,6 +1260,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         answers = typeof submission.answers === 'string' 
           ? JSON.parse(submission.answers) 
           : submission.answers || {};
+        console.log(`Submission ${submissionId} answers:`, answers);
+        console.log(`Raw submission.answers:`, submission.answers);
       } catch (error) {
         console.error("Error parsing answers:", error);
       }
