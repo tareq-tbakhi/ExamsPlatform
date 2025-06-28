@@ -78,6 +78,80 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
     }
   };
 
+  const renderStudentAnswer = (question: any, studentAnswer: any, videoAnswers: any[], isCorrect: boolean) => {
+    if (question.type === 'video_response' || question.type === 'audio_response') {
+      const answerData = studentAnswer;
+      const videoAnswer = videoAnswers?.find(va => va.videoQuestionId === question.id);
+      
+      if (answerData || videoAnswer) {
+        return (
+          <div className="p-3 rounded bg-blue-50 text-blue-800 border border-blue-200">
+            {videoAnswer && (
+              <div className="mb-3">
+                <video controls className="w-full max-h-40 rounded">
+                  <source src={videoAnswer.videoUrl} type="video/webm" />
+                  Your browser does not support the video tag.
+                </video>
+              </div>
+            )}
+            
+            {/* Display transcription from answer data or video answer */}
+            {answerData && typeof answerData === 'object' && answerData.transcription ? (
+              <div className="text-sm space-y-2">
+                <div>
+                  <strong>Transcription:</strong> {answerData.transcription}
+                </div>
+                {answerData.confidence && (
+                  <div>
+                    <strong>Confidence:</strong> {Math.round(answerData.confidence * 100)}%
+                  </div>
+                )}
+              </div>
+            ) : videoAnswer?.transcript ? (
+              <div className="text-sm">
+                <strong>Transcription:</strong> {videoAnswer.transcript}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-500">
+                No transcription available
+              </div>
+            )}
+            
+            {videoAnswer?.score && (
+              <div className="text-sm mt-2">
+                <strong>Score:</strong> {videoAnswer.score}%
+              </div>
+            )}
+          </div>
+        );
+      } else {
+        return (
+          <div className="p-3 rounded bg-gray-50 text-gray-500 text-sm border border-gray-200">
+            No video response provided
+          </div>
+        );
+      }
+    } else if (studentAnswer) {
+      return (
+        <div className={`p-3 rounded text-sm ${
+          isCorrect 
+            ? 'bg-green-50 text-green-800 border border-green-200' 
+            : question.correctAnswer 
+            ? 'bg-red-50 text-red-800 border border-red-200'
+            : 'bg-gray-50 text-gray-700 border border-gray-200'
+        }`}>
+          {String(studentAnswer)}
+        </div>
+      );
+    } else {
+      return (
+        <div className="p-3 rounded bg-gray-50 text-gray-500 text-sm border border-gray-200">
+          No answer provided
+        </div>
+      );
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Submission Overview */}
@@ -182,50 +256,7 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
                 {/* Student's Answer */}
                 <div>
                   <p className="text-sm font-medium text-gray-700 mb-2">Student's Answer:</p>
-                  {question.type === 'video_response' ? (
-                    // Handle video response questions
-                    (() => {
-                      const videoAnswer = videoAnswers?.find(va => va.videoQuestionId === question.id);
-                      return videoAnswer ? (
-                        <div className="p-3 rounded bg-blue-50 text-blue-800 border border-blue-200">
-                          <div className="mb-3">
-                            <video controls className="w-full max-h-40 rounded">
-                              <source src={videoAnswer.videoUrl} type="video/webm" />
-                              Your browser does not support the video tag.
-                            </video>
-                          </div>
-                          {videoAnswer.transcript && (
-                            <div className="text-sm">
-                              <strong>Student Answer:</strong> {videoAnswer.transcript}
-                            </div>
-                          )}
-                          {videoAnswer.score && (
-                            <div className="text-sm mt-2">
-                              <strong>Score:</strong> {videoAnswer.score}%
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="p-3 rounded bg-gray-50 text-gray-500 text-sm border border-gray-200">
-                          No video response provided
-                        </div>
-                      );
-                    })()
-                  ) : studentAnswer ? (
-                    <div className={`p-3 rounded text-sm ${
-                      isCorrect 
-                        ? 'bg-green-50 text-green-800 border border-green-200' 
-                        : question.correctAnswer 
-                        ? 'bg-red-50 text-red-800 border border-red-200'
-                        : 'bg-gray-50 text-gray-700 border border-gray-200'
-                    }`}>
-                      {String(studentAnswer)}
-                    </div>
-                  ) : (
-                    <div className="p-3 rounded bg-gray-50 text-gray-500 text-sm border border-gray-200">
-                      No answer provided
-                    </div>
-                  )}
+                  {renderStudentAnswer(question, studentAnswer, videoAnswers, isCorrect)}
                 </div>
 
                 {/* Correct Answer for non-multiple choice */}
