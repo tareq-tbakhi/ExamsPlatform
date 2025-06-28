@@ -35,6 +35,8 @@ import ResultsView from "@/components/results-view";
 import type { ExamWithStats } from "@shared/schema";
 import logoImage from "@assets/image_1751014034866.png";
 
+import image from "@assets/image.png";
+
 // Publish Exam Button Component
 function PublishExamButton({ examId }: { examId: number }) {
   const queryClient = useQueryClient();
@@ -156,7 +158,7 @@ export default function Dashboard() {
           <div className="p-8 border-b bg-gradient-to-r from-purple-50 to-blue-50">
             <div className="flex items-center gap-4">
               <img 
-                src={logoImage} 
+                src={image} 
                 alt="ExamCraft Logo" 
                 className="h-14 w-auto"
               />
