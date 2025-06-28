@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, UserPlus, Users, Mail, Clock, AlertCircle, Copy } from "lucide-react";
+import { Trash2, UserPlus, Users, Mail, Clock, AlertCircle, Copy, Home, LogOut, Shield } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -180,17 +180,72 @@ export default function SuperAdminDashboard() {
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
-        <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Invite User
+    <div className="flex h-screen bg-gray-50">
+      {/* Side Navigation */}
+      <div className="w-80 bg-white shadow-lg">
+        <div className="p-6">
+          {/* Logo */}
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+              <Shield className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <div className="font-bold text-xl text-gray-800">ExamCraft</div>
+              <div className="text-sm text-gray-500">User Management</div>
+            </div>
+          </div>
+
+          {/* Navigation Menu */}
+          <nav className="space-y-2">
+            <Button 
+              variant="outline"
+              className="w-full flex items-center gap-4 px-6 py-4 rounded-xl transition-all duration-200 text-left font-medium bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border-blue-200 text-blue-700"
+              onClick={() => window.location.href = "/"}
+            >
+              <Home className="h-5 w-5 flex-shrink-0" />
+              <span>Back to Dashboard</span>
             </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+            
+            <Button 
+              variant="outline"
+              className="w-full flex items-center gap-4 px-6 py-4 rounded-xl transition-all duration-200 text-left font-medium bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100 border-green-200 text-green-700"
+              onClick={() => setIsInviteDialogOpen(true)}
+            >
+              <UserPlus className="h-5 w-5 flex-shrink-0" />
+              <span>Invite New User</span>
+            </Button>
+            
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <Button 
+                className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+                onClick={() => window.location.href = '/api/logout'}
+              >
+                <LogOut className="h-5 w-5 mr-3" />
+                Sign Out
+              </Button>
+            </div>
+          </nav>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
+              <p className="text-gray-600">Manage platform users, roles, and invitations</p>
+            </div>
+          </div>
+
+          <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <UserPlus className="w-4 h-4 mr-2" />
+                Invite User
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Invite New User</DialogTitle>
               <DialogDescription>
@@ -440,6 +495,8 @@ export default function SuperAdminDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+        </div>
+      </div>
     </div>
   );
 }
