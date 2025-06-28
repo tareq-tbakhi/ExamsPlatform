@@ -276,6 +276,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete user invitation (simplified endpoint)
+  app.delete('/api/user-invitations/:id', isAuthenticated, requireSuperAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteUserInvitation(parseInt(id));
+      
+      if (!success) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+      
+      res.json({ message: "Invitation deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user invitation:", error);
+      res.status(500).json({ message: "Failed to delete user invitation" });
+    }
+  });
+
+  // Resend user invitation
+  app.post('/api/user-invitations/:id/resend', isAuthenticated, requireSuperAdmin, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = req.user as any;
+      const invitedBy = user.claims.sub;
+      
+      // Get the existing invitation
+      const invitation = await storage.getUserInvitationById(parseInt(id));
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+      
+      if (invitation.inviteStatus !== 'pending') {
+        return res.status(400).json({ message: "Cannot resend non-pending invitation" });
+      }
+      
+      // Generate new token and extend expiration
+      const newToken = crypto.randomUUID();
+      const newExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days from now
+      
+      // Update the invitation with new token and expiration
+      await storage.updateUserInvitation(parseInt(id), {
+        inviteToken: newToken,
+        expiresAt: newExpiresAt
+      });
+      
+      // Send invitation email
+      const inviterUser = await storage.getUser(invitedBy);
+      const inviterName = inviterUser ? `${inviterUser.firstName} ${inviterUser.lastName}`.trim() || inviterUser.email : 'ExamCraft Admin';
+      
+      const emailSent = await EmailService.sendUserInvitation({
+        recipientEmail: invitation.email,
+        recipientName: invitation.firstName ? `${invitation.firstName} ${invitation.lastName || ''}`.trim() : undefined,
+        inviterName,
+        role: invitation.role,
+        invitationToken: newToken
+      });
+      
+      const inviteUrl = `${req.protocol}://${req.get('host')}/accept-invitation?token=${newToken}`;
+      
+      res.json({ 
+        message: emailSent ? "Invitation resent successfully" : "Invitation updated (email failed to send)",
+        inviteUrl,
+        emailSent,
+        newToken
+      });
+    } catch (error) {
+      console.error("Error resending user invitation:", error);
+      res.status(500).json({ message: "Failed to resend user invitation" });
+    }
+  });
+
   app.get('/api/admin/user-invitations', isAuthenticated, requireSuperAdmin, async (req, res) => {
     try {
       const invitations = await storage.getUserInvitations();

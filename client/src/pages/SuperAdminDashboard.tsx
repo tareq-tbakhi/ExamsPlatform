@@ -182,6 +182,29 @@ export default function SuperAdminDashboard() {
     },
   });
 
+  // Resend invitation mutation
+  const resendInvitationMutation = useMutation({
+    mutationFn: async (invitationId: number) => {
+      return await apiRequest('POST', `/api/user-invitations/${invitationId}/resend`);
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Invitation Resent",
+        description: data.emailSent 
+          ? "Invitation email has been sent successfully." 
+          : "Invitation updated (check server console for email simulation).",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user-invitations"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to resend invitation.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: InviteUserForm) => {
     inviteUserMutation.mutate(data);
   };
@@ -426,14 +449,24 @@ export default function SuperAdminDashboard() {
                               </TableCell>
                               <TableCell>{new Date(invitation.createdAt).toLocaleDateString()}</TableCell>
                               <TableCell>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => deleteInvitationMutation.mutate(invitation.id)}
-                                  disabled={deleteInvitationMutation.isPending}
-                                >
-                                  Delete
-                                </Button>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => resendInvitationMutation.mutate(invitation.id)}
+                                    disabled={resendInvitationMutation.isPending || invitation.inviteStatus !== 'pending'}
+                                  >
+                                    {resendInvitationMutation.isPending ? "Sending..." : "Resend"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => deleteInvitationMutation.mutate(invitation.id)}
+                                    disabled={deleteInvitationMutation.isPending}
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}

@@ -629,6 +629,27 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(userInvitations).orderBy(desc(userInvitations.invitedAt));
   }
 
+  async getUserInvitationById(id: number): Promise<UserInvitation | undefined> {
+    const [invitation] = await db
+      .select()
+      .from(userInvitations)
+      .where(eq(userInvitations.id, id));
+    return invitation;
+  }
+
+  async updateUserInvitation(id: number, updates: Partial<UserInvitation>): Promise<boolean> {
+    try {
+      const result = await db
+        .update(userInvitations)
+        .set(updates)
+        .where(eq(userInvitations.id, id));
+      return true;
+    } catch (error) {
+      console.error('Error updating user invitation:', error);
+      return false;
+    }
+  }
+
   async getUserInvitationByToken(token: string): Promise<UserInvitation | undefined> {
     const [invitation] = await db.select().from(userInvitations).where(eq(userInvitations.inviteToken, token));
     return invitation;
