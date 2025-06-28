@@ -62,6 +62,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: emailSent, message });
     } catch (error) {
       console.error("Email test error:", error);
+      
+      // Log detailed error information
+      if (error && typeof error === 'object' && 'response' in error) {
+        const sgError = error as any;
+        console.error("SendGrid error details:", {
+          code: sgError.code,
+          body: sgError.response?.body,
+          headers: sgError.response?.headers
+        });
+      }
+      
       res.status(500).json({ 
         success: false, 
         message: `Email test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
