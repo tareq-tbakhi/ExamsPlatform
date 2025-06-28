@@ -1,11 +1,22 @@
 import { MailService } from '@sendgrid/mail';
+import { EmailSimulator } from './emailSimulator';
 
-if (!process.env.SENDGRID_API_KEY) {
-  throw new Error("SENDGRID_API_KEY environment variable must be set");
+let mailService: MailService | null = null;
+let useSimulator = false;
+
+if (process.env.SENDGRID_API_KEY) {
+  try {
+    mailService = new MailService();
+    mailService.setApiKey(process.env.SENDGRID_API_KEY);
+    console.log('📧 SendGrid configured successfully');
+  } catch (error) {
+    console.log('⚠️ SendGrid configuration failed, using email simulator');
+    useSimulator = true;
+  }
+} else {
+  console.log('⚠️ SENDGRID_API_KEY not found, using email simulator');
+  useSimulator = true;
 }
-
-const mailService = new MailService();
-mailService.setApiKey(process.env.SENDGRID_API_KEY);
 
 const EXAMCRAFT_LOGO_URL = "https://i.imgur.com/ExamCraftLogo.png"; // Placeholder - replace with actual logo URL
 const PLATFORM_URL = process.env.REPLIT_DOMAINS ? `https://${process.env.REPLIT_DOMAINS.split(',')[0]}` : "https://examcraft.replit.app";
