@@ -4,6 +4,10 @@
  * Logs emails to console and stores them for testing
  */
 
+const PLATFORM_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://your-app-name.replit.app'
+  : 'http://localhost:5000';
+
 interface EmailLog {
   to: string;
   subject: string;
@@ -53,7 +57,19 @@ class EmailSimulator {
 
   // Simulate user invitation email
   static sendUserInvitation(recipientEmail: string, recipientName: string, inviterName: string, role: string, invitationToken: string): boolean {
-    const subject = `Welcome to ExamCraft - ${role.charAt(0).toUpperCase() + role.slice(1)} Invitation`;
+    const subject = `🎓 You're invited to join ExamCraft as ${role.replace('_', ' ')}`;
+    const acceptUrl = `${PLATFORM_URL}/accept-invitation?token=${invitationToken}`;
+    
+    console.log('\n🔔 EMAIL NOTIFICATION - User Invitation');
+    console.log('='.repeat(50));
+    console.log(`📧 TO: ${recipientEmail}`);
+    console.log(`👤 NAME: ${recipientName}`);
+    console.log(`🎯 ROLE: ${role}`);
+    console.log(`👨‍💼 INVITED BY: ${inviterName}`);
+    console.log(`🔗 INVITATION LINK: ${acceptUrl}`);
+    console.log(`⏰ EXPIRES: 7 days from now`);
+    console.log('='.repeat(50));
+    
     const content = `
 Hi ${recipientName || recipientEmail},
 
@@ -61,8 +77,8 @@ You've been invited to join ExamCraft as a ${role} by ${inviterName}.
 
 ExamCraft is an advanced AI-powered examination platform with comprehensive proctoring capabilities.
 
-To accept your invitation and set up your account, click the link below:
-[Accept Invitation - Token: ${invitationToken}]
+To accept your invitation and set up your account, visit:
+${acceptUrl}
 
 What you can do as a ${role}:
 ${role === 'teacher' ? '• Create and manage exams\n• Generate questions with AI\n• Monitor student submissions\n• Review proctoring data' : 
