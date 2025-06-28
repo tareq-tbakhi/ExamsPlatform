@@ -83,6 +83,16 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
       const answerData = studentAnswer;
       const videoAnswer = videoAnswers?.find(va => va.videoQuestionId === question.id);
       
+      // Debug logging
+      console.log(`Question ${question.id} debug:`, {
+        answerData,
+        hasAnswerData: answerData && typeof answerData === 'object',
+        transcription: answerData?.transcription,
+        transcriptionLength: answerData?.transcription?.length,
+        transcriptionTrimmed: answerData?.transcription?.trim(),
+        videoAnswer
+      });
+      
       // Check if we have any video response data
       const hasVideoData = (answerData && typeof answerData === 'object') || videoAnswer;
       
@@ -106,7 +116,11 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
                 <div>
                   <strong>Student's Answer (Transcription):</strong>
                   <div className="mt-1 p-2 bg-white rounded border">
-                    {answerData.transcription.trim() ? answerData.transcription : <em className="text-gray-500">No audio detected</em>}
+                    {answerData.transcription && answerData.transcription.trim().length > 0 ? (
+                      <span className="whitespace-pre-wrap">{answerData.transcription}</span>
+                    ) : (
+                      <em className="text-gray-500">No audio detected</em>
+                    )}
                   </div>
                 </div>
                 {answerData.confidence && (
@@ -120,7 +134,11 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
                 <div>
                   <strong>Student's Answer (Transcription):</strong>
                   <div className="mt-1 p-2 bg-white rounded border">
-                    {videoAnswer.transcript.trim() ? videoAnswer.transcript : <em className="text-gray-500">No audio detected</em>}
+                    {videoAnswer.transcript && videoAnswer.transcript.trim().length > 0 ? (
+                      <span className="whitespace-pre-wrap">{videoAnswer.transcript}</span>
+                    ) : (
+                      <em className="text-gray-500">No audio detected</em>
+                    )}
                   </div>
                 </div>
               </div>
