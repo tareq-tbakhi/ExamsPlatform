@@ -396,7 +396,7 @@ export default function SuperAdminDashboard() {
                       <div className="flex items-center justify-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       </div>
-                    ) : invitations.length === 0 ? (
+                    ) : (invitations as any[]).length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
                         No pending invitations.
                       </div>
@@ -413,7 +413,7 @@ export default function SuperAdminDashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {invitations.map((invitation: any) => (
+                          {(invitations as any[]).map((invitation: any) => (
                             <TableRow key={invitation.id}>
                               <TableCell className="font-medium">{invitation.email}</TableCell>
                               <TableCell>{invitation.firstName} {invitation.lastName}</TableCell>
