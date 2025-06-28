@@ -1909,6 +1909,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test email endpoint
+  app.post("/api/test-email", requireSuperAdmin, async (req, res) => {
+    try {
+      const { recipientEmail, testType = 'user_invitation' } = req.body;
+      
+      if (!recipientEmail) {
+        return res.status(400).json({ message: "Recipient email is required" });
+      }
+
+      const EmailService = await import('./services/emailService').then(module => module.EmailService);
+      
+      let emailSent = false;
+      
+      if (testType === 'user_invitation') {
+        emailSent = await EmailService.sendUserInvitation({
+          recipientEmail,
+          recipientName: 'Test User',
+          inviterName: 'ExamCraft Admin',
+          role: 'teacher',
+          invitationToken: 'test-token-123'
+        });
+      } else if (testType === 'exam_invitation') {
+        emailSent = await EmailService.sendExamInvitation({
+          recipientEmail,
+          studentName: 'Test Student',
+          examTitle: 'Sample Exam',
+          examSubject: 'Testing',
+          teacherName: 'Test Teacher',
+          examDateTime: '2025-06-28T10:00:00Z',
+          duration: 60,
+          invitationToken: 'test-exam-token-123',
+          examId: 1
+        });
+      }
+
+      if (emailSent) {
+        res.json({ 
+          success: true, 
+          message: `Test ${testType} email sent successfully to ${recipientEmail}` 
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          message: "Failed to send test email. Check SendGrid configuration and API key." 
+        });
+      }
+    } catch (error) {
+      console.error("Test email error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: `Email test failed: ${error.message}` 
+      });
+    }
+  });
+
   // Student Exam Invitation API (public access for invitation verification)
   app.get('/api/exam-invitation/:token', async (req, res) => {
     try {
