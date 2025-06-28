@@ -194,7 +194,7 @@ export default function Dashboard() {
             })}
             
             {/* Super Admin Section */}
-            {user && user.role && isSuperAdmin(user.role) && (
+            {user && (user as any).role && isSuperAdmin((user as any).role) && (
               <div className="mt-6 pt-4 border-t border-gray-200">
                 <Button
                   variant="outline"
