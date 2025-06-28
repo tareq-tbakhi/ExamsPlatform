@@ -62,6 +62,7 @@ class EmailSimulator {
     
     console.log('\n🔔 EMAIL NOTIFICATION - User Invitation');
     console.log('='.repeat(50));
+    console.log(`📧 FROM: support@withyoumna.com`);
     console.log(`📧 TO: ${recipientEmail}`);
     console.log(`👤 NAME: ${recipientName}`);
     console.log(`🎯 ROLE: ${role}`);
