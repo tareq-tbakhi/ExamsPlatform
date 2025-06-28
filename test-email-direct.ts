@@ -4,7 +4,7 @@
 
 import { MailService } from '@sendgrid/mail';
 
-const apiKey = process.env.SENDGRID_API_KEY;
+const apiKey = "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";
 
 if (!apiKey) {
   console.error("❌ SENDGRID_API_KEY not found");
@@ -86,11 +86,9 @@ async function testEmail() {
 
     const result = await mailService.send({
       to: 'mehdawiadham@gmail.com',
-      from: {
-        email: 'noreply@examcraft.com',
-        name: 'ExamCraft Platform'
-      },
+      from: 'mehdawiadham@gmail.com', // Use your verified email
       subject: '✅ ExamCraft Email System Test - Working!',
+      text: 'This is a simple test email from ExamCraft. If you receive this, the email system is working!',
       html: htmlContent,
     });
 
