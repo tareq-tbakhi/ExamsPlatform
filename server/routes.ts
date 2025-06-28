@@ -206,6 +206,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user invitations (for both admin paths)
+  app.get('/api/user-invitations', isAuthenticated, requireSuperAdmin, async (req, res) => {
+    try {
+      const invitations = await storage.getUserInvitations();
+      res.json(invitations);
+    } catch (error) {
+      console.error("Error fetching user invitations:", error);
+      res.status(500).json({ message: "Failed to fetch user invitations" });
+    }
+  });
+
   app.get('/api/admin/user-invitations', isAuthenticated, requireSuperAdmin, async (req, res) => {
     try {
       const invitations = await storage.getUserInvitations();
