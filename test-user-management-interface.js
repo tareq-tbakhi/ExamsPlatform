@@ -3,7 +3,8 @@
  * Tests database functionality and interface operations
  */
 
-const { Client } = require('pg');
+import pkg from 'pg';
+const { Client } = pkg;
 
 async function testUserManagementInterface() {
   console.log('🧪 User Management Interface Test');
@@ -27,7 +28,7 @@ async function testUserManagementInterface() {
     // Test 2: Check users table
     testsTotal++;
     console.log('\n2. Checking users table...');
-    const usersResult = await client.query('SELECT * FROM users ORDER BY "createdAt" DESC LIMIT 5');
+    const usersResult = await client.query('SELECT * FROM users ORDER BY "created_at" DESC LIMIT 5');
     console.log(`✅ Found ${usersResult.rows.length} users in database`);
     usersResult.rows.forEach(user => {
       console.log(`   - ${user.email} (${user.role}) - Active: ${user.isActive}`);
@@ -37,10 +38,10 @@ async function testUserManagementInterface() {
     // Test 3: Check user_invitations table
     testsTotal++;
     console.log('\n3. Checking user invitations table...');
-    const invitationsResult = await client.query('SELECT * FROM user_invitations ORDER BY "createdAt" DESC LIMIT 5');
+    const invitationsResult = await client.query('SELECT * FROM user_invitations ORDER BY "created_at" DESC LIMIT 5');
     console.log(`✅ Found ${invitationsResult.rows.length} invitations in database`);
     invitationsResult.rows.forEach(inv => {
-      console.log(`   - ${inv.email} (${inv.role}) - Status: ${inv.status} - Created: ${new Date(inv.createdAt).toLocaleDateString()}`);
+      console.log(`   - ${inv.email} (${inv.role}) - Status: ${inv.status} - Created: ${new Date(inv.created_at).toLocaleDateString()}`);
     });
     testsPassed++;
     
@@ -57,7 +58,7 @@ async function testUserManagementInterface() {
     };
     
     const insertResult = await client.query(`
-      INSERT INTO user_invitations (email, "firstName", "lastName", role, token, status, "createdAt") 
+      INSERT INTO user_invitations (email, "first_name", "last_name", role, token, status, "created_at") 
       VALUES ($1, $2, $3, $4, $5, $6, NOW()) 
       RETURNING *
     `, [testInvitation.email, testInvitation.firstName, testInvitation.lastName, testInvitation.role, testInvitation.token, testInvitation.status]);
@@ -79,7 +80,7 @@ async function testUserManagementInterface() {
     if (retrieveResult.rows.length > 0) {
       console.log('✅ Test invitation retrieved successfully');
       console.log(`   - Status: ${retrieveResult.rows[0].status}`);
-      console.log(`   - Created: ${new Date(retrieveResult.rows[0].createdAt).toLocaleString()}`);
+      console.log(`   - Created: ${new Date(retrieveResult.rows[0].created_at).toLocaleString()}`);
       testsPassed++;
     } else {
       console.log('❌ Failed to retrieve test invitation');
