@@ -46,6 +46,11 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
 
   const { submission, exam, answers, proctoringVideos, videoAnswers } = data;
   const scorePercentage = submission.score ? Math.round((submission.score / submission.totalPoints) * 100) : 0;
+  
+  // Debug logging to understand the data structure
+  console.log('Submission details data:', { submission, exam, answers, videoAnswers });
+  console.log('Answers object:', answers);
+  console.log('Questions count:', exam.questions?.length || 0);
 
   const getAnswerStatus = (questionId: number, correctAnswer?: string | null) => {
     const studentAnswer = answers[questionId.toString()];
