@@ -86,7 +86,7 @@ async function testEmail() {
 
     const result = await mailService.send({
       to: 'mehdawiadham@gmail.com',
-      from: 'mehdawiadham@gmail.com', // Use your verified email
+      from: 'support@withyoumna.com', // Use your verified email
       subject: '✅ ExamCraft Email System Test - Working!',
       text: 'This is a simple test email from ExamCraft. If you receive this, the email system is working!',
       html: htmlContent,
