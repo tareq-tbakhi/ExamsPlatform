@@ -127,7 +127,7 @@ The ExamCraft Team
       await mailService.send({
         to: data.recipientEmail,
         from: {
-          email: 'support@withyoumna.com',
+          email: 'mehdawiadham@gmail.com',
           name: 'ExamCraft Platform'
         },
         subject: `🎓 You're invited to join ExamCraft as ${data.role.replace('_', ' ')}`,
@@ -319,7 +319,7 @@ Exam ID: ${data.examId}
       await mailService.send({
         to: data.recipientEmail,
         from: {
-          email: 'support@withyoumna.com',
+          email: 'mehdawiadham@gmail.com',
           name: 'ExamCraft Platform'
         },
         subject: `📝 Exam Invitation: ${data.examTitle} - ${formattedDate}`,
