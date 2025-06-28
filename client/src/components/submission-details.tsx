@@ -242,7 +242,7 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
 
       {/* Video Question Answers */}
       {(() => {
-        const videoQuestions = questions?.filter(q => q.type === 'video_response' || q.type === 'audio_response') || [];
+        const videoQuestions = exam.questions?.filter(q => q.type === 'video_response' || q.type === 'audio_response') || [];
         return videoQuestions.length > 0 && (
           <Card>
             <CardHeader>
