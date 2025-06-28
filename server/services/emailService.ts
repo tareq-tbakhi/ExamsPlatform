@@ -46,6 +46,17 @@ export class EmailService {
    * Send platform user invitation email
    */
   static async sendUserInvitation(data: UserInvitationData): Promise<boolean> {
+    // If SendGrid is not available or fails, use simulator
+    if (useSimulator || !mailService) {
+      return EmailSimulator.sendUserInvitation(
+        data.recipientEmail,
+        data.recipientName || 'User',
+        data.inviterName,
+        data.role,
+        data.invitationToken
+      );
+    }
+
     try {
       const invitationUrl = `${PLATFORM_URL}/accept-invitation?token=${data.invitationToken}`;
       
@@ -135,7 +146,7 @@ The ExamCraft Team
 © 2025 ExamCraft Platform
 `;
 
-      await mailService.send({
+      await mailService!.send({
         to: data.recipientEmail,
         from: {
           email: 'support@withyoumna.com',
@@ -149,7 +160,15 @@ The ExamCraft Team
       return true;
     } catch (error) {
       console.error('SendGrid user invitation error:', error);
-      return false;
+      // Fallback to simulator when SendGrid fails
+      console.log("Falling back to email simulator...");
+      return EmailSimulator.sendUserInvitation(
+        data.recipientEmail,
+        data.recipientName || 'User',
+        data.inviterName,
+        data.role,
+        data.invitationToken
+      );
     }
   }
 
@@ -157,6 +176,20 @@ The ExamCraft Team
    * Send student exam invitation email
    */
   static async sendExamInvitation(data: ExamInvitationData): Promise<boolean> {
+    // If SendGrid is not available or fails, use simulator
+    if (useSimulator || !mailService) {
+      return EmailSimulator.sendExamInvitation(
+        data.recipientEmail,
+        data.studentName,
+        data.examTitle,
+        data.examSubject,
+        data.teacherName,
+        data.examDateTime,
+        data.duration,
+        data.invitationToken
+      );
+    }
+
     try {
       const examUrl = `${PLATFORM_URL}/exam-access?token=${data.invitationToken}`;
       const examDate = new Date(data.examDateTime);
