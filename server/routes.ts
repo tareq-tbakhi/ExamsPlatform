@@ -21,6 +21,54 @@ interface RequestWithFiles extends Express.Request {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Email test endpoint (no auth required for testing) - must be before auth setup
+  app.post('/api/test-email', async (req, res) => {
+    try {
+      const { recipientEmail, testType } = req.body;
+      
+      if (!recipientEmail) {
+        return res.status(400).json({ success: false, message: "Recipient email is required" });
+      }
+
+      let emailSent = false;
+      let message = "";
+
+      if (testType === "user_invitation") {
+        emailSent = await EmailService.sendUserInvitation({
+          recipientEmail: recipientEmail,
+          recipientName: 'Test User',
+          inviterName: 'ExamCraft Admin',
+          role: 'teacher',
+          invitationToken: 'test-token-' + Date.now()
+        });
+        message = emailSent ? `User invitation email sent successfully to ${recipientEmail}` : "Failed to send user invitation email";
+      } else if (testType === "exam_invitation") {
+        emailSent = await EmailService.sendExamInvitation({
+          recipientEmail: recipientEmail,
+          studentName: 'Test Student',
+          examTitle: 'Email System Test',
+          examSubject: 'Testing',
+          teacherName: 'ExamCraft Admin',
+          examDateTime: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
+          duration: 60,
+          invitationToken: 'test-exam-token-' + Date.now(),
+          examId: 999
+        });
+        message = emailSent ? `Exam invitation email sent successfully to ${recipientEmail}` : "Failed to send exam invitation email";
+      } else {
+        return res.status(400).json({ success: false, message: "Invalid test type" });
+      }
+
+      res.json({ success: emailSent, message });
+    } catch (error) {
+      console.error("Email test error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: `Email test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      });
+    }
+  });
+
   // Setup Replit Authentication
   await setupAuth(app);
 
