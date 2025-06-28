@@ -206,6 +206,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create user invitation (simplified endpoint)
+  app.post('/api/user-invitations', isAuthenticated, requireSuperAdmin, async (req, res) => {
+    try {
+      const { email, firstName, lastName, role } = req.body;
+      const user = req.user as any;
+      const invitedBy = user.claims.sub;
+
+      // Check if user already has an invitation or account
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User already exists" });
+      }
+
+      const existingInvitation = await storage.getUserInvitationByEmail(email);
+      if (existingInvitation) {
+        return res.status(400).json({ message: "User already has a pending invitation" });
+      }
+
+      // Generate unique invitation token
+      const inviteToken = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+      const invitation = await storage.createUserInvitation({
+        email,
+        firstName,
+        lastName,
+        role,
+        invitedBy,
+        inviteToken,
+        inviteStatus: 'pending',
+        expiresAt
+      });
+
+      // Send invitation email
+      const inviterUser = await storage.getUser(invitedBy);
+      const inviterName = inviterUser ? `${inviterUser.firstName} ${inviterUser.lastName}`.trim() || inviterUser.email : 'ExamCraft Admin';
+      
+      const emailSent = await EmailService.sendUserInvitation({
+        recipientEmail: email,
+        recipientName: firstName ? `${firstName} ${lastName || ''}`.trim() : undefined,
+        inviterName,
+        role,
+        invitationToken: inviteToken
+      });
+
+      const inviteUrl = `${req.protocol}://${req.get('host')}/accept-invitation?token=${inviteToken}`;
+      
+      res.json({ 
+        invitation, 
+        inviteUrl,
+        emailSent,
+        message: emailSent ? "User invitation created and email sent successfully" : "User invitation created (email failed to send)"
+      });
+    } catch (error) {
+      console.error("Error creating user invitation:", error);
+      res.status(500).json({ message: "Failed to create user invitation" });
+    }
+  });
+
   // Get user invitations (for both admin paths)
   app.get('/api/user-invitations', isAuthenticated, requireSuperAdmin, async (req, res) => {
     try {
