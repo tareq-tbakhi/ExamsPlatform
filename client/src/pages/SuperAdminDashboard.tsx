@@ -50,7 +50,7 @@ export default function SuperAdminDashboard() {
 
   // Check authorization
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || user?.role !== 'super_admin')) {
+    if (!isLoading && (!isAuthenticated || (user as any)?.role !== 'super_admin')) {
       toast({
         title: "Unauthorized Access",
         description: "You don't have permission to access this page.",
@@ -76,19 +76,19 @@ export default function SuperAdminDashboard() {
   // Fetch all users
   const { data: users = [], isLoading: usersLoading, error: usersError } = useQuery({
     queryKey: ["/api/users"],
-    enabled: isAuthenticated && user?.role === 'super_admin',
+    enabled: isAuthenticated && (user as any)?.role === 'super_admin',
   });
 
   // Fetch user invitations
   const { data: invitations = [], isLoading: invitationsLoading, error: invitationsError } = useQuery({
     queryKey: ["/api/user-invitations"],
-    enabled: isAuthenticated && user?.role === 'super_admin',
+    enabled: isAuthenticated && (user as any)?.role === 'super_admin',
   });
 
   // Invite user mutation
   const inviteUserMutation = useMutation({
     mutationFn: async (data: InviteUserForm) => {
-      return await apiRequest('/api/user-invitations', 'POST', data);
+      return await apiRequest('POST', '/api/user-invitations', data);
     },
     onSuccess: () => {
       toast({
@@ -122,7 +122,7 @@ export default function SuperAdminDashboard() {
   // Update user role mutation
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      return await apiRequest(`/api/users/${userId}/role`, 'PATCH', { role });
+      return await apiRequest('PATCH', `/api/users/${userId}/role`, { role });
     },
     onSuccess: () => {
       toast({
@@ -143,7 +143,7 @@ export default function SuperAdminDashboard() {
   // Toggle user active status mutation
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
-      return await apiRequest(`/api/users/${userId}/active`, 'PATCH', { isActive });
+      return await apiRequest('PATCH', `/api/users/${userId}/active`, { isActive });
     },
     onSuccess: () => {
       toast({
@@ -164,7 +164,7 @@ export default function SuperAdminDashboard() {
   // Delete invitation mutation
   const deleteInvitationMutation = useMutation({
     mutationFn: async (invitationId: number) => {
-      return await apiRequest(`/api/user-invitations/${invitationId}`, 'DELETE');
+      return await apiRequest('DELETE', `/api/user-invitations/${invitationId}`);
     },
     onSuccess: () => {
       toast({
@@ -300,7 +300,7 @@ export default function SuperAdminDashboard() {
                       <div className="flex items-center justify-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                       </div>
-                    ) : users.length === 0 ? (
+                    ) : (users as any[]).length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
                         No users found.
                       </div>
@@ -316,7 +316,7 @@ export default function SuperAdminDashboard() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {users.map((user: any) => (
+                          {(users as any[]).map((user: any) => (
                             <TableRow key={user.id}>
                               <TableCell>
                                 <div className="flex items-center gap-3">
