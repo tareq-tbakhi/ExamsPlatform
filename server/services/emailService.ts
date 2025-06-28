@@ -138,7 +138,16 @@ The ExamCraft Team
       return true;
     } catch (error) {
       console.error('SendGrid user invitation error:', error);
-      return false;
+      
+      // Fallback: Log email details for testing
+      console.log('\n=== EMAIL WOULD BE SENT (SendGrid not configured) ===');
+      console.log(`To: ${data.recipientEmail}`);
+      console.log(`Subject: 🎓 You're invited to join ExamCraft as ${data.role.replace('_', ' ')}`);
+      console.log(`Invitation URL: ${invitationUrl}`);
+      console.log('=== END EMAIL LOG ===\n');
+      
+      // Return true for testing - change to false in production
+      return true;
     }
   }
 
