@@ -209,10 +209,15 @@ export default function StudentExam({ examId }: StudentExamProps) {
   };
 
   const handleAnswerChange = (questionId: number, answer: any) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: answer
-    }));
+    console.log(`Answer changed for question ${questionId}:`, answer);
+    setAnswers(prev => {
+      const newAnswers = {
+        ...prev,
+        [questionId]: answer
+      };
+      console.log('Updated answers state:', newAnswers);
+      return newAnswers;
+    });
   };
 
   const toggleFlag = (questionId: number) => {
@@ -241,6 +246,10 @@ export default function StudentExam({ examId }: StudentExamProps) {
       timeSpent,
       sessionId: proctoringSessionId,
     };
+
+    console.log('Submitting exam with answers:', answers);
+    console.log('Submission data:', submissionData);
+    console.log('Total answers:', Object.keys(answers).length);
 
     submitExamMutation.mutate(submissionData);
   };
