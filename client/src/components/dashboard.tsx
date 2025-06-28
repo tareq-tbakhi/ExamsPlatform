@@ -155,7 +155,7 @@ export default function Dashboard() {
       <div className="flex">
         {/* Enhanced Sidebar - Always Visible */}
         <div className="w-80 bg-white shadow-xl min-h-screen relative border-r border-gray-200">
-          <div className="p-8 border-b bg-gradient-to-r from-purple-50 to-blue-50">
+          <div className="p-8 border-b from-purple-50 to-blue-50 bg-[#ffffff]">
             <div className="flex items-center gap-4">
               <img 
                 src={image} 
