@@ -202,7 +202,7 @@ export default function Dashboard() {
                   onClick={() => window.location.href = "/super-admin"}
                 >
                   <Shield className="h-6 w-6 flex-shrink-0" />
-                  <span className="text-lg">Super Admin</span>
+                  <span className="text-lg">User Management</span>
                 </Button>
               </div>
             )}
