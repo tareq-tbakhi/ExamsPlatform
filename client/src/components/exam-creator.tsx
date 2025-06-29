@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { Question, InsertExam } from "@shared/schema";
 import QuestionForms from "./question-forms";
 import AIGenerator from "./ai-generator";
+import { useAuth } from "../hooks/useAuth";
 
 const examSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -23,7 +24,7 @@ const examSchema = z.object({
   instructions: z.string().optional(),
   duration: z.number().min(1, "Duration must be at least 1 minute"),
   totalPoints: z.number().min(1, "Total points must be at least 1"),
-  createdBy: z.number().default(1), // Mock user ID
+  createdBy: z.string().default("local-dev-user"),
   status: z.string().default("draft"),
   settings: z.object({
     randomizeQuestions: z.boolean().default(false),
@@ -37,11 +38,12 @@ const examSchema = z.object({
 type ExamFormData = z.infer<typeof examSchema>;
 
 export default function ExamCreator() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [showQuestionForm, setShowQuestionForm] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const form = useForm<ExamFormData>({
     resolver: zodResolver(examSchema),
@@ -51,7 +53,7 @@ export default function ExamCreator() {
       instructions: "",
       duration: 60,
       totalPoints: 100,
-      createdBy: 1,
+      createdBy: (user as any)?.id || "local-dev-user",
       status: "draft",
       settings: {
         randomizeQuestions: false,
@@ -183,6 +185,11 @@ export default function ExamCreator() {
       id: Date.now(), // Temporary ID
       examId: 0, // Will be set when exam is created
       order: questions.length + 1,
+      weight: 1.0,
+      autoGraded: true,
+      passingScore: null,
+      timeLimit: null,
+      metadata: {},
     };
     setQuestions([...questions, newQuestion]);
     setShowQuestionForm(false);
@@ -208,6 +215,11 @@ export default function ExamCreator() {
       correctAnswer: q.correctAnswer,
       points: q.points,
       order: questions.length + index + 1,
+      weight: 1.0,
+      autoGraded: true,
+      passingScore: null,
+      timeLimit: null,
+      metadata: {},
     }));
     
     setQuestions([...questions, ...newQuestions]);
@@ -533,7 +545,7 @@ function QuestionDisplay({
                   ? "border-green-500 bg-green-500" 
                   : "border-gray-300"
               }`} />
-              <span className="text-sm">{option}</span>
+              <span className="text-sm">{String(option)}</span>
               {option === question.correctAnswer && (
                 <span className="text-xs text-green-600 font-medium">Correct</span>
               )}
@@ -544,7 +556,7 @@ function QuestionDisplay({
       
       {question.type !== "multiple_choice" && question.correctAnswer && (
         <div className="bg-white border border-gray-200 rounded p-3">
-          <span className="text-sm text-gray-500">Expected answer: {question.correctAnswer}</span>
+          <span className="text-sm text-gray-500">Expected answer: {String(question.correctAnswer)}</span>
         </div>
       )}
     </div>

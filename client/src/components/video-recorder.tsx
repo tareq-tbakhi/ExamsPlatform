@@ -9,6 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 declare global {
   interface Window {
     videoRecorderAutoSave?: () => Promise<void>;
+    proctoringSessionId?: string;
   }
 }
 
@@ -159,7 +160,7 @@ interface VideoRecorderProps {
   questionId: number;
   submissionId: number;
   questionType: "video_response" | "audio_response";
-  onRecordingComplete: (transcription: string, confidence: number) => void;
+  onRecordingComplete: (transcription: string, confidence: number, videoUrl: string) => void;
   onAutoSave?: () => void; // Callback for when auto-save is triggered
 }
 
@@ -362,6 +363,14 @@ export function VideoRecorder({
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
+      // Capture the final transcript before stopping
+      if (transcriberRef.current) {
+        const finalTranscript = transcriberRef.current.getFullTranscript();
+        setTranscription(finalTranscript);
+        setEditableTranscript(finalTranscript);
+        console.log(`Captured final transcript: "${finalTranscript.substring(0, 50)}..."`);
+      }
+      
       mediaRecorderRef.current.stop();
       setIsRecording(false);
 
@@ -377,16 +386,18 @@ export function VideoRecorder({
 
   const processRecording = async (blob: Blob) => {
     try {
+      // Wait a bit for any final transcript updates
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       // Use editable transcript if user has edited it, otherwise use live transcription
-      const finalTranscript = isEditingTranscript ? editableTranscript : (transcriberRef.current?.getFullTranscript() || '');
-      const confidence = 0.85; // JavaScript speech recognition typical confidence
+      const finalTranscript = editableTranscript || transcription || transcriberRef.current?.getFullTranscript() || '';
+      const confidence = finalTranscript ? 0.85 : 0; // JavaScript speech recognition typical confidence
       
-      console.log(`JavaScript transcription completed: "${finalTranscript}"`);
+      console.log(`Processing recording with transcript: "${finalTranscript.substring(0, 50)}..."`);
       
-      setTranscription(finalTranscript);
-      setEditableTranscript(finalTranscript);
-      onRecordingComplete(finalTranscript, confidence);
-
+      // Save to server immediately
+      await simpleVideoSave(blob);
+      
       toast({
         title: "Recording Complete",
         description: "Your recording has been transcribed and saved"
@@ -415,32 +426,34 @@ export function VideoRecorder({
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       
-      // Stop transcription and capture final transcript
-      if (transcriberRef.current) {
-        transcriberRef.current.stopTranscription();
-        setContinuousTranscriptionActive(false);
-      }
+      // Wait for the recording to be processed
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       console.log(`Auto-saved question ${questionId}: Recording stopped, transcript captured`);
-      
-      // Simple save without AI processing - just save video and transcript
-      if (recordedBlob) {
-        await simpleVideoSave(recordedBlob);
-      }
+    } else if (recordedBlob && transcription) {
+      // If we have a recording but it's not currently recording, save it
+      await simpleVideoSave(recordedBlob);
     }
   };
 
   // Simple video save function without AI processing
   const simpleVideoSave = async (blob: Blob) => {
     try {
-      const finalTranscript = editableTranscript || transcription;
-      const confidence = 0.8; // Default confidence for manual transcript editing
+      // Use the most up-to-date transcript (edited or live)
+      const finalTranscript = editableTranscript || transcription || transcriberRef.current?.getFullTranscript() || '';
+      const confidence = finalTranscript ? 0.85 : 0;
+      
+      console.log(`Saving video for question ${questionId} with transcript: "${finalTranscript.substring(0, 50)}..."`);
+      
+      // Get session ID from the parent component if submission ID is not available
+      const sessionId = window.proctoringSessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       // Upload the video file to be stored as an answer
       const videoFormData = new FormData();
       videoFormData.append('video', blob, `answer_${questionId}_${Date.now()}.webm`);
       videoFormData.append('questionId', questionId.toString());
-      videoFormData.append('submissionId', submissionId.toString());
+      videoFormData.append('submissionId', submissionId ? submissionId.toString() : '');
+      videoFormData.append('sessionId', sessionId);
       videoFormData.append('transcript', finalTranscript);
       videoFormData.append('confidence', confidence.toString());
       videoFormData.append('duration', recordingTime.toString());
@@ -454,8 +467,11 @@ export function VideoRecorder({
         const uploadResponse = await uploadRes.json();
         console.log('Video answer saved successfully:', uploadResponse);
         
+        // Update the answer data with the transcript and video URL
+        onRecordingComplete(finalTranscript, confidence, uploadResponse.videoUrl);
+        
         toast({
-          title: "Saved Successfully",
+          title: "Answer Saved",
           description: "Your video and transcript have been saved"
         });
       } else {
@@ -524,8 +540,16 @@ export function VideoRecorder({
               autoPlay
               muted
               playsInline
-              className="w-full max-w-md mx-auto rounded-lg border-2 border-gray-300"
+              className="w-full max-w-md mx-auto rounded-lg border-2 border-gray-300 bg-gray-900"
+              style={{ minHeight: '300px' }}
             />
+            {!isRecording && !mediaStream && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-900 rounded-lg">
+                <Video className="h-16 w-16 text-gray-400 mb-4" />
+                <p className="text-gray-400 text-lg font-medium">Your video will appear here</p>
+                <p className="text-gray-500 text-sm mt-2">Click "Start Recording" to begin</p>
+              </div>
+            )}
             {isRecording && (
               <div className="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded text-sm animate-pulse">
                 REC
@@ -536,15 +560,20 @@ export function VideoRecorder({
 
         {/* Audio visualization for audio questions */}
         {questionType === "audio_response" && (
-          <div className="text-center py-8">
+          <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-gray-300">
             <div className="flex justify-center items-center space-x-2 mb-4">
               {isRecording ? (
-                <MicOff className="h-8 w-8 text-red-500 animate-pulse" />
+                <MicOff className="h-12 w-12 text-red-500 animate-pulse" />
               ) : (
-                <Mic className="h-8 w-8 text-gray-400" />
+                <Mic className="h-12 w-12 text-gray-400" />
               )}
             </div>
-            {isRecording && (
+            {!isRecording ? (
+              <div className="text-gray-500">
+                <p className="text-lg font-medium mb-1">Audio Recording</p>
+                <p className="text-sm">Click "Start Recording" to begin</p>
+              </div>
+            ) : (
               <div className="flex justify-center space-x-1">
                 {[...Array(5)].map((_, i) => (
                   <div

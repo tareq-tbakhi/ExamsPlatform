@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { isSuperAdmin, isAdmin, isTeacherOrAbove } from "@/lib/authUtils";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
+import Login from "@/pages/Login";
 import Dashboard from "@/components/dashboard";
 import AdminDashboard from "@/pages/AdminDashboard";
 import SuperAdminDashboard from "@/pages/SuperAdminDashboard";
@@ -17,6 +18,7 @@ import AcceptInvitation from "@/pages/AcceptInvitation";
 import AccessDenied from "@/pages/AccessDenied";
 import StudentExamAccess from "@/pages/StudentExamAccess";
 import { AIAssistantTrigger } from "@/components/ai-assistant/ai-assistant-trigger";
+import ResultsPage from "@/pages/ResultsPage";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -33,23 +35,24 @@ function Router() {
     <Switch>
       {/* Public routes - accessible without authentication */}
       <Route path="/accept-invitation" component={AcceptInvitation} />
+      <Route path="/login" component={Login} />
       
       {isLoading || !isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (
         <>
           {/* Super Admin Routes */}
-          {user && user.role && isSuperAdmin(user.role) && (
+          {user && (user as any).role && isSuperAdmin((user as any).role) && (
             <Route path="/super-admin" component={SuperAdminDashboard} />
           )}
           
           {/* Admin Routes */}
-          {user && user.role && isAdmin(user.role) && (
+          {user && (user as any).role && isAdmin((user as any).role) && (
             <Route path="/admin" component={AdminDashboard} />
           )}
           
           {/* Teacher/Admin Routes */}
-          {user && user.role && isTeacherOrAbove(user.role) && (
+          {user && (user as any).role && isTeacherOrAbove((user as any).role) && (
             <>
               <Route path="/" component={Dashboard} />
 

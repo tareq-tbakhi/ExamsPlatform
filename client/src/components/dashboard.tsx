@@ -4,6 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   Plus, 
   Calendar, 
@@ -23,7 +31,9 @@ import {
   Share,
   ClipboardCheck,
   GraduationCap,
-  Shield
+  Shield,
+  LogOut,
+  User
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -154,16 +164,16 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
       <div className="flex">
         {/* Enhanced Sidebar - Always Visible */}
-        <div className="w-80 bg-white shadow-xl min-h-screen relative border-r border-gray-200">
+        <div className="w-80 bg-white shadow-md min-h-screen relative border-r border-gray-200">
           <div className="p-8 border-b from-purple-50 to-blue-50 bg-[#ffffff]">
             <div className="flex items-center gap-4">
               <img 
                 src={image} 
                 alt="ExamCraft Logo" 
-                className="h-14 w-auto"
+                className="h-10 w-auto"
               />
               <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                ExamCraft
+                Exam Craft
               </h1>
             </div>
             
@@ -227,7 +237,7 @@ export default function Dashboard() {
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">ExamCraft Platform</h1>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">Exam Craft Platform</h1>
                   <p className="text-gray-600">Comprehensive exam management with AI-powered features</p>
                 </div>
                 
@@ -239,13 +249,37 @@ export default function Dashboard() {
                   <Button variant="outline" size="sm">
                     <Bell className="h-4 w-4" />
                   </Button>
-                  <Button variant="outline" size="sm">
-                    <Settings className="h-4 w-4" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4" />
+                            <p className="text-sm font-medium leading-none">
+                              {user && (user as any).firstName} {user && (user as any).lastName}
+                            </p>
+                          </div>
+                          <p className="text-xs leading-none text-muted-foreground">
+                            {user && (user as any).email}
+                          </p>
+                        </div>
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={() => window.location.href = '/api/logout'}>
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Sign out</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 
-              <TabsList className="grid w-full grid-cols-6 bg-white shadow-sm rounded-xl p-2">
+              <TabsList className="grid w-full grid-cols-6 bg-white shadow-sm rounded-xl p-1">
                 <TabsTrigger value="overview" className="flex items-center gap-2 text-sm font-medium">
                   <Home className="h-4 w-4" />
                   Dashboard
@@ -275,7 +309,7 @@ export default function Dashboard() {
               <TabsContent value="overview" className="space-y-8">
                 {/* Enhanced Stats Cards - Inspired by Figma Design */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                  <Card className="bg-white border-0 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                  <Card className="bg-white border-0 shadow-md rounded-2xl hover:shadow-lg transition-all duration-300 hover:scale-105">
                     <CardContent className="p-8">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -294,7 +328,7 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-white border-0 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                  <Card className="bg-white border-0 shadow-md rounded-2xl hover:shadow-lg transition-all duration-300 hover:scale-105">
                     <CardContent className="p-8">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -313,7 +347,7 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-white border-0 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                  <Card className="bg-white border-0 shadow-md rounded-2xl hover:shadow-lg transition-all duration-300 hover:scale-105">
                     <CardContent className="p-8">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -332,7 +366,7 @@ export default function Dashboard() {
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-white border-0 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+                  <Card className="bg-white border-0 shadow-md rounded-2xl hover:shadow-lg transition-all duration-300 hover:scale-105">
                     <CardContent className="p-8">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
@@ -375,7 +409,7 @@ export default function Dashboard() {
                   ) : exams.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {getRecentExams().map((exam) => (
-                        <Card key={exam.id} className="bg-white border-0 shadow-xl rounded-2xl hover:shadow-2xl transition-all duration-300 hover:scale-105 overflow-hidden">
+                        <Card key={exam.id} className="bg-white border-0 shadow-md rounded-2xl hover:shadow-lg transition-all duration-300 hover:scale-105 overflow-hidden">
                           <CardContent className="p-0">
                             <div className="bg-gradient-to-r from-blue-500 to-purple-500 h-2"></div>
                             <div className="p-6 space-y-4">

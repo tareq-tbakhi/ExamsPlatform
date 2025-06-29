@@ -1,6 +1,8 @@
 import OpenAI from "openai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = process.env.OPENAI_API_KEY 
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
 
 interface ChatRequest {
   message: string;
@@ -23,6 +25,11 @@ export class AIAssistantService {
   // Generate contextual AI response based on user message and current page context
   async generateChatResponse(request: ChatRequest): Promise<string> {
     try {
+      if (!openai) {
+        console.warn("OpenAI API key not configured. AI Assistant is disabled.");
+        return "AI Assistant is not configured. Please set up an OpenAI API key.";
+      }
+      
       const systemPrompt = this.getSystemPrompt(request.context);
       
       const response = await openai.chat.completions.create({

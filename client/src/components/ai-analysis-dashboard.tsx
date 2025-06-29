@@ -167,7 +167,7 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
       refetchAnalysis(); // Fetch newly stored analysis results
       toast({
         title: "Enhanced Analysis Complete",
-        description: `Advanced Gemini AI analysis completed. Found ${data.violations.length} violations.`
+        description: `Advanced Gemini AI analysis completed. Found ${data.violations?.length || 0} violations.`
       });
     },
     onError: (error) => {
@@ -440,7 +440,7 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                         <CardTitle className="text-lg">Violations Found</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-3xl font-bold">{activeAnalysis.violations.length}</div>
+                        <div className="text-3xl font-bold">{activeAnalysis.violations?.length || 0}</div>
                       </CardContent>
                     </Card>
                     <Card>
@@ -448,15 +448,16 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                         <CardTitle className="text-lg">Timeline Events</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-3xl font-bold">{activeAnalysis.timeline.length}</div>
+                        <div className="text-3xl font-bold">{activeAnalysis.timeline?.length || 0}</div>
                       </CardContent>
                     </Card>
                   </div>
 
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold">Detected Violations</h3>
-                    {activeAnalysis.violations.map((violation, index) => (
-                      <Card key={index}>
+                    {activeAnalysis.violations && activeAnalysis.violations.length > 0 ? (
+                      activeAnalysis.violations.map((violation, index) => (
+                        <Card key={index}>
                         <CardHeader>
                           <div className="flex items-center gap-2">
                             {getSeverityIcon(violation.severity)}
@@ -495,7 +496,10 @@ export default function AIAnalysisDashboard({ submissionId, examTitle }: AIAnaly
                           )}
                         </CardContent>
                       </Card>
-                    ))}
+                    ))
+                    ) : (
+                      <p className="text-center text-gray-500 py-4">No violations detected</p>
+                    )}
                   </div>
 
                   <Card>

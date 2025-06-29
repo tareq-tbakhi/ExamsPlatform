@@ -46,8 +46,17 @@ export class EmailService {
    * Send platform user invitation email
    */
   static async sendUserInvitation(data: UserInvitationData): Promise<boolean> {
+    console.log('📧 sendUserInvitation called with:', {
+      recipientEmail: data.recipientEmail,
+      recipientName: data.recipientName,
+      role: data.role,
+      useSimulator,
+      hasMailService: !!mailService
+    });
+    
     // If SendGrid is not available or fails, use simulator
     if (useSimulator || !mailService) {
+      console.log('⚠️ Using email simulator (useSimulator:', useSimulator, ', mailService:', !!mailService, ')');
       return EmailSimulator.sendUserInvitation(
         data.recipientEmail,
         data.recipientName || 'User',
@@ -60,68 +69,36 @@ export class EmailService {
     try {
       const invitationUrl = `${PLATFORM_URL}/accept-invitation?token=${data.invitationToken}`;
       
+      // Simplified HTML for better deliverability
       const htmlContent = `
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ExamCraft Platform Invitation</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; }
-        .container { max-width: 600px; margin: 0 auto; background-color: white; }
-        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center; }
-        .logo { max-width: 150px; height: auto; margin-bottom: 20px; }
-        .header h1 { color: white; margin: 0; font-size: 28px; font-weight: bold; }
-        .content { padding: 40px 30px; }
-        .invitation-box { background-color: #f8f9ff; padding: 30px; border-radius: 10px; margin: 20px 0; border-left: 4px solid #667eea; }
-        .role-badge { background-color: #667eea; color: white; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; text-transform: uppercase; }
-        .cta-button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 15px 30px; border-radius: 8px; font-weight: bold; margin: 20px 0; }
-        .footer { background-color: #2d3748; color: #a0aec0; padding: 30px; text-align: center; font-size: 14px; }
-        .security-note { background-color: #fef5e7; border: 1px solid #f6ad55; padding: 15px; border-radius: 5px; margin: 20px 0; }
-    </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <img src="${EXAMCRAFT_LOGO_URL}" alt="ExamCraft Logo" class="logo">
-            <h1>Platform Invitation</h1>
-        </div>
+<body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px;">
+        <h2 style="color: #333; margin-bottom: 20px;">ExamCraft Platform Invitation</h2>
         
-        <div class="content">
-            <h2>Welcome to ExamCraft!</h2>
-            <p>Hello ${data.recipientName || 'there'},</p>
-            
-            <p><strong>${data.inviterName}</strong> has invited you to join the ExamCraft platform as a <span class="role-badge">${data.role.replace('_', ' ')}</span>.</p>
-            
-            <div class="invitation-box">
-                <h3>🎓 What is ExamCraft?</h3>
-                <p>ExamCraft is an advanced AI-powered exam creation and proctoring platform that enables educators to:</p>
-                <ul>
-                    <li>Create comprehensive exams with AI-generated questions</li>
-                    <li>Monitor students with advanced proctoring technology</li>
-                    <li>Analyze performance with detailed analytics</li>
-                    <li>Collaborate with team members and supervisors</li>
-                </ul>
-            </div>
-            
-            <div style="text-align: center;">
-                <a href="${invitationUrl}" class="cta-button">Accept Invitation & Get Started</a>
-            </div>
-            
-            <div class="security-note">
-                <strong>🔐 Security Notice:</strong> This invitation is valid for 7 days and can only be used once. The platform uses invitation-only access to ensure security and quality.
-            </div>
-            
-            <p>If you have any questions, please contact your platform administrator.</p>
-            
-            <p>Best regards,<br>The ExamCraft Team</p>
-        </div>
+        <p>Hello ${data.recipientName || 'there'},</p>
         
-        <div class="footer">
-            <p>© 2025 ExamCraft Platform. Advanced AI-Powered Exam Management.</p>
-            <p>This is an automated message. Please do not reply to this email.</p>
-        </div>
+        <p><strong>${data.inviterName}</strong> has invited you to join the ExamCraft platform as a <strong>${data.role.replace('_', ' ')}</strong>.</p>
+        
+        <p>To accept this invitation and create your account, please click the link below:</p>
+        
+        <p style="margin: 30px 0;">
+            <a href="${invitationUrl}" style="background-color: #5e72e4; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">Accept Invitation</a>
+        </p>
+        
+        <p>Or copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #5e72e4;">${invitationUrl}</p>
+        
+        <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
+        
+        <p style="color: #666; font-size: 14px;">This invitation is valid for 7 days. If you have any questions, please contact your administrator.</p>
+        
+        <p style="color: #666; font-size: 14px;">Best regards,<br>The ExamCraft Team</p>
     </div>
 </body>
 </html>`;
@@ -133,30 +110,31 @@ Hello ${data.recipientName || 'there'},
 
 ${data.inviterName} has invited you to join the ExamCraft platform as a ${data.role.replace('_', ' ')}.
 
-ExamCraft is an advanced AI-powered exam creation and proctoring platform that enables educators to create comprehensive exams, monitor students, and analyze performance.
-
 To accept your invitation and get started, visit:
 ${invitationUrl}
 
-This invitation is valid for 7 days and can only be used once.
+This invitation is valid for 7 days.
 
 Best regards,
 The ExamCraft Team
-
-© 2025 ExamCraft Platform
 `;
 
-      await mailService!.send({
+      console.log('🚀 Attempting to send email via SendGrid...');
+      if (!mailService) {
+        throw new Error('MailService is unexpectedly null');
+      }
+      const result = await mailService.send({
         to: data.recipientEmail,
         from: {
           email: 'support@withyoumna.com',
           name: 'ExamCraft Platform'
         },
-        subject: `🎓 You're invited to join ExamCraft as ${data.role.replace('_', ' ')}`,
+        subject: `Invitation to join ExamCraft as ${data.role.replace('_', ' ')}`, // Removed emoji
         text: textContent,
         html: htmlContent,
       });
-
+      
+      console.log('✅ SendGrid response:', result);
       return true;
     } catch (error) {
       console.error('SendGrid user invitation error:', error);

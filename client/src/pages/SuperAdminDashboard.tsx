@@ -188,11 +188,15 @@ export default function SuperAdminDashboard() {
       return await apiRequest('POST', `/api/user-invitations/${invitationId}/resend`);
     },
     onSuccess: (data: any) => {
+      // Show the invitation URL in the toast for easy access
+      const inviteUrl = data.inviteUrl || data.newToken ? `${window.location.origin}/accept-invitation?token=${data.newToken}` : '';
+      
       toast({
         title: "Invitation Resent",
         description: data.emailSent 
           ? "Invitation email has been sent successfully." 
-          : "Invitation updated (check server console for email simulation).",
+          : `Email service unavailable - Using simulator mode. Check the server console for email details.${inviteUrl ? `\n\nInvitation link: ${inviteUrl}` : ''}`,
+        duration: data.emailSent ? 3000 : 10000, // Show longer for simulator mode
       });
       queryClient.invalidateQueries({ queryKey: ["/api/user-invitations"] });
     },
@@ -276,6 +280,23 @@ export default function SuperAdminDashboard() {
               </Button>
               
               <div className="mt-8 pt-6 border-t border-gray-200">
+                {/* User Info */}
+                <div className="mb-4 px-4 py-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
+                      {(user as any)?.firstName?.[0]}{(user as any)?.lastName?.[0]}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm text-gray-900">
+                        {(user as any)?.firstName} {(user as any)?.lastName}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {(user as any)?.email}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
                 <Button 
                   className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
                   onClick={() => window.location.href = '/api/logout'}

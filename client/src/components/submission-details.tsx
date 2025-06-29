@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle, XCircle, Clock, User, BookOpen, FileText } from "lucide-react";
+import { CheckCircle, XCircle, Clock, User, BookOpen, Video, Mic, FileText } from "lucide-react";
 import type { Submission, ExamWithQuestions } from "@shared/schema";
 
 interface SubmissionDetailsProps {
@@ -78,107 +78,116 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
     }
   };
 
-  const renderStudentAnswer = (question: any, studentAnswer: any, videoAnswers: any[], isCorrect: boolean) => {
+  const renderStudentAnswer = (question: any, studentAnswer: any, videoAnswers: any[], isCorrect: boolean): React.ReactNode => {
     if (question.type === 'video_response' || question.type === 'audio_response') {
       const answerData = studentAnswer;
       const videoAnswer = videoAnswers?.find(va => va.videoQuestionId === question.id);
       
-      // Debug logging
-      console.log(`Question ${question.id} debug:`, {
-        answerData,
-        hasAnswerData: answerData && typeof answerData === 'object',
-        transcription: answerData?.transcription,
-        transcriptionLength: answerData?.transcription?.length,
-        transcriptionTrimmed: answerData?.transcription?.trim(),
-        videoAnswer
-      });
-      
       // Check if we have any video response data
       const hasVideoData = (answerData && typeof answerData === 'object') || videoAnswer;
       
+      // Construct video URL - check multiple possible locations
+      let videoUrl = null;
+      if (videoAnswer?.videoUrl) {
+        videoUrl = videoAnswer.videoUrl;
+      } else if (answerData?.videoUrl) {
+        // If it's already a full URL, use it; otherwise construct it
+        videoUrl = answerData.videoUrl.startsWith('/') ? answerData.videoUrl : `/api/videos/answers/${answerData.videoUrl}`;
+      } else if (answerData?.filename) {
+        videoUrl = `/api/videos/answers/${answerData.filename}`;
+      }
+      
+      const transcript = answerData?.transcription || answerData?.transcript || videoAnswer?.transcript || '';
+      const confidence = answerData?.confidence || videoAnswer?.confidence;
+      
       if (hasVideoData) {
         return (
-          <div className="p-3 rounded bg-blue-50 text-blue-800 border border-blue-200 space-y-3">
-            {/* Video file if available */}
-            {videoAnswer?.videoUrl && (
-              <div>
-                <p className="text-sm font-medium mb-2">Video Recording:</p>
-                <video controls className="w-full max-h-40 rounded">
-                  <source src={videoAnswer.videoUrl} type="video/webm" />
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 overflow-hidden">
+            {/* Video/Audio Recording */}
+            {videoUrl && (
+              <div className="p-4 bg-white/70 border-b border-blue-100">
+                <div className="flex items-center gap-2 mb-3">
+                  {question.type === 'video_response' ? (
+                    <Video className="h-5 w-5 text-blue-600" />
+                  ) : (
+                    <Mic className="h-5 w-5 text-blue-600" />
+                  )}
+                  <h4 className="font-medium text-gray-900">
+                    {question.type === 'video_response' ? 'Video Recording' : 'Audio Recording'}
+                  </h4>
+                </div>
+                <video controls className="w-full rounded-lg shadow-sm" style={{ maxHeight: '300px' }}>
+                  <source src={videoUrl} type="video/webm" />
                   Your browser does not support the video tag.
                 </video>
               </div>
             )}
             
-            {/* Transcription from answers data (primary source) */}
-            {answerData && typeof answerData === 'object' && answerData.transcription !== undefined ? (
-              <div className="text-sm space-y-2">
-                <div>
-                  <strong>Student's Answer (Transcription):</strong>
-                  <div className="mt-1 p-2 bg-white rounded border">
-                    {answerData.transcription && answerData.transcription.trim().length > 0 ? (
-                      <span className="whitespace-pre-wrap">{answerData.transcription}</span>
-                    ) : (
-                      <em className="text-gray-500">No audio detected</em>
-                    )}
-                  </div>
+            {/* Transcript Section */}
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-gray-600" />
+                  <h4 className="font-medium text-gray-900">Student's Answer</h4>
                 </div>
-                {answerData.confidence && (
-                  <div>
-                    <strong>Transcription Confidence:</strong> {Math.round(answerData.confidence * 100)}%
-                  </div>
+                {confidence && (
+                  <Badge 
+                    variant="outline" 
+                    className={`${
+                      confidence > 0.8 ? 'border-green-500 text-green-700' : 
+                      confidence > 0.6 ? 'border-yellow-500 text-yellow-700' : 
+                      'border-red-500 text-red-700'
+                    }`}
+                  >
+                    {Math.round(confidence * 100)}% confidence
+                  </Badge>
                 )}
               </div>
-            ) : videoAnswer?.transcript ? (
-              <div className="text-sm space-y-2">
-                <div>
-                  <strong>Student's Answer (Transcription):</strong>
-                  <div className="mt-1 p-2 bg-white rounded border">
-                    {videoAnswer.transcript && videoAnswer.transcript.trim().length > 0 ? (
-                      <span className="whitespace-pre-wrap">{videoAnswer.transcript}</span>
-                    ) : (
-                      <em className="text-gray-500">No audio detected</em>
-                    )}
-                  </div>
-                </div>
+              
+              <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+                {transcript && transcript.trim().length > 0 ? (
+                  <p className="text-gray-800 leading-relaxed whitespace-pre-wrap text-base">
+                    {transcript}
+                  </p>
+                ) : (
+                  <p className="text-gray-500 italic">No transcription available</p>
+                )}
               </div>
-            ) : (
-              <div className="text-sm text-gray-500">
-                <strong>Student's Answer:</strong> Video recorded but no transcription available
-              </div>
-            )}
-            
-            {/* Additional metadata */}
-            {videoAnswer?.duration && (
-              <div className="text-sm">
-                <strong>Recording Duration:</strong> {videoAnswer.duration} seconds
-              </div>
-            )}
+            </div>
           </div>
         );
       } else {
         return (
-          <div className="p-3 rounded bg-gray-50 text-gray-500 text-sm border border-gray-200">
-            No video response provided
+          <div className="bg-gray-50 rounded-lg border border-gray-200 p-6 text-center">
+            <div className="flex flex-col items-center gap-3">
+              {question.type === 'video_response' ? (
+                <Video className="h-8 w-8 text-gray-400" />
+              ) : (
+                <Mic className="h-8 w-8 text-gray-400" />
+              )}
+              <p className="text-gray-500">
+                No {question.type === 'video_response' ? 'video' : 'audio'} response provided for this question
+              </p>
+            </div>
           </div>
         );
       }
     } else if (studentAnswer) {
       return (
-        <div className={`p-3 rounded text-sm ${
+        <div className={`p-4 rounded-lg text-sm border ${
           isCorrect 
-            ? 'bg-green-50 text-green-800 border border-green-200' 
+            ? 'bg-green-50 text-green-800 border-green-200' 
             : question.correctAnswer 
-            ? 'bg-red-50 text-red-800 border border-red-200'
-            : 'bg-gray-50 text-gray-700 border border-gray-200'
+            ? 'bg-red-50 text-red-800 border-red-200'
+            : 'bg-gray-50 text-gray-700 border-gray-200'
         }`}>
           <strong>Student's Answer:</strong> {String(studentAnswer)}
         </div>
       );
     } else {
       return (
-        <div className="p-3 rounded bg-gray-50 text-gray-500 text-sm border border-gray-200">
-          No answer provided
+        <div className="bg-gray-50 rounded-lg border border-gray-200 p-4 text-center text-gray-500">
+          No response provided for this question
         </div>
       );
     }
@@ -239,43 +248,49 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
           {exam.questions.map((question, index) => {
             const studentAnswer = answers[question.id.toString()];
             const isCorrect = question.correctAnswer && studentAnswer === question.correctAnswer;
+            const isVideoQuestion = question.type === 'video_response' || question.type === 'audio_response';
             
             return (
-              <div key={question.id} className="border rounded-lg p-4">
+              <div key={question.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center space-x-2">
-                    <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-sm font-medium">
-                      Q{index + 1}
+                    <span className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                      Question {index + 1}
                     </span>
-                    <Badge variant="outline">{question.type.replace('_', ' ')}</Badge>
+                    <Badge variant="outline" className="capitalize">
+                      {question.type.replace('_', ' ')}
+                    </Badge>
                     <span className="text-sm text-gray-500">{question.points} points</span>
                   </div>
-                  {getAnswerStatus(question.id, question.correctAnswer)}
+                  {!isVideoQuestion && getAnswerStatus(question.id, question.correctAnswer)}
                 </div>
                 
-                <div className="mb-3">
-                  <p className="font-medium text-gray-900 mb-2">{question.question}</p>
+                <div className="mb-4">
+                  <div className="bg-blue-50 rounded-lg p-4 mb-4">
+                    <p className="font-medium text-gray-900 text-lg">{question.question}</p>
+                  </div>
                   
                   {/* Show options for multiple choice */}
                   {question.type === "multiple_choice" && question.options && (
-                    <div className="space-y-1 mb-3">
+                    <div className="space-y-2 mb-4">
                       {(question.options as string[]).map((option, optIndex) => (
                         <div 
                           key={optIndex}
-                          className={`p-2 rounded text-sm ${
+                          className={`p-3 rounded-lg text-sm transition-colors ${
                             option === question.correctAnswer
                               ? 'bg-green-50 text-green-800 border border-green-200'
                               : option === studentAnswer
                               ? 'bg-red-50 text-red-800 border border-red-200'
-                              : 'bg-gray-50 text-gray-700'
+                              : 'bg-gray-50 text-gray-700 border border-gray-200'
                           }`}
                         >
-                          {String.fromCharCode(65 + optIndex)}. {option}
+                          <span className="font-bold mr-2">{String.fromCharCode(65 + optIndex)}.</span>
+                          {option}
                           {option === question.correctAnswer && (
-                            <span className="ml-2 text-xs font-medium">(Correct)</span>
+                            <Badge className="ml-2 bg-green-600 text-white">Correct</Badge>
                           )}
                           {option === studentAnswer && option !== question.correctAnswer && (
-                            <span className="ml-2 text-xs font-medium">(Student's Answer)</span>
+                            <Badge className="ml-2 bg-red-600 text-white">Selected</Badge>
                           )}
                         </div>
                       ))}
@@ -283,19 +298,16 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
                   )}
                 </div>
 
-                <Separator className="my-3" />
+                <Separator className="my-4" />
 
                 {/* Student's Answer */}
-                <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">Student's Answer:</p>
-                  {renderStudentAnswer(question, studentAnswer, videoAnswers, isCorrect)}
-                </div>
+                {renderStudentAnswer(question, studentAnswer, videoAnswers, isCorrect || false)}
 
                 {/* Correct Answer for non-multiple choice */}
-                {question.correctAnswer && question.type !== "multiple_choice" && (
-                  <div className="mt-3">
+                {question.correctAnswer && question.type !== "multiple_choice" && !isVideoQuestion && (
+                  <div className="mt-4">
                     <p className="text-sm font-medium text-gray-700 mb-2">Correct Answer:</p>
-                    <div className="p-3 rounded bg-green-50 text-green-800 text-sm border border-green-200">
+                    <div className="p-3 rounded-lg bg-green-50 text-green-800 text-sm border border-green-200">
                       {question.correctAnswer}
                     </div>
                   </div>
@@ -305,72 +317,6 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
           })}
         </CardContent>
       </Card>
-
-
-
-      {/* Video Question Answers */}
-      {(() => {
-        const videoQuestions = exam.questions?.filter(q => q.type === 'video_response' || q.type === 'audio_response') || [];
-        return videoQuestions.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Video/Audio Question Responses ({videoQuestions.length} questions)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {videoQuestions.map((question) => {
-                  const answer = videoAnswers?.find(va => va.videoQuestionId === question.id);
-                  return (
-                    <div key={question.id} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium">Question {question.id}</h4>
-                        <Badge variant={answer ? "default" : "secondary"}>
-                          {answer ? (answer.score ? `Score: ${answer.score}` : 'Answered') : 'Not Answered'}
-                        </Badge>
-                      </div>
-                      <div className="mb-3 p-3 bg-blue-50 rounded text-sm">
-                        <strong>Question:</strong> {question.question}
-                      </div>
-                      {answer ? (
-                        <>
-                          {answer.videoUrl && (
-                            <div className="mb-3">
-                              <video controls className="w-full max-h-40 rounded">
-                                <source src={answer.videoUrl} type="video/webm" />
-                                Your browser does not support the video tag.
-                              </video>
-                            </div>
-                          )}
-                          {answer.transcript && (
-                            <div className="mt-3">
-                              <p className="text-sm font-medium text-gray-700 mb-2">Student Answer:</p>
-                              <div className="p-3 bg-gray-50 rounded text-sm">
-                                {answer.transcript}
-                              </div>
-                              {answer.confidence && (
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Confidence: {Math.round(answer.confidence * 100)}%
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="p-3 bg-gray-100 rounded text-gray-500 text-sm">
-                          No response provided for this question
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })()}
     </div>
   );
 }

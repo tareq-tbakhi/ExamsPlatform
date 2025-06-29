@@ -9,8 +9,8 @@ import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
 // Use default values for development if environment variables are not set
-const REPLIT_DOMAINS = process.env.REPLIT_DOMAINS || `${process.env.REPL_SLUG || 'examcraft'}.${process.env.REPL_OWNER || 'user'}.repl.co`;
-const REPL_ID = process.env.REPL_ID || process.env.REPL_SLUG || 'examcraft';
+const REPLIT_DOMAINS = process.env.REPLIT_DOMAINS || 'localhost:5001';
+const REPL_ID = process.env.REPL_ID || 'local-dev-examcraft';
 
 const getOidcConfig = memoize(
   async () => {
@@ -24,6 +24,24 @@ const getOidcConfig = memoize(
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const isLocalDev = process.env.NODE_ENV === 'development' && !process.env.REPLIT_DEPLOYMENT;
+  
+  if (isLocalDev) {
+    // Use memory store for local development
+    return session({
+      secret: process.env.SESSION_SECRET!,
+      resave: false,
+      saveUninitialized: true,
+      cookie: {
+        httpOnly: true,
+        secure: false, // Allow cookies over HTTP in local dev
+        sameSite: 'lax',
+        maxAge: sessionTtl,
+      },
+    });
+  }
+  
+  // Production: Use PostgreSQL store
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
@@ -72,6 +90,34 @@ export async function setupAuth(app: Express) {
   app.use(getSession());
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // Check if running locally
+  const isLocalDev = process.env.NODE_ENV === 'development' && !process.env.REPLIT_DEPLOYMENT;
+  
+  if (isLocalDev) {
+    console.log("🔐 Local development mode - using simplified authentication");
+    
+    // Setup local development routes
+    app.get("/api/login", (req, res) => {
+      // In local dev, automatically log in as super admin
+      (req.session as any).userId = "local-dev-user";
+      req.session.save(() => {
+        res.redirect("/");
+      });
+    });
+    
+    app.get("/api/callback", (req, res) => {
+      res.redirect("/");
+    });
+    
+    app.get("/api/logout", (req, res) => {
+      req.session.destroy(() => {
+        res.redirect("/");
+      });
+    });
+    
+    return;
+  }
 
   const config = await getOidcConfig();
 
@@ -195,6 +241,77 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // Check if user is authenticated via session (email/password login)
+  if (req.session && (req.session as any).userId) {
+    const userId = (req.session as any).userId;
+    const userEmail = (req.session as any).userEmail;
+    const userRole = (req.session as any).userRole;
+    
+    // Get user from database
+    const dbUser = await storage.getUser(userId);
+    if (!dbUser || !dbUser.isActive) {
+      return res.status(401).json({ message: "User not found or inactive" });
+    }
+    
+    // Create user object for request
+    (req as any).user = {
+      claims: {
+        sub: dbUser.id,
+        email: dbUser.email,
+        first_name: dbUser.firstName,
+        last_name: dbUser.lastName
+      }
+    };
+    (req as any).dbUser = dbUser;
+    req.isAuthenticated = () => true;
+    
+    return next();
+  }
+  
+  // Check if running locally
+  const isLocalDev = process.env.NODE_ENV === 'development' && !process.env.REPLIT_DEPLOYMENT;
+  
+  if (isLocalDev) {
+    // For local development, check if user is "logged in" via session
+    if (req.session && (req.session as any).userId === "local-dev-user") {
+      // Create mock user for local development
+      (req as any).user = {
+        claims: {
+          sub: "local-dev-user",
+          email: "dev@localhost",
+          first_name: "Dev",
+          last_name: "User"
+        }
+      };
+      (req as any).dbUser = {
+        id: "local-dev-user",
+        email: "dev@localhost",
+        firstName: "Dev",
+        lastName: "User",
+        role: "super_admin",
+        isActive: true
+      };
+      req.isAuthenticated = () => true;
+      
+      // Ensure the dev user exists in the database
+      const devUser = await storage.getUser("local-dev-user");
+      if (!devUser) {
+        await storage.upsertUser({
+          id: "local-dev-user",
+          email: "dev@localhost",
+          firstName: "Dev",
+          lastName: "User",
+          profileImageUrl: "",
+          role: "super_admin",
+          isActive: true
+        });
+      }
+      
+      return next();
+    }
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {

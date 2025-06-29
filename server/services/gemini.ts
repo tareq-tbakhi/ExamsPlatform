@@ -2,7 +2,9 @@ import * as fs from "fs";
 import { GoogleGenAI, Modality } from "@google/genai";
 
 // Gemini AI service for proctoring analysis
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const ai = process.env.GEMINI_API_KEY 
+  ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
+  : null;
 
 export interface ViolationAnalysis {
   severity: 'critical' | 'major' | 'minor';
@@ -66,6 +68,17 @@ export interface VideoAnalysis {
 
 export async function analyzeViolationImage(imagePath: string, context: string): Promise<ViolationAnalysis> {
   try {
+    if (!ai) {
+      console.warn("Gemini API key not configured. Proctoring analysis is disabled.");
+      return {
+        severity: 'minor',
+        confidence: 0.1,
+        description: 'AI analysis not available - Gemini API key not configured',
+        recommendations: ['Configure Gemini API key for AI proctoring'],
+        suspiciousActivities: ['Manual review required']
+      };
+    }
+    
     const imageBytes = fs.readFileSync(imagePath);
 
     const prompt = `
@@ -181,6 +194,21 @@ export async function analyzeViolationImage(imagePath: string, context: string):
 
 async function analyzeScreenRecordingAlternative(videoPath: string, examContext: string): Promise<VideoAnalysis> {
   try {
+    if (!ai) {
+      return {
+        overallSuspicion: 0,
+        violations: [{
+          severity: 'minor' as const,
+          confidence: 0.1,
+          description: 'AI analysis not available - Gemini API key not configured',
+          recommendations: ['Configure Gemini API key for screen recording analysis'],
+          suspiciousActivities: ['Manual review required']
+        }],
+        timeline: [],
+        summary: 'Screen recording analysis unavailable - Gemini API key not configured'
+      };
+    }
+    
     // Extract filename and metadata for comprehensive analysis
     const filename = videoPath.split('/').pop() || '';
     const [type, examId, submissionId, timestamp] = filename.replace('.webm', '').split('_');
@@ -309,6 +337,22 @@ async function analyzeScreenRecordingAlternative(videoPath: string, examContext:
 
 export async function analyzeVideoRecording(videoPath: string, examContext: string): Promise<VideoAnalysis> {
   try {
+    if (!ai) {
+      console.warn("Gemini API key not configured. Video analysis is disabled.");
+      return {
+        overallSuspicion: 0,
+        violations: [{
+          severity: 'minor' as const,
+          confidence: 0.1,
+          description: 'AI analysis not available - Gemini API key not configured',
+          recommendations: ['Configure Gemini API key for video analysis'],
+          suspiciousActivities: ['Manual review required']
+        }],
+        timeline: [],
+        summary: 'Video analysis unavailable - Gemini API key not configured'
+      };
+    }
+    
     // Convert URL path to actual file path
     let actualPath = videoPath;
     if (videoPath.startsWith('/api/videos/proctoring/')) {

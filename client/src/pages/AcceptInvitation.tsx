@@ -52,7 +52,7 @@ export default function AcceptInvitation() {
         title: "Account Created Successfully",
         description: "Welcome to ExamCraft! You can now log in.",
       });
-      setLocation("/api/login");
+      window.location.href = "/api/login";
     },
     onError: (error: any) => {
       toast({
@@ -176,7 +176,7 @@ export default function AcceptInvitation() {
             <p className="text-gray-600 dark:text-gray-400 mb-6">
               This invitation has already been accepted. You can log in to access your account.
             </p>
-            <Button onClick={() => setLocation("/api/login")} className="w-full">
+            <Button onClick={() => window.location.href = "/api/login"} className="w-full">
               Go to Login
             </Button>
           </CardContent>

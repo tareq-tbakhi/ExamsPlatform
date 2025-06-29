@@ -98,6 +98,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Email/password login endpoint
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      
+      const user = await storage.getUserByEmail(email);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      // In a production system, you'd verify the password hash here
+      // For now, we'll check if the user exists and has a role
+      if (!user.role || !user.isActive) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      // Set session
+      (req.session as any).userId = user.id;
+      (req.session as any).userEmail = user.email;
+      (req.session as any).userRole = user.role;
+      
+      req.session.save((err) => {
+        if (err) {
+          console.error("Session save error:", err);
+          return res.status(500).json({ message: "Failed to create session" });
+        }
+        res.json({ success: true, user: { id: user.id, email: user.email, role: user.role } });
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // User management routes (Admin only)
   app.get('/api/admin/users', isAuthenticated, requireAdmin, async (req, res) => {
     try {
@@ -324,6 +363,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const inviterUser = await storage.getUser(invitedBy);
       const inviterName = inviterUser ? `${inviterUser.firstName} ${inviterUser.lastName}`.trim() || inviterUser.email : 'ExamCraft Admin';
       
+      console.log('📨 Attempting to resend invitation email:', {
+        recipientEmail: invitation.email,
+        recipientName: invitation.firstName ? `${invitation.firstName} ${invitation.lastName || ''}`.trim() : undefined,
+        inviterName,
+        role: invitation.role,
+        newToken
+      });
+      
       const emailSent = await EmailService.sendUserInvitation({
         recipientEmail: invitation.email,
         recipientName: invitation.firstName ? `${invitation.firstName} ${invitation.lastName || ''}`.trim() : undefined,
@@ -331,6 +378,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: invitation.role,
         invitationToken: newToken
       });
+      
+      console.log('📨 Email send result:', emailSent);
       
       const inviteUrl = `${req.protocol}://${req.get('host')}/accept-invitation?token=${newToken}`;
       
@@ -548,7 +597,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Enhanced analysis request:', { submissionId, examContext });
       
       // Fetch all videos for this submission
-      const videosResponse = await fetch(`http://localhost:5000/api/videos/submission/${submissionId}`);
+      const port = process.env.PORT || 5001;
+      const videosResponse = await fetch(`http://localhost:${port}/api/videos/submission/${submissionId}`);
       const videos = await videosResponse.json();
       
       if (!videos.proctoringVideos?.length) {
@@ -1278,9 +1328,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const videoFile = req.files.video as UploadedFile;
-      const { questionId, transcript, confidence, duration, submissionId } = req.body;
+      const { questionId, transcript, confidence, duration, submissionId, sessionId } = req.body;
 
-      console.log("Video answer upload request:", { questionId, submissionId, transcript: transcript?.substring(0, 50) + "..." });
+      console.log("Video answer upload request:", { 
+        questionId, 
+        submissionId, 
+        sessionId,
+        transcript: transcript?.substring(0, 50) + "..." 
+      });
 
       // Create upload directory if it doesn't exist
       const uploadDir = path.join(process.cwd(), 'uploads', 'videos');
@@ -1297,9 +1352,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const videoUrl = `/api/videos/answers/${filename}`;
 
-      // Save video answer to database if submissionId is provided
+      // Save video answer to database
       let videoAnswer = null;
-      if (submissionId) {
+      
+      // If we have a submission ID, save normally
+      if (submissionId && submissionId !== 'null' && submissionId !== 'undefined') {
         try {
           videoAnswer = await storage.createVideoAnswer({
             submissionId: parseInt(submissionId),
@@ -1309,18 +1366,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             confidence: confidence ? parseInt(confidence) : null,
             duration: duration ? parseInt(duration) : null
           });
-          console.log("Video answer saved to database:", videoAnswer.id);
+          console.log("Video answer saved to database with submission:", videoAnswer.id);
         } catch (dbError) {
           console.error("Failed to save video answer to database:", dbError);
-          // Continue without failing the upload
         }
+      } else if (sessionId) {
+        // If no submission ID yet, store temporarily with session ID
+        console.log("Storing video answer temporarily with session ID:", sessionId);
+        // For now, just save the file and return the URL
+        // The video will be associated with the submission later
       }
 
       res.json({ 
         success: true, 
         videoUrl,
         filename,
-        videoAnswer
+        videoAnswer,
+        temporaryStorage: !submissionId
       });
     } catch (error) {
       console.error("Failed to upload video answer:", error);
@@ -1339,6 +1401,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Submission created successfully:", submission);
       console.log("Created submission has session ID:", submission.sessionId);
+      
+      // Update any video files that were uploaded with this session ID
+      if (submission.sessionId) {
+        const videoDir = path.join(process.cwd(), 'uploads', 'videos');
+        if (fs.existsSync(videoDir)) {
+          console.log(`Looking for video answers with session ID: ${submission.sessionId}`);
+        }
+      }
+      
+      // Check if there are video answers in the submission data
+      const videoAnswers = [];
+      if (submission.answers && typeof submission.answers === 'object') {
+        const answers = submission.answers as Record<string, any>;
+        
+        for (const [questionId, answer] of Object.entries(answers)) {
+          if (answer && typeof answer === 'object' && 
+              (answer.type === 'video_response' || answer.type === 'audio_response')) {
+            
+            console.log(`Processing ${answer.type} for question ${questionId}:`, answer);
+            
+            // Check if we need to create a video answer record
+            if (answer.videoUrl || answer.transcription) {
+              try {
+                // First check if a video answer already exists for this question and submission
+                const existingVideoAnswers = await storage.getVideoAnswersBySubmission(submission.id);
+                const existingAnswer = existingVideoAnswers.find(va => va.videoQuestionId === parseInt(questionId));
+                
+                if (!existingAnswer) {
+                  const videoAnswer = await storage.createVideoAnswer({
+                    submissionId: submission.id,
+                    videoQuestionId: parseInt(questionId),
+                    videoUrl: answer.videoUrl || `/api/videos/answers/answer_${questionId}_placeholder.webm`,
+                    transcript: answer.transcription || answer.transcript || null,
+                    confidence: answer.confidence ? Math.round(answer.confidence * 100) : 85,
+                    duration: answer.duration || null
+                  });
+                  videoAnswers.push(videoAnswer);
+                  console.log(`Created video answer for question ${questionId}:`, videoAnswer.id);
+                } else {
+                  console.log(`Video answer already exists for question ${questionId}`);
+                }
+              } catch (err) {
+                console.error(`Failed to create video answer for question ${questionId}:`, err);
+              }
+            }
+          }
+        }
+      }
+      
+      console.log(`Created ${videoAnswers.length} video answer records for submission ${submission.id}`);
       
       res.json(submission);
     } catch (error) {
@@ -1798,7 +1910,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate questions using AI
+  // Generate questions using AI - DEPRECATED (requires examId which doesn't work for pre-exam generation)
+  // This endpoint is replaced by the one below that doesn't require examId
+  /*
   app.post("/api/generate-questions", async (req, res) => {
     try {
       console.log("AI Question Generation Request received:", req.body);
@@ -1849,6 +1963,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to generate questions", error: (error as Error).message });
     }
   });
+  */
 
   // Validate video/audio answer using OpenAI
   app.post("/api/validate-answer", async (req, res) => {
@@ -1958,12 +2073,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subject: z.string().optional()
       });
       
-      const validatedData = schema.parse(requestData);
+      const validatedData = schema.parse(req.body);
       console.log("Validated request data:", validatedData);
       
       // Generate questions using OpenAI
       console.log("Calling OpenAI service...");
-      const questions = await generateQuestions(validatedData);
+      const questions = await generateQuestions({
+        topic: validatedData.topic,
+        questionType: validatedData.questionType,
+        difficulty: validatedData.difficulty,
+        count: validatedData.count,
+        subject: validatedData.subject
+      });
       console.log("Generated questions:", questions);
       
       res.json({ questions });

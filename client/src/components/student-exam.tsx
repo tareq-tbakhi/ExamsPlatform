@@ -8,6 +8,7 @@ import { z } from "zod";
 declare global {
   interface Window {
     videoRecorderAutoSave?: () => Promise<void>;
+    proctoringSessionId?: string;
   }
 }
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,9 @@ import {
   Send,
   CheckCircle,
   AlertCircle,
-  Shield
+  Shield,
+  Video,
+  Mic
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -64,7 +67,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
   const [proctoringSetupComplete, setProctoringSetupComplete] = useState(false);
   const [violations, setViolations] = useState<any[]>([]);
   const [submissionId, setSubmissionId] = useState<number | undefined>();
-  const [proctoringSessionId, setProctoringSessionId] = useState<string | undefined>();
+  const [proctoringSessionId, setProctoringSessionId] = useState<string>("");
   const { toast } = useToast();
 
   const { data: exam, isLoading, error } = useQuery<ExamWithQuestions>({
@@ -77,21 +80,6 @@ export default function StudentExam({ examId }: StudentExamProps) {
     defaultValues: {
       studentName: "",
       studentEmail: "",
-    },
-  });
-
-  // Create draft submission for video/audio recording
-  const createDraftSubmissionMutation = useMutation({
-    mutationFn: async (submissionData: any) => {
-      const response = await apiRequest("POST", "/api/submissions", submissionData);
-      return response.json();
-    },
-    onSuccess: (result) => {
-      setSubmissionId(result.id);
-      console.log(`Created draft submission with ID: ${result.id}`);
-    },
-    onError: (error) => {
-      console.error("Failed to create draft submission:", error);
     },
   });
 
@@ -180,20 +168,6 @@ export default function StudentExam({ examId }: StudentExamProps) {
     setStudentInfo(studentData);
     setTimeRemaining((exam?.duration || 60) * 60); // Convert minutes to seconds
     
-    // Create draft submission for video/audio recording
-    if (exam) {
-      const draftSubmissionData = {
-        examId: exam.id,
-        studentName: studentData.studentName,
-        studentEmail: studentData.studentEmail || undefined,
-        answers: {},
-        totalPoints: exam.totalPoints,
-        timeSpent: 0,
-        sessionId: proctoringSessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      };
-      createDraftSubmissionMutation.mutate(draftSubmissionData);
-    }
-    
     // Enable proctoring protection for all exams by default
     setProctoringEnabled(true);
   };
@@ -206,6 +180,8 @@ export default function StudentExam({ examId }: StudentExamProps) {
   const handleSessionIdReady = (sessionId: string) => {
     setProctoringSessionId(sessionId);
     console.log(`Captured session ID: ${sessionId}`);
+    // Make session ID available globally for video recorder
+    window.proctoringSessionId = sessionId;
   };
 
   const handleAnswerChange = (questionId: number, answer: any) => {
@@ -232,8 +208,18 @@ export default function StudentExam({ examId }: StudentExamProps) {
     });
   };
 
-  const handleSubmitExam = () => {
+  const handleSubmitExam = async () => {
     if (!exam || !studentInfo) return;
+
+    // Auto-save any pending video/audio recordings before submitting
+    const videoQuestions = exam.questions.filter(q => 
+      q.type === "video_response" || q.type === "audio_response"
+    );
+    
+    if (videoQuestions.length > 0 && window.videoRecorderAutoSave) {
+      console.log("Auto-saving video/audio recordings before submission...");
+      await window.videoRecorderAutoSave();
+    }
 
     const timeSpent = Math.round(((exam.duration * 60) - timeRemaining) / 60);
     
@@ -250,6 +236,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
     console.log('Submitting exam with answers:', answers);
     console.log('Submission data:', submissionData);
     console.log('Total answers:', Object.keys(answers).length);
+    console.log('Session ID for proctoring videos:', proctoringSessionId);
 
     submitExamMutation.mutate(submissionData);
   };
@@ -266,6 +253,31 @@ export default function StudentExam({ examId }: StudentExamProps) {
   };
 
   const currentQuestion = exam?.questions[currentQuestionIndex];
+
+  // Helper function to render question type badge
+  const renderQuestionTypeBadge = (type: string) => {
+    if (type === 'video_response') {
+      return (
+        <div className="text-sm font-medium capitalize px-3 py-1 rounded-full inline-flex items-center gap-2 bg-purple-100 text-purple-700">
+          <Video className="h-4 w-4" />
+          <span>Video Response</span>
+        </div>
+      );
+    } else if (type === 'audio_response') {
+      return (
+        <div className="text-sm font-medium capitalize px-3 py-1 rounded-full inline-flex items-center gap-2 bg-indigo-100 text-indigo-700">
+          <Mic className="h-4 w-4" />
+          <span>Audio Response</span>
+        </div>
+      );
+    } else {
+      return (
+        <div className="text-sm font-medium capitalize px-3 py-1 rounded-full inline-flex items-center gap-2 bg-gray-100 text-gray-600">
+          <span>{type.replace('_', ' ')}</span>
+        </div>
+      );
+    }
+  };
 
   // Show proctoring setup if enabled and not completed
   if (proctoringEnabled && !proctoringSetupComplete && !examStarted) {
@@ -518,9 +530,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
                   <Badge className="bg-blue-600 text-white px-3 py-1 text-sm">
                     Question {currentQuestionIndex + 1}
                   </Badge>
-                  <span className="text-sm font-medium text-gray-600 capitalize bg-gray-100 px-3 py-1 rounded-full">
-                    {currentQuestion.type.replace('_', ' ')}
-                  </span>
+                  {renderQuestionTypeBadge(currentQuestion.type)}
                   <span className="text-sm font-medium text-green-600 bg-green-100 px-3 py-1 rounded-full">
                     {currentQuestion.points} points
                   </span>
@@ -554,9 +564,9 @@ export default function StudentExam({ examId }: StudentExamProps) {
                     <div className="space-y-3">
                       {(currentQuestion.options as string[]).map((option, index) => (
                         <div key={index} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                          <RadioGroupItem value={option} id={`option-${index}`} />
+                          <RadioGroupItem value={String(option)} id={`option-${index}`} />
                           <Label htmlFor={`option-${index}`} className="flex-1 cursor-pointer">
-                            {option}
+                            {String(option)}
                           </Label>
                         </div>
                       ))}
@@ -605,32 +615,34 @@ export default function StudentExam({ examId }: StudentExamProps) {
                 )}
 
                 {/* Video Response */}
-                {currentQuestion.type === "video_response" && submissionId && (
+                {currentQuestion.type === "video_response" && (
                   <VideoRecorder
                     questionId={currentQuestion.id}
-                    submissionId={submissionId}
+                    submissionId={submissionId || 0}
                     questionType="video_response"
-                    onRecordingComplete={(transcription, confidence) => {
+                    onRecordingComplete={(transcription, confidence, videoUrl) => {
                       handleAnswerChange(currentQuestion.id, {
                         transcription,
                         confidence,
-                        type: 'video_response'
+                        type: 'video_response',
+                        videoUrl
                       });
                     }}
                   />
                 )}
 
                 {/* Audio Response */}
-                {currentQuestion.type === "audio_response" && submissionId && (
+                {currentQuestion.type === "audio_response" && (
                   <VideoRecorder
                     questionId={currentQuestion.id}
-                    submissionId={submissionId}
+                    submissionId={submissionId || 0}
                     questionType="audio_response"
-                    onRecordingComplete={(transcription, confidence) => {
+                    onRecordingComplete={(transcription, confidence, videoUrl) => {
                       handleAnswerChange(currentQuestion.id, {
                         transcription,
                         confidence,
-                        type: 'audio_response'
+                        type: 'audio_response',
+                        videoUrl
                       });
                     }}
                   />
@@ -649,26 +661,37 @@ export default function StudentExam({ examId }: StudentExamProps) {
                   Previous
                 </Button>
 
-                <Button
-                  onClick={async () => {
-                    const currentQuestion = exam.questions[currentQuestionIndex];
-                    
-                    // Auto-save video/audio recordings before moving to next question
-                    if (currentQuestion.type === "video_response" || currentQuestion.type === "audio_response") {
-                      if (window.videoRecorderAutoSave) {
-                        await window.videoRecorderAutoSave();
-                        console.log(`Auto-saved ${currentQuestion.type} for question ${currentQuestion.id}`);
+                {currentQuestionIndex === exam.questions.length - 1 ? (
+                  <Button
+                    onClick={handleSubmitExam}
+                    className="px-6 py-2 bg-green-600 hover:bg-green-700"
+                    disabled={submitExamMutation.isPending}
+                  >
+                    {submitExamMutation.isPending ? "Submitting..." : "Submit Exam"}
+                    <CheckCircle className="h-4 w-4 ml-2" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={async () => {
+                      const currentQuestion = exam.questions[currentQuestionIndex];
+                      
+                      // Auto-save video/audio recordings before moving to next question
+                      if (currentQuestion.type === "video_response" || currentQuestion.type === "audio_response") {
+                        if (window.videoRecorderAutoSave) {
+                          await window.videoRecorderAutoSave();
+                          console.log(`Auto-saved ${currentQuestion.type} for question ${currentQuestion.id}`);
+                        }
                       }
-                    }
-                    
-                    setCurrentQuestionIndex(Math.min(exam.questions.length - 1, currentQuestionIndex + 1));
-                  }}
-                  disabled={currentQuestionIndex === exam.questions.length - 1}
-                  className="px-6 py-2"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-2" />
-                </Button>
+                      
+                      setCurrentQuestionIndex(Math.min(exam.questions.length - 1, currentQuestionIndex + 1));
+                    }}
+                    disabled={currentQuestionIndex === exam.questions.length - 1}
+                    className="px-6 py-2"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -720,27 +743,32 @@ export default function StudentExam({ examId }: StudentExamProps) {
           </CardContent>
         </Card>
 
-        {/* Submit Section */}
-        <Card>
-          <CardContent className="pt-6">
+        {/* Submit Exam Button - Always visible */}
+        <Card className="mb-6">
+          <CardContent className="pt-4">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="font-medium text-gray-900 mb-2">Ready to Submit?</h3>
-                <p className="text-sm text-gray-600">
-                  You have answered {Object.keys(answers).length} out of {exam.questions.length} questions.
+                <h3 className="font-medium text-gray-900">Ready to submit?</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Make sure you've answered all questions before submitting.
                 </p>
               </div>
               <Button
-                onClick={() => {
-                  if (window.confirm("Are you sure you want to submit your exam? This action cannot be undone.")) {
-                    handleSubmitExam();
-                  }
-                }}
+                onClick={handleSubmitExam}
+                className="bg-green-600 hover:bg-green-700 text-white"
                 disabled={submitExamMutation.isPending}
-                className="bg-orange-500 hover:bg-orange-600"
               >
-                <Send className="h-4 w-4 mr-2" />
-                {submitExamMutation.isPending ? "Submitting..." : "Submit Exam"}
+                {submitExamMutation.isPending ? (
+                  <>
+                    <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    Submit Exam
+                    <CheckCircle className="h-4 w-4 ml-2" />
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>

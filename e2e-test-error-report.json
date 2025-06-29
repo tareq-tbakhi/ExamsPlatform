@@ -1,0 +1,6 @@
+{
+  "status": "FAILED",
+  "timestamp": "2025-06-29T15:39:03.257Z",
+  "error": "Cannot read properties of undefined (reading 'type')",
+  "stack": "TypeError: Cannot read properties of undefined (reading 'type')\n    at runE2ETest (file:///Users/macbook/Documents/exam-new/ExamsPlatform/e2e-exam-flow-test.js:198:31)"
+}

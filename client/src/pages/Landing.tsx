@@ -13,7 +13,7 @@ export default function Landing() {
             <h1 className="text-2xl font-bold text-gray-900">ExamCraft</h1>
           </div>
           <Button 
-            onClick={() => window.location.href = '/api/login'}
+            onClick={() => window.location.href = '/login'}
             className="bg-blue-600 hover:bg-blue-700"
           >
             Sign In
@@ -33,7 +33,7 @@ export default function Landing() {
           </p>
           <Button 
             size="lg"
-            onClick={() => window.location.href = '/api/login'}
+            onClick={() => window.location.href = '/login'}
             className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-3"
           >
             Get Started
@@ -102,7 +102,7 @@ export default function Landing() {
           <Button 
             size="lg"
             variant="secondary"
-            onClick={() => window.location.href = '/api/login'}
+            onClick={() => window.location.href = '/login'}
             className="bg-white text-blue-600 hover:bg-gray-100"
           >
             Start Creating Exams
