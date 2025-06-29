@@ -15,7 +15,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Question, InsertExam } from "@shared/schema";
 import QuestionForms from "./question-forms";
-import AIGenerator from "./ai-generator";
+import { AIGeneratorTrigger } from "./ai-generator-trigger";
 import { useAuth } from "../hooks/useAuth";
 
 const examSchema = z.object({
@@ -383,9 +383,6 @@ export default function ExamCreator() {
 
       {/* Sidebar */}
       <div className="space-y-6">
-        {/* AI Generator */}
-        <AIGenerator onQuestionsGenerated={addAIQuestions} />
-
         {/* Settings */}
         <Card>
           <CardHeader>
@@ -489,6 +486,13 @@ export default function ExamCreator() {
           }}
         />
       )}
+
+      {/* AI Question Generator Floating Button */}
+      <AIGeneratorTrigger 
+        onGenerate={addAIQuestions}
+        examTitle={form.watch('title')}
+        language="en"
+      />
     </div>
   );
 }
@@ -536,7 +540,7 @@ function QuestionDisplay({
       
       <p className="text-gray-900 mb-3">{question.question}</p>
       
-      {question.type === "multiple_choice" && question.options && (
+      {question.type === "multiple_choice" && question.options && Array.isArray(question.options) ? (
         <div className="space-y-2">
           {(question.options as string[]).map((option, idx) => (
             <div key={idx} className="flex items-center space-x-2">
@@ -552,7 +556,7 @@ function QuestionDisplay({
             </div>
           ))}
         </div>
-      )}
+      ) : null}
       
       {question.type !== "multiple_choice" && question.correctAnswer && (
         <div className="bg-white border border-gray-200 rounded p-3">

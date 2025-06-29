@@ -17,7 +17,6 @@ import StudentDashboard from "@/pages/StudentDashboard";
 import AcceptInvitation from "@/pages/AcceptInvitation";
 import AccessDenied from "@/pages/AccessDenied";
 import StudentExamAccess from "@/pages/StudentExamAccess";
-import { AIAssistantTrigger } from "@/components/ai-assistant/ai-assistant-trigger";
 import ResultsPage from "@/pages/ResultsPage";
 
 function Router() {
@@ -88,7 +87,6 @@ function App() {
       <TooltipProvider>
         <Toaster />
         <Router />
-        <AIAssistantTrigger />
       </TooltipProvider>
     </QueryClientProvider>
   );
