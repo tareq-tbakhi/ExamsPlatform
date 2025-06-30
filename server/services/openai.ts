@@ -11,6 +11,7 @@ export interface GenerateQuestionsRequest {
   difficulty: "easy" | "medium" | "hard";
   count: number;
   subject?: string;
+  language?: string;
 }
 
 export interface GeneratedQuestion {
@@ -25,13 +26,24 @@ export interface GeneratedQuestion {
 export async function generateQuestions(request: GenerateQuestionsRequest): Promise<GeneratedQuestion[]> {
   try {
     const prompt = createPrompt(request);
+    const languageName = formatLanguageName(request.language || "english");
     
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: "You are an expert educator and test creator. Generate educational exam questions based on the given parameters. Always respond with valid JSON format."
+          content: `You are an expert educator and test creator. Generate educational exam questions based on the given parameters. 
+          
+CRITICAL: ALL content must be in ${languageName} language only. This includes:
+- Question text
+- All answer options
+- Correct answers
+- Any explanations
+
+If you don't recognize the language "${languageName}", try your best to generate content in that language or a closely related language.
+
+Always respond with valid JSON format.`
         },
         {
           role: "user",
@@ -62,8 +74,53 @@ export async function generateQuestions(request: GenerateQuestionsRequest): Prom
   }
 }
 
+function formatLanguageName(language: string): string {
+  // Common language code mappings
+  const languageCodeMap: { [key: string]: string } = {
+    "en": "English",
+    "ar": "Arabic",
+    "fr": "French",
+    "de": "German",
+    "es": "Spanish",
+    "it": "Italian",
+    "pt": "Portuguese",
+    "ru": "Russian",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "zh": "Chinese",
+    "hi": "Hindi",
+    "tr": "Turkish",
+    "pl": "Polish",
+    "nl": "Dutch",
+    "sv": "Swedish",
+    "no": "Norwegian",
+    "da": "Danish",
+    "fi": "Finnish",
+    "el": "Greek",
+    "he": "Hebrew",
+    "th": "Thai",
+    "vi": "Vietnamese",
+    "id": "Indonesian",
+    "ms": "Malay",
+    "ur": "Urdu"
+  };
+  
+  // Check if it's a language code
+  const lowerLang = language.toLowerCase();
+  if (languageCodeMap[lowerLang]) {
+    return languageCodeMap[lowerLang];
+  }
+  
+  // Otherwise, capitalize the first letter of each word
+  return language.split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
 function createPrompt(request: GenerateQuestionsRequest): string {
-  const { topic, questionType, difficulty, count, subject } = request;
+  const { topic, questionType, difficulty, count, subject, language = "english" } = request;
+  
+  const languageName = formatLanguageName(language);
   
   let prompt = `Generate ${count} ${difficulty} level ${questionType.replace('_', ' ')} question(s) about "${topic}"`;
   
@@ -71,7 +128,7 @@ function createPrompt(request: GenerateQuestionsRequest): string {
     prompt += ` for a ${subject} exam`;
   }
   
-  prompt += `.\n\nRequirements:\n`;
+  prompt += `.\n\n🚨 CRITICAL LANGUAGE REQUIREMENT 🚨\nALL content MUST be written in ${languageName} language.\nDo NOT mix languages. Do NOT use English unless the language is ${languageName}.\n\nRequirements:\n`;
   
   switch (questionType) {
     case "multiple_choice":
@@ -132,11 +189,11 @@ function createPrompt(request: GenerateQuestionsRequest): string {
 {
   "questions": [
     {
-      "question": "The question text",
+      "question": "The question text in ${languageName}",
       "type": "${questionType}",
-      "options": ["A", "B", "C", "D"], // only for multiple choice
-      "correctAnswer": "The correct answer", // for multiple choice: the letter (A,B,C,D), for others: the answer text or keywords
-      "explanation": "Brief explanation of the correct answer", // optional
+      "options": ["A", "B", "C", "D"], // only for multiple choice, in ${languageName}
+      "correctAnswer": "The correct answer in ${languageName}", // for multiple choice: the letter (A,B,C,D), for others: the answer text or keywords
+      "explanation": "Brief explanation of the correct answer in ${languageName}", // optional
       "metadata": { // optional, for coding/video/audio questions
         "keywords": ["keyword1", "keyword2"], // for video/audio questions
         "template": "code template", // for coding questions
