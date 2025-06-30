@@ -2070,7 +2070,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         questionType: z.enum(["multiple_choice", "true_false", "short_answer", "essay", "coding", "video_response", "audio_response"]),
         difficulty: z.enum(["easy", "medium", "hard"]),
         count: z.number().min(1).max(20),
-        subject: z.string().optional()
+        subject: z.string().optional(),
+        language: z.string().optional().default("english")
       });
       
       const validatedData = schema.parse(req.body);
@@ -2083,7 +2084,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         questionType: validatedData.questionType,
         difficulty: validatedData.difficulty,
         count: validatedData.count,
-        subject: validatedData.subject
+        subject: validatedData.subject,
+        language: validatedData.language
       });
       console.log("Generated questions:", questions);
       
