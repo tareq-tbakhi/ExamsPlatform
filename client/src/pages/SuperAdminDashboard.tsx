@@ -75,7 +75,7 @@ export default function SuperAdminDashboard() {
 
   // Fetch all users
   const { data: users = [], isLoading: usersLoading, error: usersError } = useQuery({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/admin/users"],
     enabled: isAuthenticated && (user as any)?.role === 'super_admin',
   });
 
@@ -122,14 +122,14 @@ export default function SuperAdminDashboard() {
   // Update user role mutation
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      return await apiRequest('PATCH', `/api/users/${userId}/role`, { role });
+      return await apiRequest('PATCH', `/api/admin/users/${userId}/role`, { role });
     },
     onSuccess: () => {
       toast({
         title: "Role Updated",
         description: "User role has been updated successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
     },
     onError: (error) => {
       toast({
@@ -143,14 +143,14 @@ export default function SuperAdminDashboard() {
   // Toggle user active status mutation
   const toggleActiveMutation = useMutation({
     mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
-      return await apiRequest('PATCH', `/api/users/${userId}/active`, { isActive });
+      return await apiRequest('PATCH', `/api/admin/users/${userId}/status`, { isActive });
     },
     onSuccess: () => {
       toast({
         title: "User Status Updated",
         description: "User status has been updated successfully.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
     },
     onError: (error) => {
       toast({
