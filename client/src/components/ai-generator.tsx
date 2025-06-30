@@ -41,7 +41,7 @@ interface AIGeneratorProps {
   onClose?: () => void;
 }
 
-type ConversationStep = "topic" | "description" | "types" | "difficulty" | "count" | "confirm" | "generating";
+type ConversationStep = "topic" | "description" | "language" | "types" | "difficulty" | "count" | "confirm" | "generating";
 
 export default function AIGenerator({ onQuestionsGenerated, isInPopover = false, onClose }: AIGeneratorProps) {
   const { toast } = useToast();
@@ -53,6 +53,7 @@ export default function AIGenerator({ onQuestionsGenerated, isInPopover = false,
   const [formData, setFormData] = useState({
     topic: "",
     description: "",
+    language: "english",
     questionTypes: [] as string[],
     difficulty: "medium",
     count: 5,
@@ -167,10 +168,21 @@ export default function AIGenerator({ onQuestionsGenerated, isInPopover = false,
 
       case "description":
         if (parsed.type === "skip") {
-          showQuestionTypes();
+          showLanguageSelection();
         } else {
           setFormData(prev => ({ ...prev, description: userInput }));
+          showLanguageSelection();
+        }
+        break;
+
+      case "language":
+        // Accept any language input
+        if (userInput.trim()) {
+          setFormData(prev => ({ ...prev, language: userInput.toLowerCase() }));
+          addUserMessage(userInput);
           showQuestionTypes();
+        } else {
+          addSystemMessage("Please enter a language name");
         }
         break;
 
@@ -231,9 +243,32 @@ export default function AIGenerator({ onQuestionsGenerated, isInPopover = false,
       case "description":
         if (suggestion === "Skip") {
           addUserMessage("Skip");
-          showQuestionTypes();
+          showLanguageSelection();
         } else {
           inputRef.current?.focus();
+        }
+        break;
+        
+      case "language":
+        // For suggestion buttons, use predefined language codes
+        const langMap: { [key: string]: string } = { 
+          "English": "en", 
+          "Arabic": "ar", 
+          "French": "fr",
+          "German": "de",
+          "Spanish": "es",
+          "Chinese": "zh"
+        };
+        const langCode = langMap[suggestion as keyof typeof langMap];
+        if (langCode) {
+          addUserMessage(suggestion);
+          setFormData(prev => ({ ...prev, language: langCode }));
+          showQuestionTypes();
+        } else {
+          // For any other suggestion, use it as-is (lowercase)
+          addUserMessage(suggestion);
+          setFormData(prev => ({ ...prev, language: suggestion.toLowerCase() }));
+          showQuestionTypes();
         }
         break;
         
@@ -342,6 +377,16 @@ export default function AIGenerator({ onQuestionsGenerated, isInPopover = false,
     }, 500);
   };
 
+  const showLanguageSelection = () => {
+    setTimeout(() => {
+      addSystemMessage(
+        "What language should the questions be in?\n\nYou can choose from the suggestions below or type any language (e.g., German, Spanish, Italian, Japanese, etc.)",
+        ["English", "Arabic", "French"]
+      );
+      setCurrentStep("language");
+    }, 500);
+  };
+
   const showQuestionTypes = () => {
     setTimeout(() => {
       addSystemMessage(
@@ -359,6 +404,26 @@ export default function AIGenerator({ onQuestionsGenerated, isInPopover = false,
       return type ? `${type.emoji} ${type.label}` : id;
     });
 
+    // Format language display - handle both codes and full names
+    const languageCodeMap: { [key: string]: string } = {
+      "en": "English",
+      "ar": "Arabic",
+      "fr": "French",
+      "de": "German",
+      "es": "Spanish",
+      "zh": "Chinese",
+      "ja": "Japanese",
+      "ko": "Korean",
+      "pt": "Portuguese",
+      "it": "Italian",
+      "ru": "Russian"
+    };
+    
+    const languageDisplay = languageCodeMap[formData.language] || 
+      formData.language.split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
     const summaryHtml = `
 <div style="background: linear-gradient(135deg, #f5f3ff 0%, #fef3ff 100%); padding: 20px; border-radius: 12px; margin-bottom: 12px;">
   <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #1a1a1a;">
@@ -373,6 +438,16 @@ export default function AIGenerator({ onQuestionsGenerated, isInPopover = false,
       <div>
         <div style="font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Topic</div>
         <div style="font-size: 15px; color: #1a1a1a; font-weight: 500;">${formData.topic}</div>
+      </div>
+    </div>
+    
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div style="width: 40px; height: 40px; background: #10b981; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <span style="font-size: 20px;">🌐</span>
+      </div>
+      <div>
+        <div style="font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Language</div>
+        <div style="font-size: 15px; color: #1a1a1a; font-weight: 500;">${languageDisplay}</div>
       </div>
     </div>
     
@@ -440,6 +515,7 @@ export default function AIGenerator({ onQuestionsGenerated, isInPopover = false,
           questionType,
           count: questionsPerType,
           difficulty: formData.difficulty,
+          language: formData.language,
         });
         const result = await response.json();
         if (result.questions) {
@@ -482,6 +558,7 @@ export default function AIGenerator({ onQuestionsGenerated, isInPopover = false,
     setFormData({
       topic: "",
       description: "",
+      language: "english",
       questionTypes: [],
       difficulty: "medium",
       count: 5,
@@ -553,6 +630,8 @@ export default function AIGenerator({ onQuestionsGenerated, isInPopover = false,
         return "e.g., JavaScript, Calculus, World History...";
       case "description":
         return "Add specific details, learning objectives, or focus areas...\n(Press Shift+Enter for new line, Enter to continue)";
+      case "language":
+        return "Enter any language (e.g., German, Spanish, Japanese)...";
       case "types":
         return formData.questionTypes.length > 0 
           ? "Press Enter to continue or add more types..." 
