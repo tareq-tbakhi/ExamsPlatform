@@ -11,6 +11,8 @@ vite.config.ts.*
 .env.production
 .env.*.local
 .env.backup
+.env.backup*
+.env.current
 
 # Logs
 *.log
@@ -18,3 +20,12 @@ server.log
 
 # Sensitive files
 cookies.txt
+
+# User uploads and media
+uploads/
+uploads/**
+public/*.exr
+
+# Temporary and backup files
+*.backup
+*.tmp
