@@ -41,6 +41,7 @@ import { uploadQueue } from "@/lib/upload-queue";
 import ProctoringManager from "@/components/proctoring/proctoring-manager";
 import ProctoringSetup from "@/components/proctoring/proctoring-setup";
 import { VideoRecorder } from "@/components/video-recorder";
+import AudioQuestion from "@/components/proctoring/audio-question";
 import type { ExamWithQuestions, Question } from "@shared/schema";
 
 interface StudentExamProps {
@@ -545,12 +546,14 @@ export default function StudentExam({ examId }: StudentExamProps) {
                 </Button>
               </div>
 
-              {/* Question Text - More Prominent */}
-              <div className="mb-8 p-6 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
-                <h3 className="text-xl font-medium text-gray-900 leading-relaxed">
-                  {currentQuestion.question}
-                </h3>
-              </div>
+              {/* Question Text - More Prominent - Hidden for audio questions */}
+              {currentQuestion.type !== "audio_response" && (
+                <div className="mb-8 p-6 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
+                  <h3 className="text-xl font-medium text-gray-900 leading-relaxed">
+                    {String(currentQuestion.question)}
+                  </h3>
+                </div>
+              )}
 
               {/* Answer Area */}
               <div className="bg-white border border-gray-200 rounded-lg p-6">
@@ -633,18 +636,25 @@ export default function StudentExam({ examId }: StudentExamProps) {
 
                 {/* Audio Response */}
                 {currentQuestion.type === "audio_response" && (
-                  <VideoRecorder
+                  <AudioQuestion
                     questionId={currentQuestion.id}
-                    submissionId={submissionId || 0}
-                    questionType="audio_response"
-                    onRecordingComplete={(transcription, confidence, videoUrl) => {
+                    questionText={currentQuestion.question}
+                    questionNumber={currentQuestionIndex + 1}
+                    duration={180} // 3 minutes default
+                    sessionId={proctoringSessionId}
+                    onAnswerSave={(transcript, audioUrl) => {
                       handleAnswerChange(currentQuestion.id, {
-                        transcription,
-                        confidence,
+                        transcription: transcript,
                         type: 'audio_response',
-                        videoUrl
+                        audioUrl
                       });
                     }}
+                    savedAnswer={
+                      answers[currentQuestion.id] ? {
+                        transcript: answers[currentQuestion.id].transcription || "",
+                        audioUrl: answers[currentQuestion.id].audioUrl
+                      } : undefined
+                    }
                   />
                 )}
               </div>

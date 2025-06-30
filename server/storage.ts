@@ -15,6 +15,107 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, inArray } from "drizzle-orm";
+import crypto from "crypto";
+
+// Check if we're in local development mode
+const isLocalDev = false; // Disabled to use real database
+
+// Mock data for local development
+const mockExams = [
+  {
+    id: 1,
+    title: "Introduction to Mathematics",
+    subject: "Mathematics",
+    duration: 60,
+    instructions: "Answer all questions. No calculators allowed.",
+    totalPoints: 100,
+    createdBy: "local-dev-user",
+    status: "published",
+    createdAt: new Date("2024-01-15"),
+    settings: {
+      passingMarks: 60,
+      showResults: true,
+      isPublic: true,
+      scheduledFor: null
+    }
+  },
+  {
+    id: 2,
+    title: "Arabic Language Proficiency Test",
+    subject: "Arabic",
+    duration: 45,
+    instructions: "هذا اختبار لقياس مستوى اللغة العربية. أجب على جميع الأسئلة.",
+    totalPoints: 50,
+    createdBy: "local-dev-user",
+    status: "published",
+    createdAt: new Date("2024-01-20"),
+    settings: {
+      passingMarks: 30,
+      showResults: true,
+      isPublic: true,
+      scheduledFor: null
+    }
+  },
+  {
+    id: 3,
+    title: "Computer Science Basics",
+    subject: "Computer Science",
+    duration: 90,
+    instructions: "This exam covers programming fundamentals and algorithms.",
+    totalPoints: 120,
+    createdBy: "local-dev-user",
+    status: "draft",
+    createdAt: new Date("2024-01-25"),
+    settings: {
+      passingMarks: 72,
+      showResults: false,
+      isPublic: false,
+      scheduledFor: null
+    }
+  }
+];
+
+const mockQuestions = [
+  // Math exam questions
+  {
+    id: 1,
+    examId: 1,
+    type: "multiple_choice" as const,
+    question: "What is 2 + 2?",
+    options: ["3", "4", "5", "6"],
+    correctAnswer: "4",
+    marks: 5,
+    order: 1
+  },
+  {
+    id: 2,
+    examId: 1,
+    type: "true_false" as const,
+    question: "The square root of 16 is 4",
+    correctAnswer: "true",
+    marks: 5,
+    order: 2
+  },
+  // Arabic exam questions
+  {
+    id: 3,
+    examId: 2,
+    type: "multiple_choice" as const,
+    question: "ما هو جمع كلمة 'كتاب'؟",
+    options: ["كتب", "كتابات", "كتّاب", "مكتبة"],
+    correctAnswer: "كتب",
+    marks: 10,
+    order: 1
+  },
+  {
+    id: 4,
+    examId: 2,
+    type: "audio_response" as const,
+    question: "اقرأ النص التالي بصوت واضح: 'أهلاً وسهلاً بكم في امتحان اللغة العربية'",
+    marks: 15,
+    order: 2
+  }
+];
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -118,6 +219,9 @@ export interface IStorage {
   getExamAssignmentsByExam(examId: number): Promise<ExamAssignment[]>;
   deleteExamAssignment(id: number): Promise<boolean>;
   getAccessibleExams(userId: string): Promise<ExamWithStats[]>;
+
+  // New method
+  getQuestionsByExamId(examId: number): Promise<Question[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -179,6 +283,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getExam(id: number): Promise<Exam | undefined> {
+    if (isLocalDev) {
+      const exam = mockExams.find(e => e.id === id);
+      return exam || undefined;
+    }
+
     const [exam] = await db.select().from(exams).where(eq(exams.id, id));
     return exam || undefined;
   }
@@ -199,41 +308,23 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getExamsByCreator(createdBy: string): Promise<ExamWithStats[]> {
-    // Only get exams created by this specific user (role-based ownership)
-    const userExams = await db
+  async getExamsByCreator(creatorId: string): Promise<ExamWithStats[]> {
+    if (isLocalDev) {
+      return mockExams
+        .filter(e => e.createdBy === creatorId)
+        .map(e => ({
+          ...e,
+          questionsCount: mockQuestions.filter(q => q.examId === e.id).length,
+          submissionsCount: 0,
+          averageScore: undefined
+        }));
+    }
+    
+    return db
       .select()
       .from(exams)
-      .where(eq(exams.createdBy, createdBy))
+      .where(eq(exams.createdBy, creatorId))
       .orderBy(desc(exams.createdAt));
-
-    const examStats = await Promise.all(
-      userExams.map(async (exam) => {
-        const questionsList = await db
-          .select()
-          .from(questions)
-          .where(eq(questions.examId, exam.id));
-
-        const examSubmissions = await db
-          .select()
-          .from(submissions)
-          .where(eq(submissions.examId, exam.id));
-
-        const submissionsCount = examSubmissions.length;
-        const averageScore = submissionsCount > 0 
-          ? examSubmissions.reduce((sum, s) => sum + (s.score || 0), 0) / submissionsCount 
-          : undefined;
-
-        return {
-          ...exam,
-          questionsCount: questionsList.length,
-          submissionsCount,
-          averageScore
-        };
-      })
-    );
-
-    return examStats;
   }
 
   async updateExam(id: number, updateData: Partial<InsertExam>): Promise<Exam | undefined> {
@@ -324,7 +415,12 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getRecentSubmissions(limit: number = 20): Promise<SubmissionWithExam[]> {
+  async getRecentSubmissions(limit = 10): Promise<SubmissionWithExam[]> {
+    if (isLocalDev) {
+      // Return empty submissions for local dev
+      return [];
+    }
+
     const recentSubmissions = await db
       .select({
         submission: submissions,
@@ -710,6 +806,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAccessibleExams(userId: string): Promise<ExamWithStats[]> {
+    if (isLocalDev) {
+      // In local dev, return all exams for the dev user
+      if (userId === "local-dev-user") {
+        return mockExams.map(e => ({ ...e, questionsCount: 0, submissionsCount: 0, averageScore: undefined }));
+      }
+      return [];
+    }
+
     // Get user's role first
     const user = await this.getUser(userId);
     if (!user) return [];
@@ -799,6 +903,13 @@ export class DatabaseStorage implements IStorage {
       const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return bTime - aTime;
     });
+  }
+
+  async getQuestionsByExamId(examId: number): Promise<Question[]> {
+    if (isLocalDev) {
+      return mockQuestions.filter(q => q.examId === examId);
+    }
+    return [];
   }
 }
 

@@ -48,9 +48,9 @@ export default function ResultsView({ selectedExamId }: ResultsViewProps) {
 
   const { data: recentSubmissions = [], isLoading: submissionsLoading } = useQuery<SubmissionWithExam[]>({
     queryKey: ["/api/submissions/recent"],
-    refetchInterval: 2000, // Refetch every 2 seconds to show latest submissions
-    staleTime: 0, // Always consider data stale
-    gcTime: 0, // Don't cache the data (TanStack Query v5 uses gcTime instead of cacheTime)
+    refetchInterval: 30000, // Refetch every 30 seconds instead of 2 seconds
+    staleTime: 10000, // Consider data fresh for 10 seconds
+    gcTime: 300000, // Cache for 5 minutes
   });
 
   // Fetch real AI analysis data for all submissions

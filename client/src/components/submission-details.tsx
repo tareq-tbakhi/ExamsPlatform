@@ -83,28 +83,37 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
       const answerData = studentAnswer;
       const videoAnswer = videoAnswers?.find(va => va.videoQuestionId === question.id);
       
-      // Check if we have any video response data
-      const hasVideoData = (answerData && typeof answerData === 'object') || videoAnswer;
+      // Check if we have any video/audio response data
+      const hasResponseData = (answerData && typeof answerData === 'object') || videoAnswer;
       
-      // Construct video URL - check multiple possible locations
-      let videoUrl = null;
-      if (videoAnswer?.videoUrl) {
-        videoUrl = videoAnswer.videoUrl;
-      } else if (answerData?.videoUrl) {
-        // If it's already a full URL, use it; otherwise construct it
-        videoUrl = answerData.videoUrl.startsWith('/') ? answerData.videoUrl : `/api/videos/answers/${answerData.videoUrl}`;
-      } else if (answerData?.filename) {
-        videoUrl = `/api/videos/answers/${answerData.filename}`;
+      // Construct media URL - check multiple possible locations
+      let mediaUrl = null;
+      
+      if (question.type === 'audio_response') {
+        // Handle audio responses
+        if (answerData?.audioUrl) {
+          mediaUrl = answerData.audioUrl;
+        }
+      } else {
+        // Handle video responses
+        if (videoAnswer?.videoUrl) {
+          mediaUrl = videoAnswer.videoUrl;
+        } else if (answerData?.videoUrl) {
+          // If it's already a full URL, use it; otherwise construct it
+          mediaUrl = answerData.videoUrl.startsWith('/') ? answerData.videoUrl : `/api/videos/answers/${answerData.videoUrl}`;
+        } else if (answerData?.filename) {
+          mediaUrl = `/api/videos/answers/${answerData.filename}`;
+        }
       }
       
       const transcript = answerData?.transcription || answerData?.transcript || videoAnswer?.transcript || '';
       const confidence = answerData?.confidence || videoAnswer?.confidence;
       
-      if (hasVideoData) {
+      if (hasResponseData) {
         return (
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 overflow-hidden">
             {/* Video/Audio Recording */}
-            {videoUrl && (
+            {mediaUrl && (
               <div className="p-4 bg-white/70 border-b border-blue-100">
                 <div className="flex items-center gap-2 mb-3">
                   {question.type === 'video_response' ? (
@@ -116,10 +125,17 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
                     {question.type === 'video_response' ? 'Video Recording' : 'Audio Recording'}
                   </h4>
                 </div>
-                <video controls className="w-full rounded-lg shadow-sm" style={{ maxHeight: '300px' }}>
-                  <source src={videoUrl} type="video/webm" />
-                  Your browser does not support the video tag.
-                </video>
+                {question.type === 'audio_response' ? (
+                  <audio controls className="w-full">
+                    <source src={mediaUrl} type="audio/webm" />
+                    Your browser does not support the audio tag.
+                  </audio>
+                ) : (
+                  <video controls className="w-full rounded-lg shadow-sm" style={{ maxHeight: '300px' }}>
+                    <source src={mediaUrl} type="video/webm" />
+                    Your browser does not support the video tag.
+                  </video>
+                )}
               </div>
             )}
             

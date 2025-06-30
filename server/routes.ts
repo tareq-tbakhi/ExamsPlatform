@@ -86,6 +86,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
+      // Check if running locally
+      const isLocalDev = process.env.NODE_ENV === 'development' && !process.env.REPLIT_DEPLOYMENT;
+      
+      if (isLocalDev && req.user?.claims?.sub === "local-dev-user") {
+        // Return mock user for local development
+        return res.json({
+          id: "local-dev-user",
+          email: "dev@localhost",
+          firstName: "Dev",
+          lastName: "User",
+          role: "super_admin",
+          isActive: true,
+          profileImageUrl: ""
+        });
+      }
+      
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       if (!user) {
@@ -2288,6 +2304,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google Text-to-Speech endpoint
+  app.post("/api/tts/synthesize", async (req, res) => {
+    try {
+      const { text, voiceConfig, audioConfig } = req.body;
+      
+      const { config } = await import('./config');
+      const GOOGLE_TTS_API_KEY = config.googleTts.apiKey;
+      
+      if (!GOOGLE_TTS_API_KEY) {
+        console.error('Google TTS API key not found in environment');
+        return res.status(500).json({ error: 'Google TTS API key not configured' });
+      }
+      
+      console.log('Google TTS endpoint called');
+      console.log('Text length:', text?.length || 0);
+      console.log('Voice config:', voiceConfig);
+      
+      // Development mode: Return a mock response if API key starts with "test_"
+      if (GOOGLE_TTS_API_KEY.startsWith('test_') || process.env.NODE_ENV === 'development_mock') {
+        console.log('Using mock TTS response for development');
+        // Return silence audio (very short MP3)
+        const silentMp3 = 'SUQzBAAAAAABEVRYWFgAAAAtAAADY29tbWVudABCaWdTb3VuZEJhbmsuY29tIC8gTGFTb25vdGhlcXVlLm9yZwBURU5DAAAAHQAAA1N3aXRjaCBQbHVzIMKpIE5DSCBTb2Z0d2FyZQBUSVQyAAAABgAAAzIyMzUAVFNTRQAAAA8AAANMYXZmNTcuODMuMTAwAAAAAAAAAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsRbAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQMSkAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+        return res.json({ audioContent: silentMp3 });
+      }
+      
+      const response = await fetch(
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_TTS_API_KEY}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            input: { text },
+            voice: voiceConfig || {
+              languageCode: 'ar-XA',
+              name: 'ar-XA-Wavenet-C',
+              ssmlGender: 'FEMALE'
+            },
+            audioConfig: audioConfig || {
+              audioEncoding: 'MP3',
+              speakingRate: 0.95,
+              pitch: 0,
+              volumeGainDb: 0
+            }
+          })
+        }
+      );
+      
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Google TTS API error:', error);
+        console.error('Full error details:', JSON.stringify(error, null, 2));
+        
+        // If API is not enabled, provide a helpful message
+        if (response.status === 403) {
+          console.error('Full 403 error details:', JSON.stringify(error, null, 2));
+          return res.status(403).json({ 
+            error: 'Google Text-to-Speech API is not enabled for this API key. Please enable it in Google Cloud Console.',
+            details: error.error?.message,
+            instructions: 'Visit https://console.cloud.google.com/apis/library/texttospeech.googleapis.com and click ENABLE'
+          });
+        }
+        
+        return res.status(response.status).json({ error: error.error?.message || 'TTS API error' });
+      }
+      
+      const data = await response.json();
+      res.json({ audioContent: data.audioContent });
+    } catch (error) {
+      console.error('TTS synthesis error:', error);
+      res.status(500).json({ error: 'Failed to synthesize speech' });
+    }
+  });
+
   // Student Exam Invitation API (public access for invitation verification)
   app.get('/api/exam-invitation/:token', async (req, res) => {
     try {
@@ -2330,6 +2421,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Failed to fetch invitation' });
     }
   });
+
+  // Upload audio answer endpoint
+  app.post("/api/upload-audio-answer", async (req: RequestWithFiles, res) => {
+    try {
+      const files = req.files;
+      const { questionId, sessionId, transcript } = req.body;
+
+      if (!files || !files.audio) {
+        return res.status(400).json({ error: "No audio file provided" });
+      }
+
+      const audioFile = Array.isArray(files.audio) ? files.audio[0] : files.audio;
+      
+      // Generate unique filename
+      const filename = `audio_q${questionId}_${sessionId}_${Date.now()}.webm`;
+      const audioDir = path.join(process.cwd(), 'uploads', 'audio');
+      
+      // Create audio directory if it doesn't exist
+      if (!fs.existsSync(audioDir)) {
+        fs.mkdirSync(audioDir, { recursive: true });
+      }
+
+      const filePath = path.join(audioDir, filename);
+      
+      // Move the uploaded file
+      await audioFile.mv(filePath);
+      
+      console.log(`Audio answer saved: ${filename} with transcript: "${transcript?.substring(0, 50)}..."`);
+
+      res.json({
+        success: true,
+        url: `/uploads/audio/${filename}`,
+        transcript: transcript || "",
+        filename
+      });
+    } catch (error) {
+      console.error("Error uploading audio answer:", error);
+      res.status(500).json({ error: "Failed to upload audio answer" });
+    }
+  });
+
+  // Serve audio files
+  app.use('/uploads/audio', express.static(path.join(process.cwd(), 'uploads', 'audio')));
 
   // Server is started in server/index.ts
   const httpServer = new Server(app);

@@ -18,6 +18,8 @@ import AcceptInvitation from "@/pages/AcceptInvitation";
 import AccessDenied from "@/pages/AccessDenied";
 import StudentExamAccess from "@/pages/StudentExamAccess";
 import ResultsPage from "@/pages/ResultsPage";
+import VoiceQuestionDemo from "@/pages/voice-question-demo";
+import GoogleTTSDemo from "@/pages/google-tts-demo";
 
 function Router() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -35,6 +37,8 @@ function Router() {
       {/* Public routes - accessible without authentication */}
       <Route path="/accept-invitation" component={AcceptInvitation} />
       <Route path="/login" component={Login} />
+      <Route path="/voice-demo" component={VoiceQuestionDemo} />
+      <Route path="/google-tts-demo" component={GoogleTTSDemo} />
       
       {isLoading || !isAuthenticated ? (
         <Route path="/" component={Landing} />

@@ -241,6 +241,36 @@ export async function setupAuth(app: Express) {
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // Check if running locally
+  const isLocalDev = process.env.NODE_ENV === 'development' && !process.env.REPLIT_DEPLOYMENT;
+  
+  if (isLocalDev) {
+    // For local development, check if user is "logged in" via session
+    if (req.session && (req.session as any).userId === "local-dev-user") {
+      // Create mock user for local development WITHOUT database check
+      (req as any).user = {
+        claims: {
+          sub: "local-dev-user",
+          email: "dev@localhost",
+          first_name: "Dev",
+          last_name: "User"
+        }
+      };
+      (req as any).dbUser = {
+        id: "local-dev-user",
+        email: "dev@localhost",
+        firstName: "Dev",
+        lastName: "User",
+        role: "super_admin",
+        isActive: true
+      };
+      req.isAuthenticated = () => true as any;
+      
+      return next();
+    }
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  
   // Check if user is authenticated via session (email/password login)
   if (req.session && (req.session as any).userId) {
     const userId = (req.session as any).userId;
@@ -263,53 +293,9 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
       }
     };
     (req as any).dbUser = dbUser;
-    req.isAuthenticated = () => true;
+    req.isAuthenticated = () => true as any;
     
     return next();
-  }
-  
-  // Check if running locally
-  const isLocalDev = process.env.NODE_ENV === 'development' && !process.env.REPLIT_DEPLOYMENT;
-  
-  if (isLocalDev) {
-    // For local development, check if user is "logged in" via session
-    if (req.session && (req.session as any).userId === "local-dev-user") {
-      // Create mock user for local development
-      (req as any).user = {
-        claims: {
-          sub: "local-dev-user",
-          email: "dev@localhost",
-          first_name: "Dev",
-          last_name: "User"
-        }
-      };
-      (req as any).dbUser = {
-        id: "local-dev-user",
-        email: "dev@localhost",
-        firstName: "Dev",
-        lastName: "User",
-        role: "super_admin",
-        isActive: true
-      };
-      req.isAuthenticated = () => true;
-      
-      // Ensure the dev user exists in the database
-      const devUser = await storage.getUser("local-dev-user");
-      if (!devUser) {
-        await storage.upsertUser({
-          id: "local-dev-user",
-          email: "dev@localhost",
-          firstName: "Dev",
-          lastName: "User",
-          profileImageUrl: "",
-          role: "super_admin",
-          isActive: true
-        });
-      }
-      
-      return next();
-    }
-    return res.status(401).json({ message: "Unauthorized" });
   }
 
   const user = req.user as any;

@@ -3,6 +3,9 @@ import dotenv from "dotenv";
 // Load environment variables before anything else
 dotenv.config();
 
+// Debug: Log loaded Google TTS API key
+console.log("Google TTS API Key loaded:", process.env.GOOGLE_TTS_API_KEY ? "✓ (Key present)" : "✗ (Key missing)");
+
 // Export configuration after loading .env
 export const config = {
   database: {
@@ -16,6 +19,9 @@ export const config = {
   },
   gemini: {
     apiKey: process.env.GEMINI_API_KEY || "",
+  },
+  googleTts: {
+    apiKey: process.env.GOOGLE_TTS_API_KEY || process.env.VITE_GOOGLE_TTS_API_KEY || "",
   },
   server: {
     port: parseInt(process.env.PORT || "5001"),
