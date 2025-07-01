@@ -2465,6 +2465,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve audio files
   app.use('/uploads/audio', express.static(path.join(process.cwd(), 'uploads', 'audio')));
 
+  // Get submission details with all related data
+  app.get('/api/submissions/:id/details', isAuthenticated, async (req: any, res) => {
+    try {
+      const submissionId = parseInt(req.params.id);
+      
+      const submission = await storage.getSubmissionById(submissionId);
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      const exam = await storage.getExamWithQuestions(submission.examId);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+
+      // Parse the answers JSON
+      const answers = submission.answers || {};
+      
+      // Get video answers from database - include transcripts
+      const videoAnswers = await storage.getVideoAnswersBySubmissionId(submissionId);
+      
+      res.json({ 
+        submission, 
+        exam, 
+        answers,
+        videoAnswers: videoAnswers.map(va => ({
+          ...va,
+          transcript: va.transcript || va.transcription || '' // Support both field names
+        }))
+      });
+    } catch (error) {
+      console.error('Error fetching submission details:', error);
+      res.status(500).json({ message: "Failed to fetch submission details" });
+    }
+  });
+
+  // Get proctoring data for a submission
+  app.get('/api/submissions/:id/proctoring', isAuthenticated, async (req: any, res) => {
+    try {
+      const submissionId = parseInt(req.params.id);
+      
+      // Get proctoring recordings from storage
+      const proctoringVideos = await storage.getProctoringVideosBySubmissionId(submissionId);
+      
+      // Get AI analysis/violations if available
+      const violations = await storage.getViolationsBySubmissionId(submissionId);
+      
+      // Calculate integrity scores based on violations
+      const criticalViolations = violations.filter((v: any) => v.severity === 'high').length;
+      const majorViolations = violations.filter((v: any) => v.severity === 'medium').length;
+      const minorViolations = violations.filter((v: any) => v.severity === 'low').length;
+      
+      // Simple scoring algorithm
+      const faceDetectionScore = Math.max(0, 100 - (criticalViolations * 20));
+      const behaviorScore = Math.max(0, 100 - (majorViolations * 15) - (minorViolations * 5));
+      const overallIntegrity = Math.round((faceDetectionScore + behaviorScore) / 2);
+      
+      // Group videos by type
+      const cameraVideos = proctoringVideos
+        .filter((v: any) => v.type === 'camera')
+        .map((v: any) => v.url);
+      
+      const screenVideos = proctoringVideos
+        .filter((v: any) => v.type === 'screen')
+        .map((v: any) => v.url);
+      
+      res.json({
+        videos: {
+          camera: cameraVideos,
+          screen: screenVideos
+        },
+        violations: violations.map((v: any) => ({
+          id: v.id,
+          type: v.violationType,
+          severity: v.severity,
+          timestamp: new Date(v.timestamp).toLocaleString(),
+          description: v.description,
+          evidence: v.evidenceUrl
+        })),
+        stats: {
+          totalViolations: violations.length,
+          faceDetectionScore,
+          behaviorScore,
+          overallIntegrity
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching proctoring data:', error);
+      res.status(500).json({ 
+        videos: { camera: [], screen: [] },
+        violations: [],
+        stats: {
+          totalViolations: 0,
+          faceDetectionScore: 100,
+          behaviorScore: 100,
+          overallIntegrity: 100
+        }
+      });
+    }
+  });
+
   // Server is started in server/index.ts
   const httpServer = new Server(app);
   return httpServer;

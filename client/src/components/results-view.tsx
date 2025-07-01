@@ -6,8 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@radix-ui/react-collapsible";
-import { ClipboardList, Users, TrendingUp, Medal, Eye, Brain, ChevronDown, ChevronRight, AlertTriangle, CheckCircle } from "lucide-react";
-import AIAnalysisDashboard from "@/components/ai-analysis-dashboard";
+import { ClipboardList, Users, TrendingUp, Medal, Eye, Brain, ChevronDown, ChevronRight, AlertTriangle, CheckCircle, Shield } from "lucide-react";
+import ExamMonitoringDashboard from "@/components/exam-monitoring-dashboard";
 import SubmissionDetails from "@/components/submission-details";
 import GradingDashboard from "@/components/grading-dashboard";
 import { useAuth } from "@/hooks/useAuth";
@@ -464,73 +464,25 @@ export default function ResultsView({ selectedExamId }: ResultsViewProps) {
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          title="View Details"
+                                          title="View Comprehensive Exam Monitoring"
                                           onClick={() => setSelectedSubmission(submission)}
+                                          className="flex items-center gap-1"
                                         >
-                                          <Eye className="h-4 w-4" />
+                                          <Shield className="h-4 w-4" />
+                                          <span className="hidden lg:inline">Monitor</span>
                                         </Button>
                                       </DialogTrigger>
-                                      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                                      <DialogContent className="max-w-7xl w-[95vw] max-h-[90vh] overflow-y-auto">
                                         <DialogHeader>
-                                          <DialogTitle>Submission Details</DialogTitle>
+                                          <DialogTitle>Exam Monitoring Dashboard</DialogTitle>
                                           <DialogDescription>
-                                            Detailed answers for {submission.studentName}'s submission
+                                            Comprehensive view of {submission.studentName}'s exam performance and integrity analysis
                                           </DialogDescription>
                                         </DialogHeader>
                                         {selectedSubmission && (
-                                          <SubmissionDetails submissionId={selectedSubmission.id} />
-                                        )}
-                                      </DialogContent>
-                                    </Dialog>
-                                    <Dialog>
-                                      <DialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          title="Full AI Analysis"
-                                          onClick={() => setSelectedSubmission(submission)}
-                                        >
-                                          <Brain className="h-4 w-4" />
-                                        </Button>
-                                      </DialogTrigger>
-                                      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-                                        <DialogHeader>
-                                          <DialogTitle>Complete AI Proctoring Analysis</DialogTitle>
-                                          <DialogDescription>
-                                            Full Gemini AI analysis for {submission.studentName}'s submission
-                                          </DialogDescription>
-                                        </DialogHeader>
-                                        {selectedSubmission && (
-                                          <AIAnalysisDashboard 
-                                            submissionId={selectedSubmission.id}
-                                            examTitle={selectedSubmission.examTitle}
-                                          />
-                                        )}
-                                      </DialogContent>
-                                    </Dialog>
-                                    <Dialog>
-                                      <DialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          title="Auto-Grade Submission"
-                                          onClick={() => setSelectedSubmission(submission)}
-                                        >
-                                          <Medal className="h-4 w-4" />
-                                        </Button>
-                                      </DialogTrigger>
-                                      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-                                        <DialogHeader>
-                                          <DialogTitle>Automated Grading System</DialogTitle>
-                                          <DialogDescription>
-                                            Comprehensive grading and analytics for {submission.studentName}'s submission
-                                          </DialogDescription>
-                                        </DialogHeader>
-                                        {selectedSubmission && (
-                                          <GradingDashboard 
+                                          <ExamMonitoringDashboard 
                                             submissionId={selectedSubmission.id}
                                             examId={selectedSubmission.examId}
-                                            studentName={selectedSubmission.studentName}
                                           />
                                         )}
                                       </DialogContent>

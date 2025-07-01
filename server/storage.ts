@@ -14,7 +14,7 @@ import {
   type ExamAssignment, type InsertExamAssignment
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, inArray } from "drizzle-orm";
+import { eq, desc, and, or, inArray, asc } from "drizzle-orm";
 import crypto from "crypto";
 
 // Check if we're in local development mode
@@ -222,6 +222,11 @@ export interface IStorage {
 
   // New method
   getQuestionsByExamId(examId: number): Promise<Question[]>;
+
+  // Mock implementations
+  getVideoAnswersBySubmissionId(submissionId: number): Promise<any[]>;
+  getProctoringVideosBySubmissionId(submissionId: number): Promise<any[]>;
+  getViolationsBySubmissionId(submissionId: number): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -909,6 +914,74 @@ export class DatabaseStorage implements IStorage {
     if (isLocalDev) {
       return mockQuestions.filter(q => q.examId === examId);
     }
+
+    return db
+      .select()
+      .from(questions)
+      .where(eq(questions.examId, examId))
+      .orderBy(asc(questions.order));
+  }
+
+  // Mock implementations
+  async getVideoAnswersBySubmissionId(submissionId: number): Promise<any[]> {
+    if (isLocalDev) {
+      // Return mock video answers
+      return [];
+    }
+    
+    return db
+      .select()
+      .from(videoAnswers)
+      .where(eq(videoAnswers.submissionId, submissionId));
+  }
+
+  async getProctoringVideosBySubmissionId(submissionId: number): Promise<any[]> {
+    if (isLocalDev) {
+      // Return mock proctoring videos
+      return [
+        {
+          id: 1,
+          type: 'camera',
+          url: '/uploads/proctoring/camera_mock_1.webm',
+          uploadedAt: new Date()
+        },
+        {
+          id: 2,
+          type: 'screen',
+          url: '/uploads/proctoring/screen_mock_1.webm',
+          uploadedAt: new Date()
+        }
+      ];
+    }
+    
+    // In production, would query proctoringVideos table
+    return [];
+  }
+
+  async getViolationsBySubmissionId(submissionId: number): Promise<any[]> {
+    if (isLocalDev) {
+      // Return mock violations for demo
+      return [
+        {
+          id: 'v1',
+          violationType: 'face_not_visible',
+          severity: 'low',
+          timestamp: new Date(Date.now() - 15 * 60 * 1000), // 15 minutes ago
+          description: 'Face partially obscured for 3 seconds',
+          evidenceUrl: null
+        },
+        {
+          id: 'v2',
+          violationType: 'tab_switch',
+          severity: 'medium',
+          timestamp: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
+          description: 'Browser tab switched during exam',
+          evidenceUrl: null
+        }
+      ];
+    }
+    
+    // In production, would query violations table
     return [];
   }
 }
