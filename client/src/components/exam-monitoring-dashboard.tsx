@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
@@ -13,29 +15,28 @@ import {
   Video, 
   Mic, 
   FileText,
-  User,
-  Clock,
+  Camera,
+  Monitor,
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Eye,
-  Camera,
-  Monitor,
-  Activity,
-  BookOpen,
+  User,
   Trophy,
-  BarChart3,
-  Play,
-  Pause,
-  Volume2,
-  ChevronRight,
+  Clock,
+  Brain,
+  Zap,
   Info,
-  GraduationCap
+  History,
+  Play,
+  BarChart3,
+  BookOpen,
+  ChevronRight
 } from "lucide-react";
 
 interface ExamMonitoringDashboardProps {
   submissionId: number;
   examId: number;
+  tabMode?: 'full' | 'proctoring' | 'timeline';
 }
 
 interface ViolationEvent {
@@ -61,75 +62,941 @@ interface ProctoringData {
   };
 }
 
-export default function ExamMonitoringDashboard({ submissionId, examId }: ExamMonitoringDashboardProps) {
-  const [activeTab, setActiveTab] = useState("overview");
-  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
-  const [expandedQuestion, setExpandedQuestion] = useState<number | null>(null);
+interface SubmissionDetailsResponse {
+  submission: any;
+  exam: any;
+  answers: Record<string, any>;
+  videoAnswers: any[];
+}
 
-  // Fetch submission details with all related data
-  const { data: submissionData, isLoading } = useQuery({
-    queryKey: [`/api/submissions/${submissionId}/details`],
+export default function ExamMonitoringDashboard({ submissionId, examId, tabMode = 'full' }: ExamMonitoringDashboardProps) {
+  const [activeTab, setActiveTab] = useState("timeline");
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [expandedQuestion, setExpandedQuestion] = useState<number | null>(null);
+  const { toast } = useToast();
+
+  // Fetch submission details
+  const { data: submissionData, isLoading: submissionLoading } = useQuery({
+    queryKey: ['submission-details', submissionId],
+    queryFn: async () => {
+      const response = await fetch(`/api/submissions/${submissionId}/details`);
+      if (!response.ok) throw new Error('Failed to fetch submission details');
+      return response.json() as Promise<SubmissionDetailsResponse>;
+    }
   });
 
   // Fetch proctoring data
-  const { data: proctoringData } = useQuery<ProctoringData>({
-    queryKey: [`/api/submissions/${submissionId}/proctoring`],
+  const { data: proctoringData } = useQuery({
+    queryKey: ['proctoring-data', submissionId],
+    queryFn: async () => {
+      const response = await fetch(`/api/submissions/${submissionId}/proctoring`);
+      if (!response.ok) throw new Error('Failed to fetch proctoring data');
+      return response.json() as Promise<ProctoringData>;
+    }
   });
 
   // Fetch AI analysis results
   const { data: aiAnalysis } = useQuery({
-    queryKey: [`/api/analyze/results/${submissionId}`],
+    queryKey: ['ai-analysis', submissionId],
+    queryFn: async () => {
+      const response = await fetch(`/api/analyze/results/${submissionId}`);
+      if (!response.ok) throw new Error('Failed to fetch AI analysis');
+      return response.json();
+    }
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
+  if (submissionLoading) {
+    return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
 
   if (!submissionData) {
-    return (
-      <Alert variant="destructive">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertDescription>Failed to load submission data</AlertDescription>
-      </Alert>
-    );
+    return <div className="flex items-center justify-center h-64">No data available</div>;
   }
 
-  const { submission, exam, answers, videoAnswers } = submissionData;
-  const scorePercentage = submission.score ? Math.round((submission.score / submission.totalPoints) * 100) : 0;
+  const { submission, exam } = submissionData;
+  const formatScore = (score: number | null | undefined, totalPoints: number) => {
+    if (score === null || score === undefined) {
+      return {
+        display: "N/A",
+        percentage: "Pending",
+        badge: { class: "bg-gray-100 text-gray-800", label: "Pending" }
+      };
+    }
+    
+    const percentage = Math.round((score / totalPoints) * 100);
+    let badgeClass = "bg-gray-100 text-gray-800";
+    let badgeLabel = "F";
+    
+    if (percentage >= 90) {
+      badgeClass = "bg-green-100 text-green-800";
+      badgeLabel = "A";
+    } else if (percentage >= 80) {
+      badgeClass = "bg-blue-100 text-blue-800";
+      badgeLabel = "B";
+    } else if (percentage >= 70) {
+      badgeClass = "bg-yellow-100 text-yellow-800";
+      badgeLabel = "C";
+    } else if (percentage >= 60) {
+      badgeClass = "bg-orange-100 text-orange-800";
+      badgeLabel = "D";
+    } else {
+      badgeClass = "bg-red-100 text-red-800";
+      badgeLabel = "F";
+    }
+    
+    return {
+      display: `${score}/${totalPoints}`,
+      percentage: `${percentage}%`,
+      badge: { class: badgeClass, label: badgeLabel }
+    };
+  };
+
+  const formatStudentName = (studentName: string | null | undefined) => {
+    if (!studentName || studentName.trim() === '') {
+      return 'Unknown Student';
+    }
+    return studentName.trim();
+  };
+
+  const scoreData = formatScore(submission.score, submission.totalPoints);
+
+  const runAIAnalysis = async () => {
+    setIsAnalyzing(true);
+    try {
+      const response = await fetch(`/api/analyze/submission/${submissionId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'quick' })
+      });
+      if (response.ok) {
+        queryClient.invalidateQueries({ queryKey: ['ai-analysis', submissionId] });
+        toast({ title: "Analysis complete", description: "AI analysis has been completed." });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to run AI analysis", variant: "destructive" });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const runComprehensiveAnalysis = async () => {
+    setIsAnalyzing(true);
+    try {
+      const response = await fetch(`/api/analyze/submission/${submissionId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'comprehensive' })
+      });
+      if (response.ok) {
+        queryClient.invalidateQueries({ queryKey: ['ai-analysis', submissionId] });
+        toast({ title: "Analysis complete", description: "Comprehensive AI analysis has been completed." });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to run comprehensive analysis", variant: "destructive" });
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const getAnswerForQuestion = (questionId: number) => {
+    return submissionData?.answers?.[questionId.toString()];
+  };
+
+  const getQuestionTypeBadge = (type: string) => {
+    const badges = {
+      'multiple_choice': <Badge variant="outline" className="bg-blue-50 text-blue-700">Multiple Choice</Badge>,
+      'true_false': <Badge variant="outline" className="bg-green-50 text-green-700">True/False</Badge>,
+      'short_answer': <Badge variant="outline" className="bg-purple-50 text-purple-700">Short Answer</Badge>,
+      'video_response': <Badge variant="outline" className="bg-pink-50 text-pink-700">Video Response</Badge>,
+      'audio_response': <Badge variant="outline" className="bg-orange-50 text-orange-700">Audio Response</Badge>,
+    };
+    return badges[type as keyof typeof badges] || <Badge variant="outline">{type}</Badge>;
+  };
 
   const getViolationIcon = (type: string) => {
     switch (type) {
-      case 'face_not_visible': return <Eye className="h-4 w-4" />;
-      case 'multiple_faces': return <User className="h-4 w-4" />;
-      case 'tab_switch': return <Monitor className="h-4 w-4" />;
-      case 'suspicious_movement': return <Activity className="h-4 w-4" />;
-      default: return <AlertTriangle className="h-4 w-4" />;
+      case 'face_detection': return <User className="h-4 w-4 text-red-500" />;
+      case 'multiple_faces': return <User className="h-4 w-4 text-yellow-500" />;
+      case 'no_face': return <AlertTriangle className="h-4 w-4 text-red-500" />;
+      case 'suspicious_activity': return <AlertTriangle className="h-4 w-4 text-orange-500" />;
+      default: return <AlertTriangle className="h-4 w-4 text-gray-500" />;
     }
   };
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
-      case 'high': return 'text-red-600 bg-red-50 border-red-200';
-      case 'medium': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      case 'low': return 'text-blue-600 bg-blue-50 border-blue-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+      case 'high': return 'border-red-300 bg-red-50';
+      case 'medium': return 'border-yellow-300 bg-yellow-50';
+      case 'low': return 'border-blue-300 bg-blue-50';
+      default: return 'border-gray-300 bg-gray-50';
     }
   };
 
   const getScoreBadge = (percentage: number) => {
-    if (percentage >= 90) return { label: 'A', class: 'bg-green-500 text-white' };
-    if (percentage >= 80) return { label: 'B', class: 'bg-blue-500 text-white' };
-    if (percentage >= 70) return { label: 'C', class: 'bg-yellow-500 text-white' };
-    if (percentage >= 60) return { label: 'D', class: 'bg-orange-500 text-white' };
-    return { label: 'F', class: 'bg-red-500 text-white' };
+    if (percentage >= 90) return { class: 'bg-green-100 text-green-700', label: 'Excellent' };
+    if (percentage >= 80) return { class: 'bg-blue-100 text-blue-700', label: 'Good' };
+    if (percentage >= 70) return { class: 'bg-yellow-100 text-yellow-700', label: 'Average' };
+    if (percentage >= 60) return { class: 'bg-orange-100 text-orange-700', label: 'Below Average' };
+    return { class: 'bg-red-100 text-red-700', label: 'Poor' };
   };
 
-  const scoreBadge = getScoreBadge(scorePercentage);
+  // Remove old scoreBadge - now using scoreData.badge
 
+  // If tabMode is specified, render only that specific content
+  if (tabMode === 'proctoring') {
+    return (
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Enhanced Header with Animated Background */}
+        <div className="relative bg-gradient-to-br from-purple-600 via-pink-600 to-indigo-700 text-white p-8 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 animate-pulse"></div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold flex items-center gap-3 mb-3">
+                  <Camera className="h-10 w-10" />
+                  🎥 Proctoring & Media Analysis
+                  <span className="ml-4 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-medium">
+                    Live Monitor
+                  </span>
+                </h1>
+                <p className="text-purple-100 text-lg">
+                  Comprehensive monitoring and security analysis for {submission.studentName}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4">
+                  <div className="text-sm text-purple-200">Student</div>
+                  <div className="text-xl font-semibold">{submission.studentName}</div>
+                  <div className="text-2xl font-bold mt-2">
+                    {proctoringData?.stats?.overallIntegrity || 95}%
+                  </div>
+                  <div className="text-sm text-purple-200">Integrity Score</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Proctoring Stats with Glassmorphism */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <Card className="group relative bg-white/90 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-indigo-600/10 rounded-xl"></div>
+            <CardHeader className="relative z-10 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-xl">
+              <CardTitle className="text-2xl flex items-center gap-3">
+                <Shield className="h-8 w-8" />
+                🛡️ Integrity Metrics
+                <div className="ml-auto bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-medium">
+                  Real-time
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="relative z-10 p-8 space-y-8">
+              <div className="space-y-6">
+                <div className="group">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                      👁️ Face Detection
+                    </span>
+                    <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold px-3 py-1 text-sm">
+                      {proctoringData?.stats?.faceDetectionScore || 98}%
+                    </Badge>
+                  </div>
+                  <div className="relative bg-gray-200 rounded-full h-4 overflow-hidden">
+                    <Progress value={proctoringData?.stats?.faceDetectionScore || 98} className="h-4" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                  </div>
+                </div>
+                <div className="group">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                      🎯 Behavior Score
+                    </span>
+                    <Badge className="bg-gradient-to-r from-green-500 to-green-600 text-white font-bold px-3 py-1 text-sm">
+                      {proctoringData?.stats?.behaviorScore || 95}%
+                    </Badge>
+                  </div>
+                  <div className="relative bg-gray-200 rounded-full h-4 overflow-hidden">
+                    <Progress value={proctoringData?.stats?.behaviorScore || 95} className="h-4" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                  </div>
+                </div>
+                <div className="group">
+                  <div className="flex justify-between items-center mb-3">
+                    <span className="font-bold text-gray-800 text-lg flex items-center gap-2">
+                      ⭐ Overall Integrity
+                    </span>
+                    <Badge className="bg-gradient-to-r from-purple-500 to-purple-600 text-white font-bold px-3 py-1 text-sm">
+                      {proctoringData?.stats?.overallIntegrity || 95}%
+                    </Badge>
+                  </div>
+                  <div className="relative bg-gray-200 rounded-full h-4 overflow-hidden">
+                    <Progress value={proctoringData?.stats?.overallIntegrity || 95} className="h-4" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="group relative bg-white/90 backdrop-blur-sm border-0 shadow-2xl hover:shadow-3xl transition-all duration-500 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-teal-600/10 rounded-xl"></div>
+            <CardHeader className="relative z-10 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-t-xl">
+              <CardTitle className="text-2xl flex items-center gap-3">
+                <BarChart3 className="h-8 w-8" />
+                📊 Monitoring Summary
+                <div className="ml-auto bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-medium">
+                  Active
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="relative z-10 p-8">
+              <div className="grid grid-cols-1 gap-6">
+                <div className="group flex items-center justify-between p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border-2 border-blue-200 hover:border-blue-300 transition-all duration-300 hover:scale-105">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
+                      <Camera className="h-7 w-7 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900 text-lg">📹 Camera Feed</p>
+                      <p className="text-sm text-gray-600">Student monitoring</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-lg px-4 py-2 shadow-lg">
+                      {proctoringData?.videos?.camera?.length || 0} videos
+                    </Badge>
+                    {(proctoringData?.videos?.camera?.length || 0) > 0 && (
+                      <div className="w-4 h-4 bg-blue-500 rounded-full animate-pulse"></div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="group flex items-center justify-between p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border-2 border-green-200 hover:border-green-300 transition-all duration-300 hover:scale-105">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-lg">
+                      <Monitor className="h-7 w-7 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900 text-lg">🖥️ Screen Recording</p>
+                      <p className="text-sm text-gray-600">Activity monitoring</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge className="bg-gradient-to-r from-green-500 to-green-600 text-white text-lg px-4 py-2 shadow-lg">
+                      {proctoringData?.videos?.screen?.length || 0} videos
+                    </Badge>
+                    {(proctoringData?.videos?.screen?.length || 0) > 0 && (
+                      <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="group flex items-center justify-between p-6 bg-gradient-to-r from-red-50 to-pink-50 rounded-2xl border-2 border-red-200 hover:border-red-300 transition-all duration-300 hover:scale-105">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center shadow-lg">
+                      <AlertTriangle className="h-7 w-7 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900 text-lg">⚠️ Violations</p>
+                      <p className="text-sm text-gray-600">Security alerts</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant="destructive" className="text-lg px-4 py-2 shadow-lg">
+                      {proctoringData?.violations?.length || 0} detected
+                    </Badge>
+                    {(proctoringData?.violations?.length || 0) > 0 && (
+                      <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse"></div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Enhanced Camera Feed Videos */}
+        {proctoringData?.videos?.camera && proctoringData.videos.camera.length > 0 && (
+          <Card className="border-0 shadow-2xl overflow-hidden bg-white/90 backdrop-blur-sm">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-600/5 rounded-xl"></div>
+            <CardHeader className="relative z-10 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+              <CardTitle className="flex items-center space-x-3 text-2xl">
+                <Camera className="h-8 w-8" />
+                <span>📹 Camera Feed - Student Monitoring</span>
+                <Badge className="bg-white/20 backdrop-blur-sm text-white ml-auto px-4 py-2">
+                  {proctoringData.videos.camera.length} Recording{proctoringData.videos.camera.length !== 1 ? 's' : ''}
+                </Badge>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium">Live</span>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="relative z-10 p-0">
+              <div className="bg-gradient-to-br from-gray-900 to-black">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+                  {proctoringData.videos.camera.map((videoUrl: string, idx: number) => (
+                    <div key={idx} className="relative group">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none z-10"></div>
+                      <div className="absolute top-4 start-4 bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 z-20 shadow-2xl">
+                        <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                        📹 Camera {idx + 1}
+                      </div>
+                      <div className="absolute top-4 end-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs z-20 border border-white/20">
+                        Student View • HD
+                      </div>
+                      <div className="absolute bottom-4 start-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs z-20 border border-white/20">
+                        Recording {idx + 1} • Active
+                      </div>
+                      <video
+                        controls
+                        className="w-full hover:scale-105 transition-transform duration-500 border-2 border-white/10"
+                        style={{ minHeight: '320px', maxHeight: '420px' }}
+                        preload="metadata"
+                      >
+                        <source src={videoUrl} type="video/webm" />
+                        Your browser does not support the video tag.
+                      </video>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Enhanced Screen Recording Videos */}
+        {proctoringData?.videos?.screen && proctoringData.videos.screen.length > 0 && (
+          <Card className="border-0 shadow-2xl overflow-hidden bg-white/90 backdrop-blur-sm">
+            <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-teal-600/5 rounded-xl"></div>
+            <CardHeader className="relative z-10 bg-gradient-to-r from-green-600 to-teal-600 text-white">
+              <CardTitle className="flex items-center space-x-3 text-2xl">
+                <Monitor className="h-8 w-8" />
+                <span>🖥️ Screen Recording - Activity Monitoring</span>
+                <Badge className="bg-white/20 backdrop-blur-sm text-white ml-auto px-4 py-2">
+                  {proctoringData.videos.screen.length} Recording{proctoringData.videos.screen.length !== 1 ? 's' : ''}
+                </Badge>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium">Active</span>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="relative z-10 p-0">
+              <div className="bg-gradient-to-br from-gray-900 to-black">
+                <div className="grid grid-cols-1 gap-0">
+                  {proctoringData.videos.screen.map((videoUrl: string, idx: number) => (
+                    <div key={idx} className="relative group">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none z-10"></div>
+                      <div className="absolute top-4 start-4 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 z-20 shadow-2xl">
+                        <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                        🖥️ Screen Capture {idx + 1}
+                      </div>
+                      <div className="absolute top-4 end-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs z-20 border border-white/20">
+                        Full Screen • 1080p
+                      </div>
+                      <div className="absolute bottom-4 start-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs z-20 border border-white/20">
+                        Screen {idx + 1} • Monitoring
+                      </div>
+                      <video
+                        controls
+                        className="w-full hover:scale-105 transition-transform duration-500 border-2 border-white/10"
+                        style={{ minHeight: '400px', maxHeight: '600px' }}
+                        preload="metadata"
+                      >
+                        <source src={videoUrl} type="video/webm" />
+                        Your browser does not support the video tag.
+                      </video>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Student Video Answers */}
+        {submissionData?.videoAnswers && submissionData.videoAnswers.length > 0 && (
+          <Card className="border-0 shadow-2xl overflow-hidden bg-white/90 backdrop-blur-sm">
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-600/5 rounded-xl"></div>
+            <CardHeader className="relative z-10 bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+              <CardTitle className="flex items-center space-x-3 text-2xl">
+                <Video className="h-8 w-8" />
+                <span>🎬 Student Video Answers</span>
+                <Badge className="bg-white/20 backdrop-blur-sm text-white ml-auto px-4 py-2">
+                  {submissionData.videoAnswers.length} Answer{submissionData.videoAnswers.length !== 1 ? 's' : ''}
+                </Badge>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium">Responses</span>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="relative z-10 p-0">
+              <div className="bg-gradient-to-br from-gray-900 to-black">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+                  {submissionData.videoAnswers.map((videoAnswer: any, idx: number) => {
+                    // Find the corresponding question
+                    const question = exam.questions?.find((q: any) => q.id === videoAnswer.questionId);
+                    
+                    return (
+                      <div key={idx} className="relative group">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none z-10"></div>
+                        <div className="absolute top-4 start-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 z-20 shadow-2xl">
+                          <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                          🎬 Question {videoAnswer.questionId}
+                        </div>
+                        <div className="absolute top-4 end-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs z-20 border border-white/20">
+                          Video Answer • {Math.round((videoAnswer.confidence || 0) * 100)}%
+                        </div>
+                        <div className="absolute bottom-4 start-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs z-20 border border-white/20 max-w-xs truncate" dir="rtl">
+                          {videoAnswer.transcription || 'No transcription'}
+                        </div>
+                        <video
+                          controls
+                          className="w-full hover:scale-105 transition-transform duration-500 border-2 border-white/10"
+                          style={{ minHeight: '320px', maxHeight: '420px' }}
+                          preload="metadata"
+                        >
+                          <source src={videoAnswer.videoPath} type="video/webm" />
+                          Your browser does not support the video tag.
+                        </video>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Student Answer Videos from submission answers */}
+        {(() => {
+          // Extract video answers from submission.answers
+          const answerVideos = Object.entries(submissionData?.answers || {})
+            .filter(([_, answer]: [string, any]) => answer?.type === 'video_response' && answer?.videoUrl)
+            .map(([questionId, answer]: [string, any]) => ({
+              questionId: parseInt(questionId),
+              videoUrl: answer.videoUrl,
+              transcription: answer.transcription,
+              confidence: answer.confidence
+            }));
+
+          if (answerVideos.length === 0) return null;
+
+          return (
+            <Card className="border-0 shadow-2xl overflow-hidden bg-white/90 backdrop-blur-sm">
+              <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-red-600/5 rounded-xl"></div>
+              <CardHeader className="relative z-10 bg-gradient-to-r from-orange-600 to-red-600 text-white">
+                <CardTitle className="flex items-center space-x-3 text-2xl">
+                  <Video className="h-8 w-8" />
+                  <span>📹 Question Responses</span>
+                  <Badge className="bg-white/20 backdrop-blur-sm text-white ml-auto px-4 py-2">
+                    {answerVideos.length} Video{answerVideos.length !== 1 ? 's' : ''}
+                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-medium">Answers</span>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="relative z-10 p-0">
+                <div className="bg-gradient-to-br from-gray-900 to-black">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+                    {answerVideos.map((answer: any, idx: number) => {
+                      // Find the corresponding question
+                      const question = exam.questions?.find((q: any) => q.id === answer.questionId);
+                      
+                      return (
+                        <div key={idx} className="relative group">
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none z-10"></div>
+                          <div className="absolute top-4 start-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 z-20 shadow-2xl">
+                            <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                            📹 Q{answer.questionId}
+                          </div>
+                          <div className="absolute top-4 end-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs z-20 border border-white/20">
+                            {Math.round((answer.confidence || 0) * 100)}% Confidence
+                          </div>
+                          <div className="absolute bottom-4 start-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs z-20 border border-white/20 max-w-xs truncate" dir="rtl">
+                            {answer.transcription ? `"${answer.transcription}"` : 'No transcription'}
+                          </div>
+                          <video
+                            controls
+                            className="w-full hover:scale-105 transition-transform duration-500 border-2 border-white/10"
+                            style={{ minHeight: '320px', maxHeight: '420px' }}
+                            preload="metadata"
+                          >
+                            <source src={answer.videoUrl} type="video/webm" />
+                            Your browser does not support the video tag.
+                          </video>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
+
+        {/* Enhanced Violations Details */}
+        {proctoringData?.violations && proctoringData.violations.length > 0 && (
+          <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-sm overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-pink-600/5 rounded-xl"></div>
+            <CardHeader className="relative z-10 bg-gradient-to-r from-red-600 to-pink-600 text-white">
+              <CardTitle className="flex items-center space-x-3 text-2xl">
+                <AlertTriangle className="h-8 w-8" />
+                <span>⚠️ Security Violations Detected</span>
+                <Badge className="bg-white/20 backdrop-blur-sm text-white ml-auto px-4 py-2 animate-pulse">
+                  {proctoringData.violations.length} Violation{proctoringData.violations.length !== 1 ? 's' : ''}
+                </Badge>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium">Alert</span>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="relative z-10 p-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {proctoringData.violations.map((violation: any, idx: number) => (
+                  <div key={idx} className={`group relative p-6 rounded-2xl border-2 hover:shadow-2xl transition-all duration-300 hover:scale-105 ${getSeverityColor(violation.severity)}`}>
+                    <div className="absolute inset-0 bg-gradient-to-br from-red-50/50 to-pink-50/50 rounded-2xl"></div>
+                    <div className="relative z-10 flex items-start gap-4">
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-red-500 to-red-600 shadow-xl flex items-center justify-center text-white text-xl">
+                        {getViolationIcon(violation.type)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                            ⚠️ {violation.type.replace('_', ' ').toUpperCase()}
+                          </h4>
+                          <Badge 
+                            variant={violation.severity === 'high' ? 'destructive' : 'secondary'} 
+                            className={`text-sm px-3 py-1 ${
+                              violation.severity === 'high' ? 'bg-red-100 text-red-800 border-red-300' :
+                              violation.severity === 'medium' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                              'bg-green-100 text-green-800 border-green-300'
+                            }`}
+                          >
+                            {violation.severity === 'high' ? '🔴' : violation.severity === 'medium' ? '🟡' : '🟢'}
+                            {violation.severity.toUpperCase()}
+                          </Badge>
+                        </div>
+                        <p className="text-gray-700 mb-4 leading-relaxed font-medium">{violation.description}</p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+                            <Clock className="h-4 w-4" />
+                            <span className="font-medium">🕒 {new Date(violation.timestamp).toLocaleTimeString()}</span>
+                          </div>
+                          <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                            Alert #{idx + 1}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  if (tabMode === 'timeline') {
+    return (
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header Section */}
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-3">
+                <Shield className="h-8 w-8" />
+                Comprehensive Monitoring - {submission.studentName}
+              </h1>
+              <p className="mt-2 text-blue-100">
+                Complete analysis of {submission.studentName}'s exam performance and integrity
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-blue-100">Exam</div>
+              <div className="text-xl font-semibold">{exam.title}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Student</p>
+                  <p className="text-lg font-semibold">{formatStudentName(submission.studentName)}</p>
+                  <p className="text-sm text-gray-500">{submission.studentEmail}</p>
+                </div>
+                <User className="h-10 w-10 text-blue-500 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Score</p>
+                  <div className="flex items-center gap-3">
+                    <p className="text-2xl font-bold">{scoreData.display}</p>
+                    <Badge className={scoreData.badge.class}>{scoreData.badge.label}</Badge>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {scoreData.percentage}
+                  </p>
+                </div>
+                <Trophy className="h-10 w-10 text-yellow-500 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Time Spent</p>
+                  <p className="text-2xl font-bold">{submission.timeSpent || 0}m</p>
+                  <p className="text-sm text-gray-500">Duration: {exam.duration}m</p>
+                </div>
+                <Clock className="h-10 w-10 text-green-500 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">Integrity Score</p>
+                  <div className="flex items-center gap-3">
+                    <p className="text-2xl font-bold">
+                      {proctoringData?.stats?.overallIntegrity || 100}%
+                    </p>
+                    {(proctoringData?.stats?.overallIntegrity || 100) >= 90 ? (
+                      <CheckCircle className="h-5 w-5 text-green-500" />
+                    ) : (
+                      <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    {proctoringData?.stats?.totalViolations || 0} violations
+                  </p>
+                </div>
+                <Shield className="h-10 w-10 text-purple-500 opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Timeline and AI Analysis */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Timeline Card */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-6 w-6" />
+                Exam Timeline
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                {(() => {
+                  const timelineEvents = [];
+                  
+                  // Add exam start event
+                  if (submission.startedAt) {
+                    timelineEvents.push({
+                      time: new Date(submission.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                      event: 'Exam started',
+                      icon: Play,
+                      color: 'text-green-600',
+                      timestamp: new Date(submission.startedAt).getTime()
+                    });
+                  }
+                  
+                  // Add violations
+                  if (proctoringData?.violations) {
+                    proctoringData.violations.forEach((violation: any) => {
+                      timelineEvents.push({
+                        time: new Date(violation.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        event: `${violation.severity === 'high' ? 'Critical' : violation.severity === 'medium' ? 'Major' : 'Minor'} violation: ${violation.type.replace('_', ' ')}`,
+                        icon: AlertTriangle,
+                        color: violation.severity === 'high' ? 'text-red-600' : violation.severity === 'medium' ? 'text-yellow-600' : 'text-orange-600',
+                        timestamp: new Date(violation.timestamp).getTime()
+                      });
+                    });
+                  }
+                  
+                  // Add question completion events based on video answers
+                  if (submissionData?.videoAnswers && submissionData.videoAnswers.length > 0) {
+                    submissionData.videoAnswers.forEach((answer: any) => {
+                      if (answer.recordedAt) {
+                        timelineEvents.push({
+                          time: new Date(answer.recordedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                          event: `Completed Question ${answer.questionId}`,
+                          icon: CheckCircle,
+                          color: 'text-blue-600',
+                          timestamp: new Date(answer.recordedAt).getTime()
+                        });
+                      }
+                    });
+                  }
+                  
+                  // Add exam submission event
+                  if (submission.submittedAt) {
+                    timelineEvents.push({
+                      time: new Date(submission.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                      event: 'Exam submitted',
+                      icon: Trophy,
+                      color: 'text-green-600',
+                      timestamp: new Date(submission.submittedAt).getTime()
+                    });
+                  }
+                  
+                  // Sort events by timestamp
+                  timelineEvents.sort((a, b) => a.timestamp - b.timestamp);
+                  
+                  // If no real events, show a message
+                  if (timelineEvents.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500">No timeline events available</p>
+                        <p className="text-sm text-gray-400">Events will appear as they occur during the exam</p>
+                      </div>
+                    );
+                  }
+                  
+                  return timelineEvents.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-4 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+                      <span className="text-sm font-medium text-gray-500 w-12">{item.time}</span>
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-sm">
+                        <item.icon className={`h-4 w-4 ${item.color}`} />
+                      </div>
+                      <span className="text-sm font-medium flex-1">{item.event}</span>
+                    </div>
+                  ));
+                })()}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Analysis Tools */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-6 w-6" />
+                AI Analysis Tools
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div className="flex gap-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => runComprehensiveAnalysis()}
+                    disabled={isAnalyzing}
+                    className="flex items-center gap-2 flex-1"
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <Brain className="h-4 w-4 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="h-4 w-4" />
+                        Run AI Analysis
+                      </>
+                    )}
+                  </Button>
+                </div>
+                
+                {aiAnalysis && aiAnalysis.length > 0 ? (
+                  <div className="space-y-3">
+                    <Alert className="border-blue-200 bg-blue-50">
+                      <Info className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="text-blue-800">
+                        AI detected {aiAnalysis.length} notable patterns during the exam
+                      </AlertDescription>
+                    </Alert>
+                    <div className="space-y-2">
+                      {aiAnalysis.slice(0, 3).map((item: any, idx: number) => (
+                        <div key={idx} className="flex items-start gap-2 text-sm p-2 bg-green-50 rounded">
+                          <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
+                          <span>{item.summary || item.description}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-6 bg-gray-50 rounded-lg">
+                    <Brain className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                    <p className="text-gray-500 font-medium">No AI analysis available yet</p>
+                    <p className="text-sm text-gray-400 mt-1">Click "Run AI Analysis" to start comprehensive analysis</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Activity Summary */}
+        <Card className="border-0 shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-green-600 to-teal-600 text-white">
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-6 w-6" />
+              Activity Summary
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <BookOpen className="h-8 w-8 text-blue-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-1">Questions Answered</h3>
+                <p className="text-2xl font-bold text-blue-600">{exam.questions?.length || 0}</p>
+                <p className="text-sm text-gray-500">Total Questions</p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Video className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-1">Video Responses</h3>
+                <p className="text-2xl font-bold text-green-600">
+                  {Object.values(submission.answers || {}).filter((answer: any) => answer.type === 'video_response').length}
+                </p>
+                <p className="text-sm text-gray-500">Recorded Answers</p>
+              </div>
+              <div className="text-center">
+                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Camera className="h-8 w-8 text-purple-600" />
+                </div>
+                <h3 className="font-semibold text-gray-900 mb-1">Proctoring Videos</h3>
+                <p className="text-2xl font-bold text-purple-600">
+                  {(proctoringData?.videos?.camera?.length || 0) + (proctoringData?.videos?.screen?.length || 0)}
+                </p>
+                <p className="text-sm text-gray-500">Monitoring Segments</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Default full dashboard with beautiful old design
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header Section */}
@@ -138,10 +1005,10 @@ export default function ExamMonitoringDashboard({ submissionId, examId }: ExamMo
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-3">
               <Shield className="h-8 w-8" />
-              Exam Monitoring Dashboard
+              Comprehensive Monitoring - {submission.studentName}
             </h1>
             <p className="mt-2 text-blue-100">
-              Comprehensive view of student performance and exam integrity
+              Complete analysis of {submission.studentName}'s exam performance and integrity
             </p>
           </div>
           <div className="text-right">
@@ -172,11 +1039,11 @@ export default function ExamMonitoringDashboard({ submissionId, examId }: ExamMo
               <div>
                 <p className="text-sm text-gray-600 mb-1">Score</p>
                 <div className="flex items-center gap-3">
-                  <p className="text-2xl font-bold">{scorePercentage}%</p>
-                  <Badge className={scoreBadge.class}>{scoreBadge.label}</Badge>
+                  <p className="text-2xl font-bold">{scoreData.display}</p>
+                  <Badge className={scoreData.badge.class}>{scoreData.badge.label}</Badge>
                 </div>
                 <p className="text-sm text-gray-500 mt-1">
-                  {submission.score || 0} / {submission.totalPoints}
+                  {scoreData.percentage}
                 </p>
               </div>
               <Trophy className="h-10 w-10 text-yellow-500 opacity-20" />
@@ -204,16 +1071,16 @@ export default function ExamMonitoringDashboard({ submissionId, examId }: ExamMo
                 <p className="text-sm text-gray-600 mb-1">Integrity Score</p>
                 <div className="flex items-center gap-3">
                   <p className="text-2xl font-bold">
-                    {proctoringData?.stats.overallIntegrity || 95}%
+                    {proctoringData?.stats?.overallIntegrity || 100}%
                   </p>
-                  {(proctoringData?.stats.overallIntegrity || 95) >= 90 ? (
+                  {(proctoringData?.stats?.overallIntegrity || 100) >= 90 ? (
                     <CheckCircle className="h-5 w-5 text-green-500" />
                   ) : (
                     <AlertTriangle className="h-5 w-5 text-yellow-500" />
                   )}
                 </div>
                 <p className="text-sm text-gray-500">
-                  {proctoringData?.stats.totalViolations || 0} violations
+                  {proctoringData?.stats?.totalViolations || 0} violations
                 </p>
               </div>
               <Shield className="h-10 w-10 text-purple-500 opacity-20" />
@@ -227,60 +1094,418 @@ export default function ExamMonitoringDashboard({ submissionId, examId }: ExamMo
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full justify-start rounded-none border-b bg-gray-50 p-0">
-              <TabsTrigger value="overview" className="data-[state=active]:bg-white rounded-none px-6">
-                <BookOpen className="h-4 w-4 mr-2" />
-                Overview
+              <TabsTrigger value="timeline" className="data-[state=active]:bg-white rounded-none px-6">
+                <Clock className="h-4 w-4 mr-2" />
+                Exam Timeline
               </TabsTrigger>
-              <TabsTrigger value="answers" className="data-[state=active]:bg-white rounded-none px-6">
-                <FileText className="h-4 w-4 mr-2" />
+              <TabsTrigger value="questions" className="data-[state=active]:bg-white rounded-none px-6">
+                <BookOpen className="h-4 w-4 mr-2" />
                 Questions & Answers
+              </TabsTrigger>
+              <TabsTrigger value="analysis" className="data-[state=active]:bg-white rounded-none px-6">
+                <Brain className="h-4 w-4 mr-2" />
+                Detailed Analysis
               </TabsTrigger>
               <TabsTrigger value="proctoring" className="data-[state=active]:bg-white rounded-none px-6">
                 <Camera className="h-4 w-4 mr-2" />
-                Proctoring Analysis
+                Proctoring & Media
               </TabsTrigger>
-              <TabsTrigger value="media" className="data-[state=active]:bg-white rounded-none px-6">
-                <Video className="h-4 w-4 mr-2" />
-                Media Responses
+              <TabsTrigger value="ai-tools" className="data-[state=active]:bg-white rounded-none px-6">
+                <Zap className="h-4 w-4 mr-2" />
+                AI Tools
               </TabsTrigger>
             </TabsList>
 
-            {/* Overview Tab */}
-            <TabsContent value="overview" className="p-6 space-y-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Score Breakdown */}
-                <Card className="border-gray-200">
-                  <CardHeader>
+            {/* Exam Timeline Tab */}
+            <TabsContent value="timeline" className="p-6">
+              <div className="space-y-6">
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold flex items-center gap-3">
+                        <Clock className="h-8 w-8" />
+                        Exam Timeline
+                      </h2>
+                      <p className="mt-2 text-blue-100">
+                        Complete chronological view of {submission.studentName}'s exam session
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-blue-100">Duration</div>
+                      <div className="text-xl font-semibold">{submission.timeSpent || 0} minutes</div>
+                    </div>
+                  </div>
+                </div>
+
+                <Card className="border-0 shadow-lg">
+                  <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
                     <CardTitle className="flex items-center gap-2">
-                      <BarChart3 className="h-5 w-5" />
-                      Score Breakdown
+                      <History className="h-6 w-6" />
+                      Real-Time Activity Log
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    {Object.entries({
-                      'Multiple Choice': { score: 18, total: 20, color: 'bg-blue-500' },
-                      'True/False': { score: 8, total: 10, color: 'bg-green-500' },
-                      'Short Answer': { score: 12, total: 15, color: 'bg-purple-500' },
-                      'Video Response': { score: 15, total: 20, color: 'bg-pink-500' }
-                    }).map(([type, data]) => (
-                      <div key={type}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>{type}</span>
-                          <span className="font-medium">{data.score}/{data.total}</span>
-                        </div>
-                        <Progress value={(data.score / data.total) * 100} className="h-2" />
-                      </div>
-                    ))}
+                  <CardContent className="p-6">
+                    <div className="space-y-4">
+                      {(() => {
+                        const timelineEvents = [];
+                        
+                        // Add exam start event
+                        if (submission.startedAt) {
+                          timelineEvents.push({
+                            time: new Date(submission.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                            event: 'Exam started',
+                            icon: Play,
+                            color: 'text-green-600',
+                            bgColor: 'bg-green-100',
+                            timestamp: new Date(submission.startedAt).getTime()
+                          });
+                        }
+                        
+                        // Add violations
+                        if (proctoringData?.violations) {
+                          proctoringData.violations.forEach((violation: any) => {
+                            timelineEvents.push({
+                              time: new Date(violation.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                              event: `${violation.severity === 'high' ? 'Critical' : violation.severity === 'medium' ? 'Major' : 'Minor'} violation: ${violation.type.replace('_', ' ')}`,
+                              icon: AlertTriangle,
+                              color: violation.severity === 'high' ? 'text-red-600' : violation.severity === 'medium' ? 'text-yellow-600' : 'text-orange-600',
+                              bgColor: violation.severity === 'high' ? 'bg-red-100' : violation.severity === 'medium' ? 'bg-yellow-100' : 'bg-orange-100',
+                              timestamp: new Date(violation.timestamp).getTime()
+                            });
+                          });
+                        }
+                        
+                        // Add question completion events based on video answers
+                        if (submissionData?.videoAnswers && submissionData.videoAnswers.length > 0) {
+                          submissionData.videoAnswers.forEach((answer: any) => {
+                            if (answer.recordedAt) {
+                              timelineEvents.push({
+                                time: new Date(answer.recordedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                event: `Question ${answer.questionNumber} answered (Video)`,
+                                icon: Video,
+                                color: 'text-blue-600',
+                                bgColor: 'bg-blue-100',
+                                timestamp: new Date(answer.recordedAt).getTime()
+                              });
+                            }
+                          });
+                        }
+                        
+                        // Add submission completion
+                        if (submission.submittedAt) {
+                          timelineEvents.push({
+                            time: new Date(submission.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                            event: 'Exam submitted',
+                            icon: CheckCircle,
+                            color: 'text-green-600',
+                            bgColor: 'bg-green-100',
+                            timestamp: new Date(submission.submittedAt).getTime()
+                          });
+                        }
+                        
+                        // Sort events by timestamp
+                        timelineEvents.sort((a, b) => a.timestamp - b.timestamp);
+                        
+                        return timelineEvents.length > 0 ? timelineEvents.map((event, idx) => (
+                          <div key={idx} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                            <div className={`w-12 h-12 rounded-full ${event.bgColor} flex items-center justify-center`}>
+                              <event.icon className={`h-6 w-6 ${event.color}`} />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <p className="font-medium text-gray-900">{event.event}</p>
+                                <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded-full">
+                                  {event.time}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )) : (
+                          <div className="text-center py-8 text-gray-500">
+                            <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No timeline events available</p>
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </CardContent>
                 </Card>
+              </div>
+            </TabsContent>
 
+            {/* Questions & Answers Tab */}
+            <TabsContent value="questions" className="p-6">
+              <div className="space-y-6">
+                <div className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl p-6 text-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold flex items-center gap-3">
+                        <BookOpen className="h-8 w-8" />
+                        Questions & Answers
+                      </h2>
+                      <p className="mt-2 text-green-100">
+                        Complete overview of all questions and {submission.studentName}'s responses
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-green-100">Total Questions</div>
+                      <div className="text-xl font-semibold">{exam.questions?.length || 0}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {(exam.questions || []).map((question: any, index: number) => {
+                    const studentAnswer = getAnswerForQuestion(question.id);
+                    const isCorrect = question.correctAnswer && studentAnswer?.answer === question.correctAnswer;
+                    
+                    // Always show student responses - check all possible answer formats
+                    const hasAnswer = studentAnswer || 
+                                     submissionData?.answers?.[question.id] || 
+                                     submissionData?.answers?.[question.id.toString()];
+                    
+                    return (
+                      <Card 
+                        key={question.id} 
+                        className="border-2 border-gray-200 hover:border-gray-300 bg-white shadow-lg hover:shadow-xl transition-all duration-300"
+                      >
+                        <CardHeader className="pb-4">
+                          <div className="flex items-start gap-4">
+                            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-white font-bold text-lg shadow-lg flex-shrink-0">
+                              {index + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-lg text-gray-900 mb-3 leading-relaxed">{question.question}</p>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {getQuestionTypeBadge(question.type)}
+                                <Badge variant="outline" className="bg-gray-100 text-gray-700 font-medium">
+                                  {question.points} points
+                                </Badge>
+                                {isCorrect !== undefined && (
+                                  isCorrect ? (
+                                    <Badge className="bg-green-100 text-green-700 border-green-300">
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      Correct Answer
+                                    </Badge>
+                                  ) : (
+                                    <Badge className="bg-red-100 text-red-700 border-red-300">
+                                      <XCircle className="h-3 w-3 mr-1" />
+                                      Incorrect Answer
+                                    </Badge>
+                                  )
+                                )}
+                                {hasAnswer && (
+                                  <Badge className="bg-blue-100 text-blue-700 border-blue-300">
+                                    <FileText className="h-3 w-3 mr-1" />
+                                    Answered
+                                  </Badge>
+                                )}
+                                {(() => {
+                                  const actualAnswer = studentAnswer || 
+                                                     submissionData?.answers?.[question.id] || 
+                                                     submissionData?.answers?.[question.id.toString()];
+                                  return actualAnswer?.type === 'video_response' && (
+                                    <Badge className="bg-pink-100 text-pink-700 border-pink-300">
+                                      <Video className="h-3 w-3 mr-1" />
+                                      Video Response
+                                    </Badge>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        
+                        <CardContent className="pt-0">
+                          <Separator className="mb-6" />
+                          
+                          {/* Enhanced Student's answer */}
+                          <div className="space-y-6">
+                            <div>
+                              <div className="flex items-center gap-2 mb-4">
+                                <User className="h-5 w-5 text-blue-600" />
+                                <h3 className="text-lg font-semibold text-gray-900">Student's Submission</h3>
+                              </div>
+                              
+                              {(() => {
+                                // Get the actual answer data from multiple sources
+                                const actualAnswer = studentAnswer || 
+                                                   submissionData?.answers?.[question.id] || 
+                                                   submissionData?.answers?.[question.id.toString()];
+                                
+                                if (!actualAnswer) {
+                                  return (
+                                    <div className="p-6 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl border-2 border-red-200">
+                                      <div className="text-center">
+                                        <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                          <AlertTriangle className="h-6 w-6 text-red-500" />
+                                        </div>
+                                        <p className="text-red-600 font-bold text-lg mb-2">No Answer Provided</p>
+                                        <p className="text-red-500 text-sm mb-3">Student did not respond to this question</p>
+                                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-red-100 border border-red-300 rounded-full">
+                                          <Clock className="h-3 w-3 text-red-500" />
+                                          <span className="text-red-600 text-xs font-medium">Missing Response</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                
+                                if (actualAnswer?.type === 'video_response') {
+                                  return (
+                                    <div className="space-y-4">
+                                      {/* Video Response */}
+                                      <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200">
+                                        <div className="flex items-center gap-3 mb-3">
+                                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                                            <Video className="h-4 w-4 text-white" />
+                                          </div>
+                                          <div className="flex-1">
+                                            <span className="font-bold text-blue-800 text-sm">Video Response</span>
+                                            <p className="text-blue-600 text-xs">Recorded answer with transcription</p>
+                                          </div>
+                                          {actualAnswer.confidence && (
+                                            <Badge variant="outline" className="bg-white border-blue-300 text-blue-700 text-xs">
+                                              {Math.round(actualAnswer.confidence * 100)}%
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        
+                                        {actualAnswer.videoUrl && (
+                                          <div className="mb-3">
+                                            <video
+                                              controls
+                                              className="w-full rounded-lg shadow border border-blue-300"
+                                              style={{ maxHeight: '200px' }}
+                                            >
+                                              <source src={actualAnswer.videoUrl} type="video/webm" />
+                                            </video>
+                                          </div>
+                                        )}
+                                        
+                                        {actualAnswer.transcription && (
+                                          <div className="bg-white rounded-lg p-3 border border-blue-100">
+                                            <div className="flex items-center gap-2 mb-2">
+                                              <Mic className="h-3 w-3 text-blue-600" />
+                                              <span className="text-xs font-semibold text-blue-800">Transcript:</span>
+                                            </div>
+                                            <p className="text-gray-800 text-sm leading-relaxed" dir="rtl">
+                                              "{actualAnswer.transcription}"
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                
+                                // Default to text response
+                                return (
+                                  <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-200">
+                                    <div className="flex items-center gap-3 mb-3">
+                                      <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                                        <FileText className="h-4 w-4 text-white" />
+                                      </div>
+                                      <div>
+                                        <span className="font-bold text-green-800 text-sm">Text Response</span>
+                                        <p className="text-green-600 text-xs">Student's written answer</p>
+                                      </div>
+                                    </div>
+                                    <div className="bg-white rounded-lg p-4 border border-green-100">
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <User className="h-3 w-3 text-gray-500" />
+                                        <span className="text-xs font-medium text-gray-600">{submission.studentName}'s Answer:</span>
+                                      </div>
+                                      <p className="text-gray-800 leading-relaxed text-sm font-medium">
+                                        {String(actualAnswer.answer || actualAnswer)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                            
+                            {/* Question Options */}
+                            {question.options && (
+                              <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                  <BookOpen className="h-4 w-4 text-purple-600" />
+                                  <h4 className="text-sm font-semibold text-gray-900">Answer Options</h4>
+                                </div>
+                                <div className="grid grid-cols-1 gap-2">
+                                  {question.options.map((option: string, idx: number) => {
+                                    const actualAnswer = studentAnswer || 
+                                                       submissionData?.answers?.[question.id] || 
+                                                       submissionData?.answers?.[question.id.toString()];
+                                    
+                                    return (
+                                      <div 
+                                        key={idx} 
+                                        className={`p-3 rounded-lg border-2 transition-all duration-200 text-sm ${
+                                          option === question.correctAnswer 
+                                            ? 'bg-green-50 border-green-300 text-green-800' 
+                                            : option === actualAnswer?.answer
+                                            ? 'bg-blue-50 border-blue-300 text-blue-800'
+                                            : 'bg-gray-50 border-gray-200 text-gray-700'
+                                        }`}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-bold text-xs">
+                                            {String.fromCharCode(65 + idx)}
+                                          </span>
+                                          <span className="flex-1">{option}</span>
+                                          {option === question.correctAnswer && (
+                                            <CheckCircle className="h-3 w-3 text-green-600" />
+                                          )}
+                                          {option === actualAnswer?.answer && option !== question.correctAnswer && (
+                                            <XCircle className="h-3 w-3 text-red-600" />
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Detailed Analysis Tab */}
+            <TabsContent value="analysis" className="p-6 space-y-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* AI Analysis Summary */}
-                <Card className="border-gray-200">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Activity className="h-5 w-5" />
-                      AI Analysis Summary
-                    </CardTitle>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">AI Analysis</CardTitle>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => runComprehensiveAnalysis()}
+                          disabled={isAnalyzing}
+                          className="flex items-center gap-2"
+                        >
+                          {isAnalyzing ? (
+                            <>
+                              <Brain className="h-4 w-4 animate-spin" />
+                              Analyzing...
+                            </>
+                          ) : (
+                            <>
+                              <Zap className="h-4 w-4" />
+                              Quick Analysis
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {aiAnalysis && aiAnalysis.length > 0 ? (
@@ -295,460 +1520,538 @@ export default function ExamMonitoringDashboard({ submissionId, examId }: ExamMo
                           {aiAnalysis.slice(0, 3).map((item: any, idx: number) => (
                             <div key={idx} className="flex items-start gap-2 text-sm">
                               <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
-                              <span>{item.description}</span>
+                              <span>{item.summary || item.description}</span>
                             </div>
                           ))}
                         </div>
                       </div>
                     ) : (
-                      <p className="text-gray-500 text-center py-4">No AI analysis available yet</p>
+                      <div className="text-center py-4">
+                        <p className="text-gray-500">No AI analysis available yet</p>
+                        <p className="text-sm text-gray-400 mt-2">Click "Quick Analysis" to start</p>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
-              </div>
 
-              {/* Recent Activity Timeline */}
-              <Card className="border-gray-200">
-                <CardHeader>
-                  <CardTitle>Exam Timeline</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {[
-                      { time: '09:00', event: 'Exam started', icon: Play, color: 'text-green-600' },
-                      { time: '09:15', event: 'Completed Section 1', icon: CheckCircle, color: 'text-blue-600' },
-                      { time: '09:28', event: 'Minor violation: Face partially obscured', icon: AlertTriangle, color: 'text-yellow-600' },
-                      { time: '09:45', event: 'Completed Section 2', icon: CheckCircle, color: 'text-blue-600' },
-                      { time: '10:30', event: 'Exam submitted', icon: Trophy, color: 'text-green-600' }
-                    ].map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-4">
-                        <span className="text-sm text-gray-500 w-12">{item.time}</span>
-                        <item.icon className={`h-5 w-5 ${item.color}`} />
-                        <span className="text-sm">{item.event}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* Questions & Answers Tab */}
-            <TabsContent value="answers" className="p-6">
-              <ScrollArea className="h-[600px] pr-4">
-                <div className="space-y-6">
-                  {exam.questions.map((question: any, index: number) => {
-                    const studentAnswer = answers[question.id.toString()];
-                    const isExpanded = expandedQuestion === question.id;
-                    const isCorrect = question.correctAnswer && studentAnswer === question.correctAnswer;
-                    
-                    return (
-                      <Card 
-                        key={question.id} 
-                        className={`border transition-all ${
-                          isExpanded ? 'border-blue-300 shadow-lg' : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <CardHeader 
-                          className="cursor-pointer"
-                          onClick={() => setExpandedQuestion(isExpanded ? null : question.id)}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-white font-bold">
-                                {index + 1}
-                              </div>
-                              <div>
-                                <p className="font-medium">{question.question}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="outline" className="text-xs">
-                                    {question.type.replace('_', ' ')}
-                                  </Badge>
-                                  <span className="text-xs text-gray-500">{question.points} points</span>
-                                  {isCorrect !== undefined && (
-                                    isCorrect ? (
-                                      <Badge className="bg-green-100 text-green-700 text-xs">
-                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                        Correct
-                                      </Badge>
-                                    ) : (
-                                      <Badge className="bg-red-100 text-red-700 text-xs">
-                                        <XCircle className="h-3 w-3 mr-1" />
-                                        Incorrect
-                                      </Badge>
-                                    )
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <ChevronRight className={`h-5 w-5 text-gray-400 transition-transform ${
-                              isExpanded ? 'rotate-90' : ''
-                            }`} />
-                          </div>
-                        </CardHeader>
-                        
-                        {isExpanded && (
-                          <CardContent className="pt-0">
-                            <Separator className="mb-4" />
-                            
-                            {/* Multiple choice options */}
-                            {question.type === 'multiple_choice' && question.options && (
-                              <div className="mb-4 space-y-2">
-                                <p className="text-sm font-medium text-gray-700 mb-2">Options:</p>
-                                {(question.options as string[]).map((option: string, idx: number) => (
-                                  <div 
-                                    key={idx}
-                                    className={`p-3 rounded-lg border ${
-                                      option === question.correctAnswer
-                                        ? 'bg-green-50 border-green-300'
-                                        : option === studentAnswer
-                                        ? 'bg-red-50 border-red-300'
-                                        : 'bg-gray-50 border-gray-200'
-                                    }`}
-                                  >
-                                    <span className="font-medium mr-2">
-                                      {String.fromCharCode(65 + idx)}.
-                                    </span>
-                                    {option}
-                                    {option === question.correctAnswer && (
-                                      <CheckCircle className="inline ml-2 h-4 w-4 text-green-600" />
-                                    )}
-                                    {option === studentAnswer && option !== question.correctAnswer && (
-                                      <XCircle className="inline ml-2 h-4 w-4 text-red-600" />
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            
-                            {/* Student's answer */}
-                            <div className="space-y-2">
-                              <p className="text-sm font-medium text-gray-700">Student's Answer:</p>
-                              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                                {studentAnswer ? (
-                                  <p className="text-gray-800">{String(studentAnswer)}</p>
-                                ) : (
-                                  <p className="text-gray-500 italic">No answer provided</p>
-                                )}
-                              </div>
-                            </div>
-                            
-                            {/* Correct answer (if different) */}
-                            {question.correctAnswer && studentAnswer !== question.correctAnswer && (
-                              <div className="mt-4 space-y-2">
-                                <p className="text-sm font-medium text-gray-700">Correct Answer:</p>
-                                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                                  <p className="text-gray-800">{question.correctAnswer}</p>
-                                </div>
-                              </div>
-                            )}
-                          </CardContent>
-                        )}
-                      </Card>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-            </TabsContent>
-
-            {/* Proctoring Analysis Tab */}
-            <TabsContent value="proctoring" className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Proctoring Stats */}
-                <div className="lg:col-span-1 space-y-4">
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg">Integrity Metrics</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Face Detection</span>
-                          <span>{proctoringData?.stats.faceDetectionScore || 98}%</span>
-                        </div>
-                        <Progress value={proctoringData?.stats.faceDetectionScore || 98} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Behavior Score</span>
-                          <span>{proctoringData?.stats.behaviorScore || 95}%</span>
-                        </div>
-                        <Progress value={proctoringData?.stats.behaviorScore || 95} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>Overall Integrity</span>
-                          <span>{proctoringData?.stats.overallIntegrity || 95}%</span>
-                        </div>
-                        <Progress value={proctoringData?.stats.overallIntegrity || 95} className="h-2" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg">Violation Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                          <span className="text-sm font-medium text-red-700">High Severity</span>
-                          <Badge variant="destructive">0</Badge>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
-                          <span className="text-sm font-medium text-yellow-700">Medium Severity</span>
-                          <Badge className="bg-yellow-500">1</Badge>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                          <span className="text-sm font-medium text-blue-700">Low Severity</span>
-                          <Badge className="bg-blue-500">2</Badge>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Violations Timeline */}
-                <div className="lg:col-span-2">
-                  <Card className="h-full">
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <AlertTriangle className="h-5 w-5" />
-                        Violation Timeline
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ScrollArea className="h-[400px]">
-                        <div className="space-y-4">
-                          {proctoringData?.violations && proctoringData.violations.length > 0 ? (
-                            proctoringData.violations.map((violation) => (
-                              <div
-                                key={violation.id}
-                                className={`p-4 rounded-lg border ${getSeverityColor(violation.severity)}`}
-                              >
-                                <div className="flex items-start gap-3">
-                                  {getViolationIcon(violation.type)}
-                                  <div className="flex-1">
-                                    <div className="flex items-center justify-between mb-1">
-                                      <p className="font-medium">{violation.description}</p>
-                                      <Badge 
-                                        variant="outline" 
-                                        className={`text-xs ${
-                                          violation.severity === 'high' ? 'border-red-500 text-red-700' :
-                                          violation.severity === 'medium' ? 'border-yellow-500 text-yellow-700' :
-                                          'border-blue-500 text-blue-700'
-                                        }`}
-                                      >
-                                        {violation.severity}
-                                      </Badge>
-                                    </div>
-                                    <p className="text-sm text-gray-600">{violation.timestamp}</p>
-                                    {violation.evidence && (
-                                      <Button
-                                        variant="link"
-                                        size="sm"
-                                        className="p-0 h-auto mt-2 text-xs"
-                                        onClick={() => setSelectedVideo(violation.evidence!)}
-                                      >
-                                        View Evidence →
-                                      </Button>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-center py-12">
-                              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                              <p className="text-lg font-medium text-gray-900">No violations detected</p>
-                              <p className="text-sm text-gray-500 mt-2">
-                                The student maintained excellent exam integrity throughout
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </ScrollArea>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Media Responses Tab */}
-            <TabsContent value="media" className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Video Responses */}
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Video className="h-5 w-5" />
-                      Video Responses
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Integrity Metrics</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>Face Detection</span>
+                        <span>{proctoringData?.stats?.faceDetectionScore || 98}%</span>
+                      </div>
+                      <Progress value={proctoringData?.stats?.faceDetectionScore || 98} className="h-2" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>Behavior Score</span>
+                        <span>{proctoringData?.stats?.behaviorScore || 95}%</span>
+                      </div>
+                      <Progress value={proctoringData?.stats?.behaviorScore || 95} className="h-2" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>Overall Integrity</span>
+                        <span>{proctoringData?.stats?.overallIntegrity || 95}%</span>
+                      </div>
+                      <Progress value={proctoringData?.stats?.overallIntegrity || 95} className="h-2" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Enhanced Camera Feed Videos */}
+              {proctoringData?.videos?.camera && proctoringData.videos.camera.length > 0 && (
+                <Card className="border-0 shadow-2xl overflow-hidden bg-white/90 backdrop-blur-sm">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-600/5 rounded-xl"></div>
+                  <CardHeader className="relative z-10 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                    <CardTitle className="flex items-center space-x-3 text-2xl">
+                      <Camera className="h-8 w-8" />
+                      <span>📹 Live Student Monitoring</span>
+                      <Badge className="bg-white/20 backdrop-blur-sm text-white ml-auto px-4 py-2">
+                        {proctoringData.videos.camera.length} Active Feed{proctoringData.videos.camera.length !== 1 ? 's' : ''}
+                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                        <span className="text-sm font-medium">RECORDING</span>
+                      </div>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {videoAnswers && videoAnswers.length > 0 ? (
-                        videoAnswers.map((video: any, idx: number) => (
-                          <div key={idx} className="border rounded-lg p-4 hover:bg-gray-50">
-                            <div className="flex items-start justify-between mb-3">
-                              <div>
-                                <p className="font-medium">Question {video.videoQuestionId}</p>
-                                <p className="text-sm text-gray-500">Video Response</p>
-                              </div>
-                              {video.confidence && (
-                                <Badge variant="outline">
-                                  {Math.round(video.confidence * 100)}% confidence
-                                </Badge>
-                              )}
+                  <CardContent className="p-0">
+                    <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black">
+                      <div className="grid grid-cols-1 gap-4 p-4">
+                        {proctoringData.videos.camera.map((videoUrl: string, idx: number) => (
+                          <div key={idx} className="relative group overflow-hidden rounded-lg">
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/40 pointer-events-none z-10"></div>
+                            
+                            <div className="absolute top-4 start-4 bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 z-20 shadow-2xl border border-red-400">
+                              <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                              📹 LIVE FEED {idx + 1}
+                            </div>
+                            
+                            <div className="absolute bottom-4 start-4 bg-black/80 backdrop-blur-sm text-white px-4 py-2 rounded-lg z-20 border border-white/20">
+                              <div className="text-xs font-medium text-blue-300">STUDENT</div>
+                              <div className="text-sm font-bold">{submission.studentName}</div>
+                            </div>
+                            
+                            <video
+                              controls
+                              className="w-full hover:scale-105 transition-all duration-500 border-2 border-white/20 rounded-lg"
+                              style={{ minHeight: '400px', maxHeight: '600px' }}
+                            >
+                              <source src={videoUrl} type="video/webm" />
+                            </video>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Screen Recording Videos */}
+              {proctoringData?.videos?.screen && proctoringData.videos.screen.length > 0 && (
+                <Card className="border-0 shadow-2xl overflow-hidden bg-white/90 backdrop-blur-sm">
+                  <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-teal-600/5 rounded-xl"></div>
+                  <CardHeader className="relative z-10 bg-gradient-to-r from-green-600 to-teal-600 text-white">
+                    <CardTitle className="flex items-center space-x-3 text-2xl">
+                      <Monitor className="h-8 w-8" />
+                      <span>🖥️ Screen Recording - Activity Monitoring</span>
+                      <Badge className="bg-white/20 backdrop-blur-sm text-white ml-auto px-4 py-2">
+                        {proctoringData.videos.screen.length} Recording{proctoringData.videos.screen.length !== 1 ? 's' : ''}
+                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                        <span className="text-sm font-medium">Active</span>
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="relative z-10 p-0">
+                    <div className="bg-gradient-to-br from-gray-900 to-black">
+                      <div className="grid grid-cols-1 gap-0">
+                        {proctoringData.videos.screen.map((videoUrl: string, idx: number) => (
+                          <div key={idx} className="relative group">
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none z-10"></div>
+                            <div className="absolute top-4 start-4 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 z-20 shadow-2xl">
+                              <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                              🖥️ Screen Capture {idx + 1}
+                            </div>
+                            <div className="absolute top-4 end-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs z-20 border border-white/20">
+                              Full Screen • 1080p
+                            </div>
+                            <div className="absolute bottom-4 start-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs z-20 border border-white/20">
+                              Screen {idx + 1} • Monitoring
                             </div>
                             <video
                               controls
-                              className="w-full rounded-lg mb-3"
-                              style={{ maxHeight: '200px' }}
+                              className="w-full hover:scale-105 transition-transform duration-500 border-2 border-white/10"
+                              style={{ minHeight: '400px', maxHeight: '600px' }}
+                              preload="metadata"
                             >
-                              <source src={video.videoUrl} type="video/webm" />
+                              <source src={videoUrl} type="video/webm" />
+                              Your browser does not support the video tag.
                             </video>
-                            {video.transcript && (
-                              <div className="bg-gray-50 rounded p-3">
-                                <p className="text-sm font-medium mb-1">Transcript:</p>
-                                <p className="text-sm text-gray-700">{video.transcript}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Student Video Answers */}
+              {submissionData?.videoAnswers && submissionData.videoAnswers.length > 0 && (
+                <Card className="border-0 shadow-2xl overflow-hidden bg-white/90 backdrop-blur-sm">
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-pink-600/5 rounded-xl"></div>
+                  <CardHeader className="relative z-10 bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+                    <CardTitle className="flex items-center space-x-3 text-2xl">
+                      <Video className="h-8 w-8" />
+                      <span>🎬 Student Video Answers</span>
+                      <Badge className="bg-white/20 backdrop-blur-sm text-white ml-auto px-4 py-2">
+                        {submissionData.videoAnswers.length} Answer{submissionData.videoAnswers.length !== 1 ? 's' : ''}
+                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
+                        <span className="text-sm font-medium">Responses</span>
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="relative z-10 p-0">
+                    <div className="bg-gradient-to-br from-gray-900 to-black">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+                        {submissionData.videoAnswers.map((videoAnswer: any, idx: number) => {
+                          // Find the corresponding question
+                          const question = exam.questions?.find((q: any) => q.id === videoAnswer.questionId);
+                          
+                          return (
+                            <div key={idx} className="relative group">
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none z-10"></div>
+                              <div className="absolute top-4 start-4 bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 z-20 shadow-2xl">
+                                <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                                🎬 Question {videoAnswer.questionId}
                               </div>
-                            )}
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-center text-gray-500 py-8">No video responses</p>
-                      )}
+                              <div className="absolute top-4 end-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs z-20 border border-white/20">
+                                Video Answer • {Math.round((videoAnswer.confidence || 0) * 100)}%
+                              </div>
+                              <div className="absolute bottom-4 start-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs z-20 border border-white/20 max-w-xs truncate" dir="rtl">
+                                {videoAnswer.transcription || 'No transcription'}
+                              </div>
+                              <video
+                                controls
+                                className="w-full hover:scale-105 transition-transform duration-500 border-2 border-white/10"
+                                style={{ minHeight: '320px', maxHeight: '420px' }}
+                                preload="metadata"
+                              >
+                                <source src={videoAnswer.videoPath} type="video/webm" />
+                                Your browser does not support the video tag.
+                              </video>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
+              )}
 
-                {/* Audio Responses */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Mic className="h-5 w-5" />
-                      Audio Responses
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {Object.entries(answers).filter(([_, answer]: [string, any]) => 
-                        answer && typeof answer === 'object' && answer.type === 'audio_response'
-                      ).map(([questionId, answer]: [string, any]) => (
-                        <div key={questionId} className="border rounded-lg p-4 hover:bg-gray-50">
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <p className="font-medium">Question {questionId}</p>
-                              <p className="text-sm text-gray-500">Audio Response</p>
-                            </div>
-                            <Volume2 className="h-5 w-5 text-gray-400" />
-                          </div>
-                          <audio controls className="w-full mb-3">
-                            <source src={answer.audioUrl} type="audio/webm" />
-                          </audio>
-                          {answer.transcription && (
-                            <div className="bg-gray-50 rounded p-3">
-                              <p className="text-sm font-medium mb-1">Transcript:</p>
-                              <p className="text-sm text-gray-700">
-                                {answer.transcription || 'No transcription available'}
-                              </p>
-                            </div>
-                          )}
+              {/* Student Answer Videos from submission answers */}
+              {(() => {
+                // Extract video answers from submission.answers
+                const answerVideos = Object.entries(submissionData?.answers || {})
+                  .filter(([_, answer]: [string, any]) => answer?.type === 'video_response' && answer?.videoUrl)
+                  .map(([questionId, answer]: [string, any]) => ({
+                    questionId: parseInt(questionId),
+                    videoUrl: answer.videoUrl,
+                    transcription: answer.transcription,
+                    confidence: answer.confidence
+                  }));
+
+                if (answerVideos.length === 0) return null;
+
+                return (
+                  <Card className="border-0 shadow-2xl overflow-hidden bg-white/90 backdrop-blur-sm">
+                    <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-red-600/5 rounded-xl"></div>
+                    <CardHeader className="relative z-10 bg-gradient-to-r from-orange-600 to-red-600 text-white">
+                      <CardTitle className="flex items-center space-x-3 text-2xl">
+                        <Video className="h-8 w-8" />
+                        <span>📹 Question Responses</span>
+                        <Badge className="bg-white/20 backdrop-blur-sm text-white ml-auto px-4 py-2">
+                          {answerVideos.length} Video{answerVideos.length !== 1 ? 's' : ''}
+                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-orange-500 rounded-full animate-pulse"></div>
+                          <span className="text-sm font-medium">Answers</span>
                         </div>
-                      ))}
-                      {Object.entries(answers).filter(([_, answer]: [string, any]) => 
-                        answer && typeof answer === 'object' && answer.type === 'audio_response'
-                      ).length === 0 && (
-                        <p className="text-center text-gray-500 py-8">No audio responses</p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Proctoring Videos */}
-              {proctoringData?.videos && (
-                <Card className="mt-6">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Camera className="h-5 w-5" />
-                      Proctoring Recordings
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="font-medium mb-3 flex items-center gap-2">
-                          <Camera className="h-4 w-4" />
-                          Camera Feed
-                        </h4>
-                        <div className="space-y-2">
-                          {proctoringData.videos.camera.map((url, idx) => (
-                            <Button
-                              key={idx}
-                              variant="outline"
-                              className="w-full justify-start"
-                              onClick={() => setSelectedVideo(url)}
-                            >
-                              <Play className="h-4 w-4 mr-2" />
-                              Camera Recording {idx + 1}
-                            </Button>
-                          ))}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="relative z-10 p-0">
+                      <div className="bg-gradient-to-br from-gray-900 to-black">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+                          {answerVideos.map((answer: any, idx: number) => {
+                            // Find the corresponding question
+                            const question = exam.questions?.find((q: any) => q.id === answer.questionId);
+                            
+                            return (
+                              <div key={idx} className="relative group">
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none z-10"></div>
+                                <div className="absolute top-4 start-4 bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 z-20 shadow-2xl">
+                                  <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                                  📹 Q{answer.questionId}
+                                </div>
+                                <div className="absolute top-4 end-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs z-20 border border-white/20">
+                                  {Math.round((answer.confidence || 0) * 100)}% Confidence
+                                </div>
+                                <div className="absolute bottom-4 start-4 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs z-20 border border-white/20 max-w-xs truncate" dir="rtl">
+                                  {answer.transcription ? `"${answer.transcription}"` : 'No transcription'}
+                                </div>
+                                <video
+                                  controls
+                                  className="w-full hover:scale-105 transition-transform duration-500 border-2 border-white/10"
+                                  style={{ minHeight: '320px', maxHeight: '420px' }}
+                                  preload="metadata"
+                                >
+                                  <source src={answer.videoUrl} type="video/webm" />
+                                  Your browser does not support the video tag.
+                                </video>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
-                      <div>
-                        <h4 className="font-medium mb-3 flex items-center gap-2">
-                          <Monitor className="h-4 w-4" />
-                          Screen Recording
-                        </h4>
-                        <div className="space-y-2">
-                          {proctoringData.videos.screen.map((url, idx) => (
-                            <Button
-                              key={idx}
-                              variant="outline"
-                              className="w-full justify-start"
-                              onClick={() => setSelectedVideo(url)}
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+            </TabsContent>
+
+            {/* Proctoring & Media Tab */}
+            <TabsContent value="proctoring" className="p-6 space-y-6">
+              <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-700 text-white p-8 rounded-2xl shadow-2xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-3xl font-bold flex items-center gap-3 mb-3">
+                      <Camera className="h-10 w-10" />
+                      🎥 Proctoring & Media Analysis
+                    </h2>
+                    <p className="text-purple-100 text-lg">
+                      Comprehensive monitoring and security analysis for {submission.studentName}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4">
+                      <div className="text-sm text-purple-200">Integrity Score</div>
+                      <div className="text-2xl font-bold">
+                        {proctoringData?.stats?.overallIntegrity || 95}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Enhanced Camera Feed Videos */}
+              {proctoringData?.videos?.camera && proctoringData.videos.camera.length > 0 && (
+                <Card className="border-0 shadow-2xl overflow-hidden bg-white/90 backdrop-blur-sm">
+                  <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                    <CardTitle className="flex items-center space-x-3 text-2xl">
+                      <Camera className="h-8 w-8" />
+                      <span>📹 Live Student Monitoring</span>
+                      <Badge className="bg-white/20 backdrop-blur-sm text-white ml-auto px-4 py-2">
+                        {proctoringData.videos.camera.length} Active Feed{proctoringData.videos.camera.length !== 1 ? 's' : ''}
+                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                        <span className="text-sm font-medium">RECORDING</span>
+                      </div>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black">
+                      <div className="grid grid-cols-1 gap-4 p-4">
+                        {proctoringData.videos.camera.map((videoUrl: string, idx: number) => (
+                          <div key={idx} className="relative group overflow-hidden rounded-lg">
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/40 pointer-events-none z-10"></div>
+                            
+                            <div className="absolute top-4 start-4 bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 z-20 shadow-2xl border border-red-400">
+                              <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                              📹 LIVE FEED {idx + 1}
+                            </div>
+                            
+                            <div className="absolute bottom-4 start-4 bg-black/80 backdrop-blur-sm text-white px-4 py-2 rounded-lg z-20 border border-white/20">
+                              <div className="text-xs font-medium text-blue-300">STUDENT</div>
+                              <div className="text-sm font-bold">{submission.studentName}</div>
+                            </div>
+                            
+                            <video
+                              controls
+                              className="w-full hover:scale-105 transition-all duration-500 border-2 border-white/20 rounded-lg"
+                              style={{ minHeight: '400px', maxHeight: '600px' }}
                             >
-                              <Play className="h-4 w-4 mr-2" />
-                              Screen Recording {idx + 1}
-                            </Button>
-                          ))}
-                        </div>
+                              <source src={videoUrl} type="video/webm" />
+                            </video>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Screen Recording Videos */}
+              {proctoringData?.videos?.screen && proctoringData.videos.screen.length > 0 && (
+                <Card className="border-0 shadow-2xl overflow-hidden bg-white/90 backdrop-blur-sm">
+                  <CardHeader className="bg-gradient-to-r from-green-600 to-teal-600 text-white">
+                    <CardTitle className="flex items-center space-x-3 text-2xl">
+                      <Monitor className="h-8 w-8" />
+                      <span>🖥️ Screen Recording</span>
+                      <Badge className="bg-white/20 backdrop-blur-sm text-white ml-auto px-4 py-2">
+                        {proctoringData.videos.screen.length} Recording{proctoringData.videos.screen.length !== 1 ? 's' : ''}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-black">
+                      <div className="grid grid-cols-1 gap-4 p-4">
+                        {proctoringData.videos.screen.map((videoUrl: string, idx: number) => (
+                          <div key={idx} className="relative group overflow-hidden rounded-lg">
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/40 pointer-events-none z-10"></div>
+                            
+                            <div className="absolute top-4 start-4 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-full text-sm font-bold flex items-center gap-2 z-20 shadow-2xl border border-green-400">
+                              <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+                              🖥️ SCREEN CAPTURE {idx + 1}
+                            </div>
+                            
+                            <div className="absolute bottom-4 start-4 bg-black/80 backdrop-blur-sm text-white px-4 py-2 rounded-lg z-20 border border-white/20">
+                              <div className="text-xs font-medium text-green-300">DESKTOP</div>
+                              <div className="text-sm font-bold">{submission.studentName}</div>
+                            </div>
+                            
+                            <video
+                              controls
+                              className="w-full hover:scale-105 transition-all duration-500 border-2 border-white/20 rounded-lg"
+                              style={{ minHeight: '400px', maxHeight: '600px' }}
+                            >
+                              <source src={videoUrl} type="video/webm" />
+                            </video>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               )}
             </TabsContent>
+
+            {/* AI Tools Tab */}
+            <TabsContent value="ai-tools" className="p-6 space-y-6">
+              <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white p-8 rounded-2xl shadow-2xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-3xl font-bold flex items-center gap-3 mb-3">
+                      <Zap className="h-10 w-10" />
+                      🤖 AI Analysis Tools
+                    </h2>
+                    <p className="text-purple-100 text-lg">
+                      Advanced AI-powered analysis and insights for {submission.studentName}'s exam
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4">
+                      <div className="text-sm text-purple-200">AI Status</div>
+                      <div className="text-xl font-semibold">
+                        {aiAnalysis ? 'Complete' : 'Ready'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* AI Analysis Controls */}
+                <Card className="border-0 shadow-2xl">
+                  <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                    <CardTitle className="flex items-center gap-3 text-2xl">
+                      <Brain className="h-8 w-8" />
+                      🧠 AI Analysis
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-4">
+                    <div className="flex flex-col gap-3">
+                      <Button
+                        onClick={runAIAnalysis}
+                        disabled={isAnalyzing}
+                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg"
+                      >
+                        {isAnalyzing ? (
+                          <>
+                            <Brain className="h-5 w-5 mr-2 animate-spin" />
+                            Running Analysis...
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="h-5 w-5 mr-2" />
+                            Quick AI Analysis
+                          </>
+                        )}
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        onClick={runComprehensiveAnalysis}
+                        disabled={isAnalyzing}
+                        className="w-full border-2 border-purple-300 text-purple-700 hover:bg-purple-50 font-bold py-3 px-6 rounded-lg"
+                      >
+                        {isAnalyzing ? (
+                          <>
+                            <Brain className="h-5 w-5 mr-2 animate-spin" />
+                            Comprehensive Analysis...
+                          </>
+                        ) : (
+                          <>
+                            <BarChart3 className="h-5 w-5 mr-2" />
+                            Comprehensive Analysis
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    
+                    <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <h4 className="font-semibold text-blue-900 mb-2">AI Analysis Features:</h4>
+                      <ul className="text-sm text-blue-800 space-y-1">
+                        <li>• Answer quality assessment</li>
+                        <li>• Behavioral pattern analysis</li>
+                        <li>• Integrity score calculation</li>
+                        <li>• Performance insights</li>
+                      </ul>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* AI Results */}
+                <Card className="border-0 shadow-2xl">
+                  <CardHeader className="bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+                    <CardTitle className="flex items-center gap-3 text-2xl">
+                      <BarChart3 className="h-8 w-8" />
+                      📊 AI Insights
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    {aiAnalysis && aiAnalysis.length > 0 ? (
+                      <div className="space-y-4">
+                        <Alert className="border-green-200 bg-green-50">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <AlertDescription className="text-green-800">
+                            AI analysis complete! Found {aiAnalysis.length} insights.
+                          </AlertDescription>
+                        </Alert>
+                        
+                        <div className="space-y-3">
+                          {aiAnalysis.slice(0, 5).map((item: any, idx: number) => (
+                            <div key={idx} className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+                              <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                  {idx + 1}
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-gray-900 mb-1">
+                                    {item.title || 'Analysis Result'}
+                                  </p>
+                                  <p className="text-sm text-gray-700">
+                                    {item.summary || item.description || 'AI analysis insight'}
+                                  </p>
+                                  {item.confidence && (
+                                    <div className="mt-2">
+                                      <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                                        <span>Confidence</span>
+                                        <span>{Math.round(item.confidence * 100)}%</span>
+                                      </div>
+                                      <Progress value={Math.round(item.confidence * 100)} className="h-2" />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Brain className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+                        <p className="text-gray-600 font-medium mb-2">No AI analysis available yet</p>
+                        <p className="text-sm text-gray-500">Click "Quick AI Analysis" to start analyzing this exam submission</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
-
-      {/* Video Modal */}
-      {selectedVideo && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Video Player</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedVideo(null)}
-              >
-                <XCircle className="h-5 w-5" />
-              </Button>
-            </div>
-            <video
-              controls
-              autoPlay
-              className="w-full rounded-lg"
-              style={{ maxHeight: '500px' }}
-            >
-              <source src={selectedVideo} type="video/webm" />
-            </video>
-          </div>
-        </div>
-      )}
     </div>
   );
 } 

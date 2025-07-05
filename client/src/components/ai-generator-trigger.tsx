@@ -27,7 +27,7 @@ export function AIGeneratorTrigger({
             exit={{ scale: 0, opacity: 0 }}
             transition={{ type: "spring", duration: 0.3 }}
             onClick={() => setIsOpen(true)}
-            className="fixed bottom-8 right-8 z-40 group"
+            className="fixed bottom-8 end-8 z-40 group"
           >
             <div className="relative">
               {/* Button background with gradient */}
@@ -54,7 +54,7 @@ export function AIGeneratorTrigger({
             </div>
             
             {/* Tooltip */}
-            <div className="absolute bottom-full right-0 mb-2 px-3 py-1.5 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+            <div className="absolute bottom-full end-0 mb-2 px-3 py-1.5 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
               AI Question Generator
             </div>
           </motion.button>
@@ -69,7 +69,7 @@ export function AIGeneratorTrigger({
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: "100%", opacity: 0, scale: 0.95 }}
             transition={{ type: "spring", damping: 20, stiffness: 300 }}
-            className="fixed right-6 bottom-6 top-6 w-[400px] z-50"
+            className="fixed end-6 bottom-6 top-6 w-[400px] z-50"
           >
             <AIGenerator 
               onQuestionsGenerated={onGenerate}

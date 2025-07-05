@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { isSuperAdmin } from "@/lib/authUtils";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import ExamCreator from "@/components/exam-creator";
 import ExamList from "@/components/exam-list";
 import ResultsView from "@/components/results-view";
@@ -63,14 +65,14 @@ function PublishExamButton({ examId }: { examId: number }) {
       queryClient.invalidateQueries({ queryKey: ["/api/exams"] });
       queryClient.invalidateQueries({ queryKey: [`/api/exams/creator/1`] });
       toast({
-        title: "Exam Published!",
-        description: "Your exam is now live and students can take it.",
+        title: t('messages.exam_published'),
+        description: t('messages.exam_published_desc'),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to publish exam",
+        title: t('common.error'),
+        description: error.message || t('messages.error_occurred'),
         variant: "destructive",
       });
     },
@@ -81,13 +83,13 @@ function PublishExamButton({ examId }: { examId: number }) {
     try {
       await navigator.clipboard.writeText(url);
       toast({
-        title: "Link Copied!",
-        description: "Exam link has been copied to clipboard",
+        title: t('messages.link_copied'),
+        description: t('messages.link_copied_desc'),
       });
     } catch (err) {
       toast({
-        title: "Share Link",
-        description: `Copy this link: ${url}`,
+        title: t('messages.share_link'),
+        description: `${t('messages.copy_link_desc')} ${url}`,
       });
     }
   };
@@ -102,7 +104,7 @@ function PublishExamButton({ examId }: { examId: number }) {
         disabled={publishExamMutation.isPending}
       >
         <Send className="h-4 w-4 mr-2" />
-        {publishExamMutation.isPending ? "Publishing..." : "Publish Exam"}
+        {publishExamMutation.isPending ? t('dashboard.publishing') : t('dashboard.publish_exam')}
       </Button>
       <Button 
         variant="outline" 
@@ -111,7 +113,7 @@ function PublishExamButton({ examId }: { examId: number }) {
         onClick={() => handleShare(examId)}
       >
         <Share className="h-4 w-4 mr-2" />
-        Copy Link
+        {t('dashboard.copy_link')}
       </Button>
     </div>
   );
@@ -121,6 +123,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedExamId, setSelectedExamId] = useState<number | null>(null);
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   const { data: stats } = useQuery({
     queryKey: ["/api/stats"],
@@ -162,18 +165,18 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
-      <div className="flex">
+      <div className="flex dashboard-main-flex">
         {/* Enhanced Sidebar - Always Visible */}
-        <div className="w-80 bg-white shadow-md min-h-screen relative border-r border-gray-200">
+        <div className="w-80 bg-white shadow-md min-h-screen relative border-r border-gray-200 sidebar">
           <div className="p-8 border-b from-purple-50 to-blue-50 bg-[#ffffff]">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 nav-item">
               <img 
                 src={image} 
                 alt="ExamCraft Logo" 
                 className="h-10 w-auto"
               />
               <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                Exam Craft
+                {t('dashboard.title').split(' ')[0]} {t('dashboard.title').split(' ')[1]}
               </h1>
             </div>
             
@@ -181,19 +184,19 @@ export default function Dashboard() {
           
           <nav className="p-6 space-y-3">
             {[
-              { id: "overview", label: "Dashboard", icon: Home },
-              { id: "create", label: "Create Exam", icon: Plus },
-              { id: "exams", label: "My Exams", icon: BookOpen },
-              { id: "results", label: "All Results", icon: BarChart3 },
-              { id: "analytics", label: "Analytics", icon: TrendingUp },
-              { id: "student", label: "Take Exam", icon: GraduationCap },
+              { id: "overview", label: t('navigation.dashboard'), icon: Home },
+              { id: "create", label: t('navigation.create_exam'), icon: Plus },
+              { id: "exams", label: t('navigation.my_exams'), icon: BookOpen },
+              { id: "results", label: t('navigation.all_results'), icon: BarChart3 },
+              { id: "analytics", label: t('navigation.analytics'), icon: TrendingUp },
+              { id: "student", label: t('navigation.take_exam'), icon: GraduationCap },
             ].map((item) => {
               const Icon = item.icon;
               return (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl transition-all duration-200 text-left font-medium ${
+                  className={`w-full flex items-center gap-4 px-6 py-4 rounded-xl transition-all duration-200 text-left font-medium nav-item ${
                     activeTab === item.id
                       ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg scale-105"
                       : "text-gray-700 hover:bg-gray-100 hover:scale-102"
@@ -214,7 +217,7 @@ export default function Dashboard() {
                   onClick={() => window.location.href = "/super-admin"}
                 >
                   <Shield className="h-6 w-6 flex-shrink-0" />
-                  <span className="text-lg">User Management</span>
+                  <span className="text-lg">{t('navigation.user_management')}</span>
                 </Button>
               </div>
             )}
@@ -225,30 +228,31 @@ export default function Dashboard() {
                 onClick={() => setActiveTab("create")}
               >
                 <Plus className="h-5 w-5 mr-3" />
-                Create New Exam
+                {t('dashboard.create_new_exam')}
               </Button>
             </div>
           </nav>
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 p-8">
+        <div className="flex-1 p-8 main-content-area">
           <div className="max-w-7xl mx-auto">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900 mb-2">Exam Craft Platform</h1>
-                  <p className="text-gray-600">Comprehensive exam management with AI-powered features</p>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">{t('dashboard.title')}</h1>
+                  <p className="text-gray-600">{t('dashboard.subtitle')}</p>
                 </div>
                 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4 top-actions">
                   <Button variant="outline" size="sm">
                     <Search className="h-4 w-4 mr-2" />
-                    Search
+                    {t('common.search')}
                   </Button>
                   <Button variant="outline" size="sm">
                     <Bell className="h-4 w-4" />
                   </Button>
+                  <LanguageSwitcher />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm">
@@ -272,7 +276,7 @@ export default function Dashboard() {
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => window.location.href = '/api/logout'}>
                         <LogOut className="mr-2 h-4 w-4" />
-                        <span>Sign out</span>
+                        <span>{t('common.logout')}</span>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -282,27 +286,27 @@ export default function Dashboard() {
               <TabsList className="grid w-full grid-cols-6 bg-white shadow-sm rounded-xl p-1">
                 <TabsTrigger value="overview" className="flex items-center gap-2 text-sm font-medium">
                   <Home className="h-4 w-4" />
-                  Dashboard
+                  {t('navigation.dashboard')}
                 </TabsTrigger>
                 <TabsTrigger value="create" className="flex items-center gap-2 text-sm font-medium">
                   <Plus className="h-4 w-4" />
-                  Create Exam
+                  {t('navigation.create_exam')}
                 </TabsTrigger>
                 <TabsTrigger value="exams" className="flex items-center gap-2 text-sm font-medium">
                   <BookOpen className="h-4 w-4" />
-                  My Exams
+                  {t('navigation.my_exams')}
                 </TabsTrigger>
                 <TabsTrigger value="results" className="flex items-center gap-2 text-sm font-medium">
                   <BarChart3 className="h-4 w-4" />
-                  All Results
+                  {t('navigation.all_results')}
                 </TabsTrigger>
                 <TabsTrigger value="analytics" className="flex items-center gap-2 text-sm font-medium">
                   <TrendingUp className="h-4 w-4" />
-                  Analytics
+                  {t('navigation.analytics')}
                 </TabsTrigger>
                 <TabsTrigger value="student" className="flex items-center gap-2 text-sm font-medium">
                   <GraduationCap className="h-4 w-4" />
-                  Take Exam
+                  {t('navigation.take_exam')}
                 </TabsTrigger>
               </TabsList>
 
@@ -319,9 +323,9 @@ export default function Dashboard() {
                           <div className="text-4xl font-bold text-gray-900 mb-2">
                             {stats?.totalExams || 0}
                           </div>
-                          <div className="text-gray-600 font-medium">Total Exams</div>
+                          <div className="text-gray-600 font-medium">{t('dashboard.total_exams')}</div>
                           <div className="text-sm text-green-500 mt-2 font-semibold">
-                            +12% from last month
+                            +12% {t('dashboard.from_last_month')}
                           </div>
                         </div>
                       </div>
@@ -338,9 +342,9 @@ export default function Dashboard() {
                           <div className="text-4xl font-bold text-gray-900 mb-2">
                             {stats?.totalSubmissions || 0}
                           </div>
-                          <div className="text-gray-600 font-medium">Total Submissions</div>
+                          <div className="text-gray-600 font-medium">{t('dashboard.total_submissions')}</div>
                           <div className="text-sm text-green-500 mt-2 font-semibold">
-                            +8% from last week
+                            +8% {t('dashboard.from_last_week')}
                           </div>
                         </div>
                       </div>
@@ -357,9 +361,9 @@ export default function Dashboard() {
                           <div className="text-4xl font-bold text-gray-900 mb-2">
                             {stats?.averageScore ? Math.round(stats.averageScore) : 0}%
                           </div>
-                          <div className="text-gray-600 font-medium">Average Score</div>
+                          <div className="text-gray-600 font-medium">{t('dashboard.average_score')}</div>
                           <div className="text-sm text-blue-500 mt-2 font-semibold">
-                            +5% improvement
+                            +5% {t('dashboard.improvement')}
                           </div>
                         </div>
                       </div>
@@ -376,9 +380,9 @@ export default function Dashboard() {
                           <div className="text-4xl font-bold text-gray-900 mb-2">
                             {getUpcomingExams().length}
                           </div>
-                          <div className="text-gray-600 font-medium">Upcoming Exams</div>
+                          <div className="text-gray-600 font-medium">{t('dashboard.upcoming_exams')}</div>
                           <div className="text-sm text-orange-500 mt-2 font-semibold">
-                            Next 7 days
+                            {t('dashboard.next_7_days')}
                           </div>
                         </div>
                       </div>
@@ -389,7 +393,7 @@ export default function Dashboard() {
                 {/* Recent Exams Section - Enhanced Cards */}
                 <div className="space-y-8">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-2xl font-bold text-gray-900">Recent Exams</h2>
+                    <h2 className="text-2xl font-bold text-gray-900">{t('dashboard.recent_exams')}</h2>
                   </div>
 
                   {examsLoading ? (
@@ -418,7 +422,7 @@ export default function Dashboard() {
                                   {exam.title.charAt(0)}
                                 </div>
                                 <Badge variant={exam.status === 'published' ? 'default' : 'secondary'} className="text-xs">
-                                  {exam.status}
+                                  {t(`dashboard.${exam.status}`)}
                                 </Badge>
                               </div>
                               
@@ -426,13 +430,13 @@ export default function Dashboard() {
                                 <h3 className="font-bold text-lg text-gray-900 mb-2">{exam.title}</h3>
                                 <p className="text-sm text-gray-600 mb-1">{exam.subject}</p>
                                 <div className="flex items-center gap-4 text-xs text-gray-500">
-                                  <span>{exam.questionsCount} questions</span>
-                                  <span>{exam.submissionsCount} submissions</span>
+                                  <span>{exam.questionsCount} {t('dashboard.questions')}</span>
+                                  <span>{exam.submissionsCount} {t('dashboard.submissions')}</span>
                                 </div>
                               </div>
 
                               <div className="flex items-center justify-between text-xs text-gray-400">
-                                <span>Created {exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}</span>
+                                <span>{t('dashboard.created')} {exam.createdAt ? formatDate(exam.createdAt.toString()) : 'No date'}</span>
                               </div>
                               
                               {/* Action Buttons */}
@@ -446,7 +450,7 @@ export default function Dashboard() {
                                       onClick={() => window.open(`/take-exam/${exam.id}`, '_blank')}
                                     >
                                       <BookOpen className="h-4 w-4 mr-2" />
-                                      Take Test
+                                      {t('dashboard.take_test')}
                                     </Button>
                                     <Button 
                                       variant="outline" 
@@ -458,7 +462,7 @@ export default function Dashboard() {
                                       }}
                                     >
                                       <Eye className="h-4 w-4 mr-2" />
-                                      View Results
+                                      {t('dashboard.view_results')}
                                     </Button>
                                   </div>
                                 ) : (
@@ -474,11 +478,11 @@ export default function Dashboard() {
                     <Card className="bg-white border-0 shadow-lg rounded-2xl">
                       <CardContent className="p-12 text-center">
                         <FileText className="h-16 w-16 text-gray-300 mx-auto mb-6" />
-                        <h3 className="text-xl font-semibold text-gray-900 mb-3">No Exams Yet</h3>
-                        <p className="text-gray-600 mb-6">Start creating your first exam to see it here</p>
+                        <h3 className="text-xl font-semibold text-gray-900 mb-3">{t('dashboard.no_exams_title')}</h3>
+                        <p className="text-gray-600 mb-6">{t('dashboard.no_exams_message')}</p>
                         <Button onClick={() => setActiveTab("create")}>
                           <Plus className="h-4 w-4 mr-2" />
-                          Create New Exam
+                          {t('dashboard.create_new_exam')}
                         </Button>
                       </CardContent>
                     </Card>

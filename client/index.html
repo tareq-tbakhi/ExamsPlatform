@@ -5,9 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>ExamCraft - AI-Powered Exam Management Platform</title>
     <meta name="description" content="Advanced AI-powered exam proctoring platform with intelligent monitoring, secure recording, and comprehensive behavioral analysis.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@200;300;400;500;700;800;900&family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Initialize RTL direction immediately based on saved language preference
+      (function() {
+        const savedLang = localStorage.getItem('i18nextLng') || 'en';
+        const isArabic = savedLang === 'ar' || savedLang.startsWith('ar-');
+        
+        document.documentElement.dir = isArabic ? 'rtl' : 'ltr';
+        document.documentElement.lang = isArabic ? 'ar' : 'en';
+        
+        if (isArabic) {
+          document.body.classList.add('rtl-layout');
+          document.body.classList.remove('ltr-layout');
+        } else {
+          document.body.classList.add('ltr-layout');
+          document.body.classList.remove('rtl-layout');
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
     <!-- This is a replit script which adds a banner on the top of the page when opened in development mode outside the replit environment -->
     <script type="text/javascript" src="https://replit.com/public/js/replit-dev-banner.js"></script>

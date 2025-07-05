@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from 'react-i18next';
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ type ExamFormData = z.infer<typeof examSchema>;
 
 export default function ExamCreator() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [showQuestionForm, setShowQuestionForm] = useState(false);
@@ -82,8 +84,8 @@ export default function ExamCreator() {
       
       queryClient.invalidateQueries({ queryKey: ["/api/exams"] });
       toast({
-        title: "Success",
-        description: "Exam created successfully!",
+        title: t('common.success'),
+        description: t('messages.exam_created_desc'),
       });
       
       // Reset form
@@ -92,8 +94,8 @@ export default function ExamCreator() {
     },
     onError: (error) => {
       toast({
-        title: "Error",
-        description: "Failed to create exam: " + error.message,
+        title: t('common.error'),
+        description: t('messages.error_occurred') + ": " + error.message,
         variant: "destructive",
       });
     },
@@ -122,12 +124,12 @@ export default function ExamCreator() {
       const examUrl = `${window.location.origin}/exam/${exam.id}`;
       
       toast({
-        title: "Exam Published!",
+        title: t('messages.exam_published'),
         description: (
           <div className="space-y-2">
-            <p>Your exam has been published successfully.</p>
+            <p>{t('messages.exam_published_desc')}</p>
             <div className="p-2 bg-gray-100 rounded text-sm">
-              <strong>Share this link with students:</strong><br />
+              <strong>{t('messages.share_link')}:</strong><br />
               <a href={examUrl} className="text-blue-600 break-all">{examUrl}</a>
             </div>
           </div>
@@ -139,8 +141,8 @@ export default function ExamCreator() {
     },
     onError: (error) => {
       toast({
-        title: "Error",
-        description: "Failed to publish exam: " + error.message,
+        title: t('common.error'),
+        description: t('messages.error_occurred') + ": " + error.message,
         variant: "destructive",
       });
     },
@@ -149,8 +151,8 @@ export default function ExamCreator() {
   const onSubmit = (data: ExamFormData) => {
     if (questions.length === 0) {
       toast({
-        title: "Error",
-        description: "Please add at least one question to the exam.",
+        title: t('common.error'),
+        description: t('messages.add_question_required'),
         variant: "destructive",
       });
       return;
@@ -166,8 +168,8 @@ export default function ExamCreator() {
   const onPublish = (data: ExamFormData) => {
     if (questions.length === 0) {
       toast({
-        title: "Error",
-        description: "Please add at least one question to the exam.",
+        title: t('common.error'),
+        description: t('messages.add_question_required'),
         variant: "destructive",
       });
       return;
@@ -226,12 +228,12 @@ export default function ExamCreator() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 exam-creator">
       {/* Main Exam Form */}
       <div className="lg:col-span-2">
         <Card>
           <CardHeader>
-            <CardTitle>Create New Exam</CardTitle>
+            <CardTitle>{t('exam.creator.create_new_exam')}</CardTitle>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -243,9 +245,9 @@ export default function ExamCreator() {
                     name="title"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Exam Title</FormLabel>
+                        <FormLabel>{t('exam.creator.exam_title')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter exam title..." {...field} />
+                          <Input placeholder={t('exam.creator.enter_exam_title')} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -257,21 +259,21 @@ export default function ExamCreator() {
                     name="subject"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Subject</FormLabel>
+                        <FormLabel>{t('exam.subject')}</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select subject" />
+                              <SelectValue placeholder={t('exam.creator.select_subject')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="Mathematics">Mathematics</SelectItem>
-                            <SelectItem value="Science">Science</SelectItem>
-                            <SelectItem value="History">History</SelectItem>
-                            <SelectItem value="English">English</SelectItem>
-                            <SelectItem value="Physics">Physics</SelectItem>
-                            <SelectItem value="Chemistry">Chemistry</SelectItem>
-                            <SelectItem value="Biology">Biology</SelectItem>
+                            <SelectItem value="Mathematics">{t('exam.creator.subjects.mathematics')}</SelectItem>
+                            <SelectItem value="Science">{t('exam.creator.subjects.science')}</SelectItem>
+                            <SelectItem value="History">{t('exam.creator.subjects.history')}</SelectItem>
+                            <SelectItem value="English">{t('exam.creator.subjects.english')}</SelectItem>
+                            <SelectItem value="Physics">{t('exam.creator.subjects.physics')}</SelectItem>
+                            <SelectItem value="Chemistry">{t('exam.creator.subjects.chemistry')}</SelectItem>
+                            <SelectItem value="Biology">{t('exam.creator.subjects.biology')}</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -284,7 +286,7 @@ export default function ExamCreator() {
                     name="duration"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Duration (minutes)</FormLabel>
+                        <FormLabel>{t('exam.creator.duration_minutes')}</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -299,9 +301,9 @@ export default function ExamCreator() {
                   />
                   
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Total Points</label>
+                    <label className="text-sm font-medium">{t('exam.creator.total_points')}</label>
                     <div className="px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
-                      {questions.reduce((sum, q) => sum + q.points, 0)} points (calculated from questions)
+                      {questions.reduce((sum, q) => sum + q.points, 0)} {t('exam.creator.points_calculated')}
                     </div>
                   </div>
                 </div>
@@ -311,10 +313,10 @@ export default function ExamCreator() {
                   name="instructions"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Instructions</FormLabel>
+                      <FormLabel>{t('exam.instructions')}</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="Enter exam instructions for students..."
+                          placeholder={t('exam.creator.enter_instructions')}
                           rows={3}
                           {...field} 
                         />
@@ -327,7 +329,7 @@ export default function ExamCreator() {
                 {/* Questions Section */}
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium">Questions ({questions.length})</h3>
+                    <h3 className="text-lg font-medium">{t('exam.creator.questions_count')} ({questions.length})</h3>
                     <Button 
                       type="button"
                       onClick={() => {
@@ -336,7 +338,7 @@ export default function ExamCreator() {
                       }}
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Question
+                      {t('exam.creator.add_question')}
                     </Button>
                   </div>
 
@@ -358,7 +360,7 @@ export default function ExamCreator() {
                     {questions.length === 0 && (
                       <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                         <Plus className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                        <p className="text-gray-500 mb-4">Add questions to your exam</p>
+                        <p className="text-gray-500 mb-4">{t('exam.creator.add_questions_prompt')}</p>
                         <div className="flex justify-center space-x-3">
                           <Button 
                             variant="outline" 
@@ -368,7 +370,7 @@ export default function ExamCreator() {
                               setShowQuestionForm(true);
                             }}
                           >
-                            Add Manually
+                            {t('exam.creator.add_manually')}
                           </Button>
                         </div>
                       </div>
@@ -386,11 +388,11 @@ export default function ExamCreator() {
         {/* Settings */}
         <Card>
           <CardHeader>
-            <CardTitle>Exam Settings</CardTitle>
+            <CardTitle>{t('exam.creator.exam_settings')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Randomize Questions</label>
+              <label className="text-sm font-medium">{t('exam.creator.randomize_questions')}</label>
               <FormField
                 control={form.control}
                 name="settings.randomizeQuestions"
@@ -404,7 +406,7 @@ export default function ExamCreator() {
             </div>
             
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Show Results Immediately</label>
+              <label className="text-sm font-medium">{t('exam.creator.show_results_immediately')}</label>
               <FormField
                 control={form.control}
                 name="settings.showResultsImmediately"
@@ -418,7 +420,7 @@ export default function ExamCreator() {
             </div>
             
             <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Allow Retakes</label>
+              <label className="text-sm font-medium">{t('exam.creator.allow_retakes')}</label>
               <FormField
                 control={form.control}
                 name="settings.allowRetakes"
@@ -443,7 +445,7 @@ export default function ExamCreator() {
                 disabled={createExamMutation.isPending}
               >
                 <Save className="h-4 w-4 mr-2" />
-                {createExamMutation.isPending ? "Saving..." : "Save Exam"}
+                {createExamMutation.isPending ? t('exam.creator.saving') : t('exam.creator.save_exam')}
               </Button>
               
               <Button 
@@ -452,7 +454,7 @@ export default function ExamCreator() {
                 disabled
               >
                 <Eye className="h-4 w-4 mr-2" />
-                Preview Exam
+                {t('exam.creator.preview_exam')}
               </Button>
               
               <Button 
@@ -461,14 +463,14 @@ export default function ExamCreator() {
                 disabled={publishExamMutation.isPending}
               >
                 <Send className="h-4 w-4 mr-2" />
-                {publishExamMutation.isPending ? "Publishing..." : "Publish & Share"}
+                {publishExamMutation.isPending ? t('exam.creator.publishing') : t('exam.creator.publish_share')}
               </Button>
             </div>
             
             <div className="mt-4 p-3 bg-blue-50 rounded-lg">
               <p className="text-sm text-blue-700 flex items-start">
                 <Info className="h-4 w-4 mr-1 mt-0.5 flex-shrink-0" />
-                Once published, you'll get a shareable link for students
+                {t('exam.creator.publish_info')}
               </p>
             </div>
           </CardContent>
@@ -508,23 +510,28 @@ function QuestionDisplay({
   onEdit: () => void; 
   onDelete: () => void; 
 }) {
+  const { t } = useTranslation();
+  
   const getTypeLabel = (type: string) => {
     switch (type) {
-      case "multiple_choice": return "Multiple Choice";
-      case "short_answer": return "Short Answer";
-      case "essay": return "Essay";
-      case "true_false": return "True/False";
+      case "multiple_choice": return t('exam.question_types.multiple_choice');
+      case "short_answer": return t('exam.question_types.short_answer');
+      case "essay": return t('exam.question_types.essay');
+      case "true_false": return t('exam.question_types.true_false');
+      case "video_response": return t('exam.question_types.video_response');
+      case "audio_response": return t('exam.question_types.audio_response');
+      case "coding": return t('exam.question_types.coding');
       default: return type;
     }
   };
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 question-display">
       <div className="flex justify-between items-start mb-3">
         <div className="flex items-center space-x-2">
           <span className="bg-primary text-white text-xs px-2 py-1 rounded">Q{index}</span>
           <span className="text-sm text-gray-600">{getTypeLabel(question.type)}</span>
-          <span className="text-sm text-gray-600">• {question.points} points</span>
+          <span className="text-sm text-gray-600">• {question.points} {t('exam.creator.points')}</span>
         </div>
         <div className="flex space-x-1">
           <Button variant="ghost" size="sm" onClick={onEdit}>
@@ -551,16 +558,32 @@ function QuestionDisplay({
               }`} />
               <span className="text-sm">{String(option)}</span>
               {option === question.correctAnswer && (
-                <span className="text-xs text-green-600 font-medium">Correct</span>
+                <span className="text-xs text-green-600 font-medium">{t('exam.creator.correct')}</span>
               )}
             </div>
           ))}
         </div>
       ) : null}
       
-      {question.type !== "multiple_choice" && question.correctAnswer && (
+      {question.type === "audio_response" && (
+        <div className="bg-blue-50 border border-blue-200 rounded p-3">
+          <span className="text-sm text-blue-700">
+            🎤 {t('exam.creator.audio_question_note')}
+          </span>
+        </div>
+      )}
+      
+      {question.type === "video_response" && (
+        <div className="bg-purple-50 border border-purple-200 rounded p-3">
+          <span className="text-sm text-purple-700">
+            📹 {t('exam.creator.video_question_note')}
+          </span>
+        </div>
+      )}
+      
+      {question.type !== "multiple_choice" && question.type !== "audio_response" && question.type !== "video_response" && question.correctAnswer && (
         <div className="bg-white border border-gray-200 rounded p-3">
-          <span className="text-sm text-gray-500">Expected answer: {String(question.correctAnswer)}</span>
+          <span className="text-sm text-gray-500">{t('exam.creator.expected_answer')}: {String(question.correctAnswer)}</span>
         </div>
       )}
     </div>

@@ -356,8 +356,8 @@ export default function VideoQuestionComponent({
                     src={recordedUrl || undefined}
                     className="w-full h-full object-cover"
                     autoPlay
-                    muted={isRecording}
-                    controls={!isRecording && recordedUrl}
+                    muted={isRecording ? true : false}
+                    controls={!isRecording && !!recordedUrl}
                     playsInline
                   />
                 ) : (
@@ -379,7 +379,7 @@ export default function VideoQuestionComponent({
                 
                 {/* Timer */}
                 {isRecording && (
-                  <div className="absolute top-4 right-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded">
+                  <div className="absolute top-4 end-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded">
                     <span className={`font-mono ${getTimeColor()}`}>
                       {formatTime(timeRemaining)}
                     </span>

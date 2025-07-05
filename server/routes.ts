@@ -8,6 +8,7 @@ import { generateQuestions, type GenerateQuestionsRequest } from "./services/ope
 import { analyzeViolationImage, analyzeVideoRecording, generateViolationReport, analyzeArabicAudioTranscription } from "./services/gemini";
 import { aiAssistantService } from "./services/ai-assistant";
 import { EmailService } from "./services/emailService";
+import { transcriptionService } from "./services/transcription";
 import { setupAuth, isAuthenticated, requireAdmin, requireSupervisor, requireTeacher, requireSuperAdmin } from "./replitAuth";
 import * as fs from "fs";
 import * as path from "path";
@@ -2506,8 +2507,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const submissionId = parseInt(req.params.id);
       
-      // Get proctoring recordings from storage
-      const proctoringVideos = await storage.getProctoringVideosBySubmissionId(submissionId);
+      // Get submission to access sessionId
+      const submission = await storage.getSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+      
+      // Get proctoring videos from filesystem
+      let proctoringVideos: any[] = [];
+      const proctoringDir = path.join(process.cwd(), 'uploads', 'proctoring');
+      
+      if (fs.existsSync(proctoringDir)) {
+        const files = fs.readdirSync(proctoringDir);
+        
+        // Try session ID match first
+        let filteredFiles = files.filter(file => 
+          submission.sessionId && file.includes(submission.sessionId) && file.endsWith('.webm')
+        );
+        
+        // Fallback to submission ID match
+        if (filteredFiles.length === 0) {
+          filteredFiles = files.filter(file => 
+            file.includes(`_${submissionId}_`) && file.endsWith('.webm')
+          );
+        }
+        
+        // Fallback to exam ID match if no session/submission match
+        if (filteredFiles.length === 0) {
+          filteredFiles = files.filter(file => 
+            file.includes(`_${submission.examId}_`) && file.endsWith('.webm')
+          );
+        }
+        
+        proctoringVideos = filteredFiles.map(filename => ({
+          filename,
+          url: `/api/videos/proctoring/${filename}`,
+          type: filename.includes('camera') ? 'camera' : filename.includes('screen') ? 'screen' : 'unknown',
+          uploadedAt: fs.statSync(path.join(proctoringDir, filename)).mtime
+        }));
+      }
+      
+      console.log(`Found ${proctoringVideos.length} proctoring videos for submission ${submissionId}`);
       
       // Get AI analysis/violations if available
       const violations = await storage.getViolationsBySubmissionId(submissionId);
@@ -2563,6 +2603,585 @@ export async function registerRoutes(app: Express): Promise<Server> {
           overallIntegrity: 100
         }
       });
+    }
+  });
+
+  // Helper function to generate comprehensive proctoring report
+  async function generateComprehensiveProctoringReport(submissionId: number) {
+    try {
+      // Get violations
+      const violations = await storage.getViolationsBySubmission(submissionId);
+      
+      // Get submission for context
+      const submission = await storage.getSubmission(submissionId);
+      if (!submission) return { error: 'Submission not found' };
+
+      // Analyze proctoring videos
+      const proctoringDir = path.join(process.cwd(), 'uploads', 'proctoring');
+      let videoAnalysis = null;
+      
+      if (fs.existsSync(proctoringDir)) {
+        const files = fs.readdirSync(proctoringDir);
+        const cameraFiles = files.filter(file => 
+          file.includes(submission.sessionId || submissionId.toString()) && 
+          file.includes('camera') && 
+          file.endsWith('.webm')
+        );
+
+        if (cameraFiles.length > 0) {
+          const cameraPath = `/api/videos/proctoring/${cameraFiles[0]}`;
+          videoAnalysis = await analyzeVideoRecording(
+            cameraPath, 
+            `Camera recording analysis for submission ${submissionId}`
+          );
+        }
+      }
+
+      // Calculate risk scores
+      const violationSeverity = violations.reduce((sum, v) => {
+        const severityScore = v.severity === 'critical' ? 3 : v.severity === 'major' ? 2 : 1;
+        return sum + severityScore;
+      }, 0);
+
+      const overallSuspicion = videoAnalysis?.overallSuspicion || 
+        Math.min(100, violationSeverity * 10); // Scale violation severity
+
+      return {
+        overallSuspicion,
+        violations: violations.map(v => ({
+          type: v.violationType,
+          severity: v.severity,
+          timestamp: v.timestamp,
+          description: v.description
+        })),
+        videoAnalysis: videoAnalysis ? {
+          suspicionLevel: videoAnalysis.overallSuspicion,
+          violations: videoAnalysis.violations,
+          timeline: videoAnalysis.timeline
+        } : null,
+        summary: `Proctoring analysis found ${violations.length} violations with ${overallSuspicion}% overall suspicion level`
+      };
+    } catch (error) {
+      console.error('Failed to generate proctoring report:', error);
+      return { error: 'Failed to generate proctoring report' };
+    }
+  }
+
+  // Helper function to generate recommendations
+  function generateRecommendations(results: any, riskFactors: string[]) {
+    const recommendations = [];
+
+    if (results.overallRisk > 80) {
+      recommendations.push("HIGH RISK: Manual review strongly recommended");
+      recommendations.push("Consider exam retake under stricter supervision");
+    } else if (results.overallRisk > 60) {
+      recommendations.push("MODERATE RISK: Manual review recommended");
+      recommendations.push("Review video/audio answers for accuracy");
+    } else if (results.overallRisk > 30) {
+      recommendations.push("LOW RISK: Spot check recommended");
+    } else {
+      recommendations.push("MINIMAL RISK: Standard processing acceptable");
+    }
+
+    // Video/Audio specific recommendations
+    const lowConfidenceAnswers = [
+      ...results.videoAnswers.filter((v: any) => v.transcription.confidence < 70),
+      ...results.audioAnswers.filter((a: any) => a.transcription.confidence < 70)
+    ];
+
+    if (lowConfidenceAnswers.length > 0) {
+      recommendations.push(`Review ${lowConfidenceAnswers.length} audio/video answers with low transcription confidence`);
+    }
+
+    // Screen recording recommendations
+    if (results.screenAnalysis && results.screenAnalysis.violations?.length > 0) {
+      recommendations.push("Review screen recording for unauthorized activity");
+    }
+
+    // Add specific risk factor recommendations
+    riskFactors.forEach(factor => {
+      recommendations.push(`Action needed: ${factor}`);
+    });
+
+    return recommendations;
+  }
+
+  // Comprehensive AI Analysis for Exam Results
+  app.post("/api/analyze/comprehensive", isAuthenticated, async (req, res) => {
+    try {
+      const { submissionId } = req.body;
+      
+      if (!submissionId) {
+        return res.status(400).json({ message: "Submission ID is required" });
+      }
+
+      console.log(`Starting comprehensive AI analysis for submission ${submissionId}`);
+
+      // Get submission details
+      const submission = await storage.getSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      // Get exam details
+      const exam = await storage.getExam(submission.examId);
+      if (!exam) {
+        return res.status(404).json({ message: "Exam not found" });
+      }
+
+      const results: any = {
+        submissionId,
+        examTitle: exam.title,
+        studentName: submission.studentName,
+        timestamp: new Date().toISOString(),
+        screenAnalysis: null,
+        videoAnswers: [],
+        audioAnswers: [], 
+        proctoringAnalysis: null,
+        overallRisk: 0,
+        recommendations: []
+      };
+
+      // 1. Analyze Screen Recording
+      try {
+        const proctoringDir = path.join(process.cwd(), 'uploads', 'proctoring');
+        if (fs.existsSync(proctoringDir)) {
+          const files = fs.readdirSync(proctoringDir);
+          const screenFiles = files.filter(file => 
+            file.includes(submission.sessionId || submissionId.toString()) && 
+            file.includes('screen') && 
+            file.endsWith('.webm')
+          );
+
+          if (screenFiles.length > 0) {
+            const screenPath = path.join(proctoringDir, screenFiles[0]);
+            console.log(`Analyzing screen recording: ${screenFiles[0]}`);
+            
+            const screenAnalysis = await analyzeVideoRecording(
+              `/api/videos/proctoring/${screenFiles[0]}`, 
+              `Screen recording analysis for ${exam.title} - Student: ${submission.studentName}`
+            );
+            
+            results.screenAnalysis = {
+              filename: screenFiles[0],
+              suspicionLevel: screenAnalysis.overallSuspicion,
+              violations: screenAnalysis.violations,
+              timeline: screenAnalysis.timeline,
+              summary: screenAnalysis.summary
+            };
+          }
+        }
+      } catch (error) {
+        console.error('Screen analysis error:', error);
+        results.screenAnalysis = { error: 'Failed to analyze screen recording' };
+      }
+
+      // 2. Analyze Video Answers with Transcription
+      try {
+        const videoAnswers = await storage.getVideoAnswersBySubmission(submissionId);
+        console.log(`Found ${videoAnswers.length} video answers for analysis`);
+
+        for (const videoAnswer of videoAnswers) {
+          if (videoAnswer.videoUrl && fs.existsSync(path.join(process.cwd(), 'uploads', 'videos', path.basename(videoAnswer.videoUrl)))) {
+            const videoPath = path.join(process.cwd(), 'uploads', 'videos', path.basename(videoAnswer.videoUrl));
+            console.log(`Processing video answer: ${videoAnswer.id}`);
+
+            // Get question details
+            const question = await storage.getQuestion(videoAnswer.questionId);
+            
+            // Transcribe video audio
+            const transcription = await transcriptionService.transcribeVideoAudio(videoPath, 'ar');
+            
+            // Analyze for grading
+            const gradingAnalysis = await transcriptionService.analyzeTranscriptionForGrading(
+              transcription.text,
+              question?.question || "Unknown question",
+              [], // TODO: Extract keywords from question
+              question?.points || 10
+            );
+
+            results.videoAnswers.push({
+              questionId: videoAnswer.questionId,
+              questionText: question?.question || "Unknown question",
+              videoUrl: videoAnswer.videoUrl,
+              transcription: {
+                text: transcription.text,
+                confidence: transcription.confidence,
+                language: transcription.language,
+                duration: transcription.duration,
+                wordCount: transcription.wordCount,
+                quality: transcription.quality
+              },
+              grading: gradingAnalysis,
+              aiScore: gradingAnalysis.score,
+              maxScore: question?.points || 10
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Video answer analysis error:', error);
+      }
+
+      // 3. Analyze Audio Answers with Transcription  
+      try {
+        // Get audio answers (if stored separately or as part of submissions)
+        const submissionAnswers = JSON.parse(submission.answers || '[]');
+        const audioQuestions = submissionAnswers.filter((answer: any) => 
+          answer.type === 'audio_response' && answer.audioUrl
+        );
+
+        for (const audioAnswer of audioQuestions) {
+          if (audioAnswer.audioUrl) {
+            const audioPath = path.join(process.cwd(), 'uploads', 'audio', path.basename(audioAnswer.audioUrl));
+            
+            if (fs.existsSync(audioPath)) {
+              console.log(`Processing audio answer for question ${audioAnswer.questionId}`);
+
+              // Get question details
+              const question = await storage.getQuestion(audioAnswer.questionId);
+              
+              // Transcribe audio
+              const transcription = await transcriptionService.transcribeAudio(audioPath, 'ar');
+              
+              // Analyze for grading
+              const gradingAnalysis = await transcriptionService.analyzeTranscriptionForGrading(
+                transcription.text,
+                question?.question || "Unknown question",
+                [], // TODO: Extract keywords from question  
+                question?.points || 10
+              );
+
+              results.audioAnswers.push({
+                questionId: audioAnswer.questionId,
+                questionText: question?.question || "Unknown question",
+                audioUrl: audioAnswer.audioUrl,
+                transcription: {
+                  text: transcription.text,
+                  confidence: transcription.confidence,
+                  language: transcription.language,
+                  duration: transcription.duration,
+                  wordCount: transcription.wordCount,
+                  sentiment: transcription.sentiment,
+                  keywords: transcription.keywords,
+                  quality: transcription.quality
+                },
+                grading: gradingAnalysis,
+                aiScore: gradingAnalysis.score,
+                maxScore: question?.points || 10
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Audio answer analysis error:', error);
+      }
+
+      // 4. Overall Proctoring Analysis
+      try {
+        const proctoringAnalysis = await generateComprehensiveProctoringReport(submissionId);
+        results.proctoringAnalysis = proctoringAnalysis;
+      } catch (error) {
+        console.error('Proctoring analysis error:', error);
+        results.proctoringAnalysis = { error: 'Failed to generate proctoring analysis' };
+      }
+
+      // 5. Calculate Overall Risk Score
+      let riskFactors = [];
+      let totalRisk = 0;
+      let riskCount = 0;
+
+      if (results.screenAnalysis && results.screenAnalysis.suspicionLevel) {
+        totalRisk += results.screenAnalysis.suspicionLevel;
+        riskCount++;
+        if (results.screenAnalysis.suspicionLevel > 70) {
+          riskFactors.push("High suspicion in screen recording");
+        }
+      }
+
+      if (results.proctoringAnalysis && results.proctoringAnalysis.overallSuspicion) {
+        totalRisk += results.proctoringAnalysis.overallSuspicion;
+        riskCount++;
+        if (results.proctoringAnalysis.overallSuspicion > 70) {
+          riskFactors.push("Multiple proctoring violations detected");
+        }
+      }
+
+      // Check audio/video quality issues
+      const lowQualityAnswers = [
+        ...results.videoAnswers.filter((v: any) => v.transcription.confidence < 70),
+        ...results.audioAnswers.filter((a: any) => a.transcription.confidence < 70)
+      ];
+
+      if (lowQualityAnswers.length > 0) {
+        riskFactors.push(`${lowQualityAnswers.length} answers have low audio quality or transcription confidence`);
+      }
+
+      results.overallRisk = riskCount > 0 ? Math.round(totalRisk / riskCount) : 0;
+      results.recommendations = generateRecommendations(results, riskFactors);
+
+      console.log(`Comprehensive AI analysis completed for submission ${submissionId}`);
+      console.log(`- Screen analysis: ${results.screenAnalysis ? 'completed' : 'skipped'}`);
+      console.log(`- Video answers: ${results.videoAnswers.length} processed`);
+      console.log(`- Audio answers: ${results.audioAnswers.length} processed`);
+      console.log(`- Overall risk: ${results.overallRisk}%`);
+
+      // Store comprehensive analysis results
+      try {
+        const analysisResult = await storage.createAiAnalysisResult({
+          submissionId: parseInt(submissionId),
+          videoPath: `Comprehensive analysis: ${results.videoAnswers.length} video + ${results.audioAnswers.length} audio answers`,
+          overallSuspicion: results.overallRisk,
+          summary: `Comprehensive AI analysis completed with ${results.overallRisk}% risk score. ${riskFactors.join('. ')}`
+        });
+
+        console.log(`Stored comprehensive analysis result with ID: ${analysisResult.id}`);
+      } catch (dbError) {
+        console.error('Failed to store comprehensive analysis:', dbError);
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error('Comprehensive analysis error:', error);
+      res.status(500).json({ 
+        message: "Failed to perform comprehensive analysis", 
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Get comprehensive analysis results
+  app.get("/api/analyze/comprehensive/:submissionId", isAuthenticated, async (req, res) => {
+    try {
+      const submissionId = parseInt(req.params.submissionId);
+      
+      // Get stored analysis results
+      const analysisResults = await storage.getAnalysisResultsBySubmission(submissionId);
+      
+      // Get video answers with transcriptions
+      const videoAnswers = await storage.getVideoAnswersBySubmission(submissionId);
+      
+      // Get submission for context
+      const submission = await storage.getSubmission(submissionId);
+      
+      res.json({
+        submissionId,
+        submission,
+        analysisResults,
+        videoAnswers: videoAnswers.map(va => ({
+          ...va,
+          hasTranscription: !!va.transcription
+        }))
+      });
+    } catch (error) {
+      console.error('Failed to get comprehensive analysis:', error);
+      res.status(500).json({ message: "Failed to fetch analysis results" });
+    }
+  });
+
+  // Individual Question-Answer Analysis
+  app.post("/api/analyze/question-answer", isAuthenticated, async (req, res) => {
+    try {
+      const { submissionId, questionId, questionText, answer, examTitle, studentName } = req.body;
+
+      if (!submissionId || !questionId || !questionText || !answer) {
+        return res.status(400).json({ message: "Missing required parameters" });
+      }
+
+      console.log(`Starting question-answer analysis for submission ${submissionId}, question ${questionId}`);
+
+      const result: any = {
+        submissionId,
+        questionId,
+        questionText,
+        answerType: answer.type,
+        timestamp: new Date().toISOString(),
+        transcription: null,
+        grading: null,
+        violations: [],
+        confidence: null,
+        recommendations: []
+      };
+
+      // Handle video responses
+      if (answer.type === 'video_response' && answer.videoUrl) {
+        try {
+          const videoPath = path.join(process.cwd(), 'uploads', 'videos', path.basename(answer.videoUrl));
+          
+          if (fs.existsSync(videoPath)) {
+            console.log(`Transcribing video answer: ${path.basename(answer.videoUrl)}`);
+            
+            // Transcribe video audio
+            const transcription = await transcriptionService.transcribeVideoAudio(videoPath, 'ar');
+            result.transcription = transcription;
+            
+            // Analyze for grading
+            const gradingAnalysis = await transcriptionService.analyzeTranscriptionForGrading(
+              transcription.text,
+              questionText,
+              [], // TODO: Extract keywords from question
+              10 // Default points, should come from question data
+            );
+            result.grading = gradingAnalysis;
+            result.confidence = transcription.confidence;
+
+            console.log(`Video analysis completed: ${transcription.wordCount} words, ${transcription.confidence}% confidence`);
+          } else {
+            result.error = "Video file not found";
+          }
+        } catch (error) {
+          console.error('Video analysis error:', error);
+          result.error = "Failed to analyze video";
+        }
+      }
+
+      // Handle audio responses
+      if (answer.type === 'audio_response' && answer.audioUrl) {
+        try {
+          const audioPath = path.join(process.cwd(), 'uploads', 'audio', path.basename(answer.audioUrl));
+          
+          if (fs.existsSync(audioPath)) {
+            console.log(`Transcribing audio answer: ${path.basename(answer.audioUrl)}`);
+            
+            // Transcribe audio
+            const transcription = await transcriptionService.transcribeAudio(audioPath, 'ar');
+            result.transcription = transcription;
+            
+            // Analyze for grading
+            const gradingAnalysis = await transcriptionService.analyzeTranscriptionForGrading(
+              transcription.text,
+              questionText,
+              [], // TODO: Extract keywords from question
+              10 // Default points
+            );
+            result.grading = gradingAnalysis;
+            result.confidence = transcription.confidence;
+
+            console.log(`Audio analysis completed: ${transcription.wordCount} words, ${transcription.confidence}% confidence`);
+          } else {
+            result.error = "Audio file not found";
+          }
+        } catch (error) {
+          console.error('Audio analysis error:', error);
+          result.error = "Failed to analyze audio";
+        }
+      }
+
+      // Handle text-based answers (multiple choice, short answer, etc.)
+      if (['multiple_choice', 'true_false', 'short_answer', 'long_answer', 'essay'].includes(answer.type)) {
+        try {
+          const answerText = answer.answer || answer.text || '';
+          
+          if (answerText) {
+            console.log(`Analyzing text answer for question ${questionId}`);
+            
+            // Use AI to analyze text answer
+            const gradingAnalysis = await transcriptionService.analyzeTranscriptionForGrading(
+              answerText,
+              questionText,
+              [], // TODO: Extract keywords from question
+              10 // Default points
+            );
+            result.grading = gradingAnalysis;
+            result.confidence = 100; // Text answers have full confidence
+            
+            console.log(`Text analysis completed: ${answerText.length} characters`);
+          }
+        } catch (error) {
+          console.error('Text analysis error:', error);
+          result.error = "Failed to analyze text answer";
+        }
+      }
+
+      // Generate recommendations based on analysis
+      if (result.grading) {
+        const score = result.grading.score;
+        const confidence = result.confidence || 0;
+        
+        if (confidence < 70) {
+          result.recommendations.push("Low transcription confidence - manual review recommended");
+        }
+        
+        if (score < 3) {
+          result.recommendations.push("Very low score - consider providing additional feedback");
+        } else if (score < 6) {
+          result.recommendations.push("Below average score - review answer for partial credit");
+        } else if (score >= 8) {
+          result.recommendations.push("Strong answer - consider full marks");
+        }
+        
+        if (result.grading.relevance < 50) {
+          result.recommendations.push("Answer may be off-topic - manual review needed");
+        }
+        
+        if (result.grading.completeness < 50) {
+          result.recommendations.push("Incomplete answer - student may need clarification");
+        }
+      }
+
+      console.log(`Question-answer analysis completed for question ${questionId}`);
+      
+      // Store individual analysis results if needed
+      try {
+        const analysisResult = await storage.createAiAnalysisResult({
+          submissionId: parseInt(submissionId),
+          videoPath: `Question ${questionId} analysis: ${answer.type}`,
+          overallSuspicion: Math.max(0, 100 - (result.grading?.score || 0) * 10), // Convert score to suspicion
+          summary: `Individual analysis of question ${questionId}: ${result.grading?.feedback || 'Analysis completed'}`
+        });
+
+        console.log(`Stored question analysis result with ID: ${analysisResult.id}`);
+      } catch (dbError) {
+        console.error('Failed to store question analysis:', dbError);
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error('Question-answer analysis error:', error);
+      res.status(500).json({ 
+        message: "Failed to analyze question-answer", 
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Get questions for an exam
+  app.get("/api/exams/:examId/questions", isAuthenticated, async (req, res) => {
+    try {
+      const examId = parseInt(req.params.examId);
+      const questions = await storage.getQuestionsByExam(examId);
+      res.json(questions);
+    } catch (error) {
+      console.error('Failed to get exam questions:', error);
+      res.status(500).json({ message: "Failed to fetch questions" });
+    }
+  });
+
+  // Get submission details with answers
+  app.get("/api/submissions/:submissionId/details", isAuthenticated, async (req, res) => {
+    try {
+      const submissionId = parseInt(req.params.submissionId);
+      const submission = await storage.getSubmission(submissionId);
+      
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      res.json(submission);
+    } catch (error) {
+      console.error('Failed to get submission details:', error);
+      res.status(500).json({ message: "Failed to fetch submission details" });
+    }
+  });
+
+  // Get video answers for a submission
+  app.get("/api/submissions/:submissionId/video-answers", isAuthenticated, async (req, res) => {
+    try {
+      const submissionId = parseInt(req.params.submissionId);
+      const videoAnswers = await storage.getVideoAnswersBySubmission(submissionId);
+      res.json(videoAnswers);
+    } catch (error) {
+      console.error('Failed to get video answers:', error);
+      res.status(500).json({ message: "Failed to fetch video answers" });
     }
   });
 

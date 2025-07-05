@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ import { LogIn, KeyRound, Mail, Loader2 } from "lucide-react";
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { t } = useTranslation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -22,15 +24,15 @@ export default function Login() {
     },
     onSuccess: () => {
       toast({
-        title: "Login Successful",
-        description: "Welcome back to ExamCraft!",
+        title: t('auth.login_success'),
+        description: t('auth.welcome_back'),
       });
       setLocation("/");
     },
     onError: (error: any) => {
       toast({
-        title: "Login Failed",
-        description: error.message || "Invalid email or password",
+        title: t('auth.login_failed'),
+        description: error.message || t('auth.invalid_credentials'),
         variant: "destructive",
       });
     },
@@ -40,8 +42,8 @@ export default function Login() {
     e.preventDefault();
     if (!email || !password) {
       toast({
-        title: "Error",
-        description: "Please enter both email and password",
+        title: t('common.error'),
+        description: t('auth.enter_credentials'),
         variant: "destructive",
       });
       return;
@@ -54,7 +56,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4 login-container">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-1">
           <div className="flex justify-center mb-4">
@@ -62,8 +64,8 @@ export default function Login() {
               <LogIn className="w-8 h-8 text-white" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome to Exam Craft</CardTitle>
-          <CardDescription>Sign in to access your account</CardDescription>
+          <CardTitle className="text-2xl font-bold">{t('auth.welcome_title')}</CardTitle>
+          <CardDescription>{t('auth.sign_in_description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Replit Auth Option */}
@@ -77,7 +79,7 @@ export default function Login() {
               alt="Replit" 
               className="w-5 h-5 mr-2"
             />
-            Continue with Replit
+            {t('auth.continue_replit')}
           </Button>
 
           <div className="relative">
@@ -85,38 +87,38 @@ export default function Login() {
               <Separator />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white dark:bg-gray-950 px-2 text-gray-500">Or continue with email</span>
+              <span className="bg-white dark:bg-gray-950 px-2 text-gray-500">{t('auth.or_email')}</span>
             </div>
           </div>
 
           {/* Email/Password Login Form */}
           <form onSubmit={handleEmailLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('auth.email')}</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400 input-icon [dir='rtl']:left-auto [dir='rtl']:right-3" />
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder={t('auth.enter_email')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 [dir='rtl']:pl-3 [dir='rtl']:pr-10"
                   disabled={loginMutation.isPending}
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('auth.password')}</Label>
               <div className="relative">
-                <KeyRound className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <KeyRound className="absolute left-3 top-3 h-4 w-4 text-gray-400 input-icon [dir='rtl']:left-auto [dir='rtl']:right-3" />
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder={t('auth.enter_password')}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 [dir='rtl']:pl-3 [dir='rtl']:pr-10"
                   disabled={loginMutation.isPending}
                 />
               </div>
@@ -130,17 +132,17 @@ export default function Login() {
               {loginMutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
+                  {t('auth.signing_in')}
                 </>
               ) : (
-                "Sign In"
+                t('auth.sign_in')
               )}
             </Button>
           </form>
 
           <div className="text-center text-sm text-gray-600 dark:text-gray-400">
-            <p>Don't have an account?</p>
-            <p className="mt-1">Contact your administrator for an invitation</p>
+            <p>{t('auth.no_account')}</p>
+            <p className="mt-1">{t('auth.contact_admin')}</p>
           </div>
         </CardContent>
       </Card>

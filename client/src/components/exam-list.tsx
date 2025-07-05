@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from 'react-i18next';
 import { apiRequest } from "@/lib/queryClient";
 import { ExamWithStats, ExamInvitation } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +41,7 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
   
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   const { data: exams = [], isLoading } = useQuery<ExamWithStats[]>({
     queryKey: ["/api/exams"],
@@ -51,15 +53,15 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
     },
     onSuccess: () => {
       toast({
-        title: "Exam deleted successfully",
-        description: "The exam has been removed from your account.",
+        title: t('messages.exam_deleted'),
+        description: t('messages.exam_deleted_desc'),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/exams"] });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to delete the exam. Please try again.",
+        title: t('common.error'),
+        description: t('messages.error_occurred'),
         variant: "destructive",
       });
     },
@@ -71,15 +73,15 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
     },
     onSuccess: () => {
       toast({
-        title: "Exam published successfully",
-        description: "Students can now access your exam.",
+        title: t('messages.exam_published'),
+        description: t('messages.exam_published_desc'),
       });
       queryClient.invalidateQueries({ queryKey: ["/api/exams"] });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to publish the exam. Please try again.",
+        title: t('common.error'),
+        description: t('messages.error_occurred'),
         variant: "destructive",
       });
     },
@@ -97,11 +99,11 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "published":
-        return <Badge className="bg-green-100 text-green-800">Published</Badge>;
+        return <Badge className="bg-green-100 text-green-800">{t('dashboard.published')}</Badge>;
       case "draft":
-        return <Badge className="bg-yellow-100 text-yellow-800">Draft</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800">{t('dashboard.draft')}</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="secondary">{t(`dashboard.${status}`)}</Badge>;
     }
   };
 
@@ -109,8 +111,8 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
     const examUrl = `${window.location.origin}/take-exam/${examId}`;
     navigator.clipboard.writeText(examUrl).then(() => {
       toast({
-        title: "Link copied!",
-        description: "The exam link has been copied to your clipboard.",
+        title: t('messages.link_copied'),
+        description: t('messages.link_copied_desc'),
       });
     });
   };
@@ -158,12 +160,12 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>My Exams</CardTitle>
+            <CardTitle>{t('navigation.my_exams')}</CardTitle>
             <div className="flex items-center space-x-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
-                  placeholder="Search exams..."
+                  placeholder={t('common.search') + '...'}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 w-64"
@@ -173,10 +175,10 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
               <Select value={subjectFilter} onValueChange={setSubjectFilter}>
                 <SelectTrigger className="w-48">
                   <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Filter by subject" />
+                  <SelectValue placeholder={t('exam.subject')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Subjects</SelectItem>
+                  <SelectItem value="all">{t('exam.subject')}s</SelectItem>
                   {subjects.map((subject) => (
                     <SelectItem key={subject} value={subject}>
                       {subject}
@@ -213,12 +215,12 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
             <div className="text-center py-12">
               <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">
-                {searchTerm || subjectFilter !== "all" ? "No exams found" : "No exams created yet"}
+                {searchTerm || subjectFilter !== "all" ? t('dashboard.no_exams_title') : t('dashboard.no_exams_title')}
               </h3>
               <p className="text-gray-600 mb-6">
                 {searchTerm || subjectFilter !== "all" 
-                  ? "Try adjusting your search or filter criteria." 
-                  : "Create your first exam to get started with online assessments."
+                  ? t('messages.try_again') 
+                  : t('dashboard.no_exams_message')
                 }
               </p>
             </div>
@@ -241,15 +243,15 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="flex items-center gap-2">
                           <FileText className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-600">{exam.questionsCount} questions</span>
+                          <span className="text-gray-600">{exam.questionsCount} {t('dashboard.questions')}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-600">{exam.submissionsCount} submissions</span>
+                          <span className="text-gray-600">{exam.submissionsCount} {t('dashboard.submissions')}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-600">Created {formatDate(exam.createdAt?.toString() || '')}</span>
+                          <span className="text-gray-600">{t('dashboard.created')} {formatDate(exam.createdAt?.toString() || '')}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-gray-400" />
@@ -260,7 +262,7 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
                       {exam.averageScore !== undefined && (
                         <div className="mt-3 p-2 bg-blue-50 rounded-lg">
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600">Average Score</span>
+                            <span className="text-gray-600">{t('dashboard.average_score')}</span>
                             <span className="font-semibold text-blue-600">{exam.averageScore.toFixed(1)}%</span>
                           </div>
                         </div>
@@ -277,7 +279,7 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
                           title="Preview Exam"
                         >
                           <Eye className="h-4 w-4 mr-1" />
-                          Preview
+                          {t('exam.preview')}
                         </Button>
                         
                         <Button
@@ -314,7 +316,7 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
                             title="Copy Exam Link"
                           >
                             <Share className="h-4 w-4 mr-1" />
-                            Share Link
+                            {t('dashboard.copy_link')}
                           </Button>
                         ) : (
                           <Button
@@ -324,7 +326,7 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
                             disabled={publishExamMutation.isPending}
                             title="Publish Exam"
                           >
-                            {publishExamMutation.isPending ? "Publishing..." : "Publish"}
+                            {publishExamMutation.isPending ? t('dashboard.publishing') : t('dashboard.publish_exam')}
                           </Button>
                         )}
                         
@@ -333,7 +335,7 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
                           variant="outline"
                           className="text-red-600 hover:text-red-700 border-red-200 hover:bg-red-50"
                           onClick={() => {
-                            if (window.confirm("Are you sure you want to delete this exam?")) {
+                            if (window.confirm(t('messages.confirm_delete'))) {
                               deleteExamMutation.mutate(exam.id);
                             }
                           }}
@@ -370,11 +372,11 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
                             <div className="flex items-center space-x-6 text-sm text-gray-500">
                               <div className="flex items-center">
                                 <FileText className="h-4 w-4 mr-1" />
-                                {exam.questionsCount} questions
+                                {exam.questionsCount} {t('dashboard.questions')}
                               </div>
                               <div className="flex items-center">
                                 <Users className="h-4 w-4 mr-1" />
-                                {exam.submissionsCount} submissions
+                                {exam.submissionsCount} {t('dashboard.submissions')}
                               </div>
                               <div className="flex items-center">
                                 <Clock className="h-4 w-4 mr-1" />
@@ -445,7 +447,7 @@ export default function ExamList({ onSelectExam }: ExamListProps) {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              Manage Student Invitations - {selectedExam?.title}
+              {t('student.manage_invitations')} - {selectedExam?.title}
             </DialogTitle>
           </DialogHeader>
           {selectedExam && (

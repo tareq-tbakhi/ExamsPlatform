@@ -3,6 +3,9 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import "./i18n";
 import { useAuth } from "@/hooks/useAuth";
 import { isSuperAdmin, isAdmin, isTeacherOrAbove } from "@/lib/authUtils";
 import NotFound from "@/pages/not-found";
@@ -86,6 +89,40 @@ function Router() {
 }
 
 function App() {
+  const { i18n } = useTranslation();
+
+  // Initialize RTL direction based on current language
+  useEffect(() => {
+    const initializeDirection = () => {
+      const currentLang = i18n.language || 'en';
+      document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+      document.documentElement.lang = currentLang;
+      
+      // Add body classes for RTL/LTR styling
+      if (currentLang === 'ar') {
+        document.body.classList.add('rtl-layout');
+        document.body.classList.remove('ltr-layout');
+      } else {
+        document.body.classList.add('ltr-layout');
+        document.body.classList.remove('rtl-layout');
+      }
+    };
+
+    // Initialize on mount
+    initializeDirection();
+
+    // Listen for language changes
+    const handleLanguageChange = () => {
+      initializeDirection();
+    };
+
+    i18n.on('languageChanged', handleLanguageChange);
+
+    return () => {
+      i18n.off('languageChanged', handleLanguageChange);
+    };
+  }, [i18n]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

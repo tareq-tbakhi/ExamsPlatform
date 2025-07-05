@@ -792,7 +792,7 @@ export default function AIGenerator({ onQuestionsGenerated, isInPopover = false,
                 />
               )}
               <div className={cn(
-                "absolute right-2 flex items-center gap-1",
+                "absolute end-2 flex items-center gap-1",
                 currentStep === "description" ? "top-3" : "top-1/2 -translate-y-1/2"
               )}>
                 <Button
