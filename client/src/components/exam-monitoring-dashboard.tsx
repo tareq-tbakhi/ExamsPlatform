@@ -74,6 +74,7 @@ export default function ExamMonitoringDashboard({ submissionId, examId, tabMode 
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [expandedQuestion, setExpandedQuestion] = useState<number | null>(null);
+  const [clearingTranscript, setClearingTranscript] = useState<Set<number>>(new Set());
   const { toast } = useToast();
 
   // Fetch submission details
@@ -115,6 +116,49 @@ export default function ExamMonitoringDashboard({ submissionId, examId, tabMode 
   }
 
   const { submission, exam } = submissionData;
+
+  // Handle clearing transcript
+  const handleClearTranscript = async (questionId: number) => {
+    if (clearingTranscript.has(questionId)) return;
+
+    setClearingTranscript(prev => new Set(prev).add(questionId));
+    
+    try {
+      const response = await fetch(`/api/submissions/${submissionId}/clear-transcript`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ questionId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear transcript');
+      }
+
+      toast({
+        title: "Transcript Cleared",
+        description: `Transcript for question ${questionId} has been cleared successfully.`,
+      });
+
+      // Refresh the data
+      window.location.reload();
+    } catch (error) {
+      console.error('Error clearing transcript:', error);
+      toast({
+        title: "Error",
+        description: "Failed to clear transcript. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setClearingTranscript(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(questionId);
+        return newSet;
+      });
+    }
+  };
+
   const formatScore = (score: number | null | undefined, totalPoints: number) => {
     if (score === null || score === undefined) {
       return {
@@ -640,6 +684,108 @@ export default function ExamMonitoringDashboard({ submissionId, examId, tabMode 
           );
         })()}
 
+        {/* Student Answer Audio from submission answers */}
+        {(() => {
+          // Extract audio answers from submission.answers
+          const answerAudios = Object.entries(submissionData?.answers || {})
+            .filter(([_, answer]: [string, any]) => answer?.type === 'audio_response' && answer?.audioUrl)
+            .map(([questionId, answer]: [string, any]) => ({
+              questionId: parseInt(questionId),
+              audioUrl: answer.audioUrl,
+              transcription: answer.transcription,
+              confidence: answer.confidence
+            }));
+
+          if (answerAudios.length === 0) return null;
+
+          return (
+            <Card className="border-0 shadow-2xl overflow-hidden bg-white/90 backdrop-blur-sm">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 to-orange-600/5 rounded-xl"></div>
+              <CardHeader className="relative z-10 bg-gradient-to-r from-amber-600 to-orange-600 text-white">
+                <CardTitle className="flex items-center space-x-3 text-2xl">
+                  <Mic className="h-8 w-8" />
+                  <span>🎤 Audio Responses</span>
+                  <Badge className="bg-white/20 backdrop-blur-sm text-white ml-auto px-4 py-2">
+                    {answerAudios.length} Audio{answerAudios.length !== 1 ? 's' : ''}
+                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-amber-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-medium">Answers</span>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="relative z-10 p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {answerAudios.map((answer: any, idx: number) => {
+                    // Find the corresponding question
+                    const question = exam.questions?.find((q: any) => q.id === answer.questionId);
+                    
+                    return (
+                      <div key={idx} className="bg-gradient-to-br from-white to-amber-50 rounded-xl p-6 border-2 border-amber-200 shadow-lg">
+                        <div className="flex items-center gap-3 mb-4">
+                          <div className="w-12 h-12 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full flex items-center justify-center">
+                            <Mic className="h-6 w-6 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-amber-800 text-lg">Question {answer.questionId}</h3>
+                            <p className="text-amber-600 text-sm">Audio Response</p>
+                          </div>
+                          {answer.confidence && (
+                            <Badge variant="outline" className="bg-white border-amber-300 text-amber-700">
+                              {Math.round(answer.confidence * 100)}%
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        {question && (
+                          <div className="mb-4 p-3 bg-white rounded-lg border border-amber-100">
+                            <p className="text-gray-800 text-sm font-medium">{question.question}</p>
+                          </div>
+                        )}
+                        
+                        {answer.audioUrl && (
+                          <div className="mb-4">
+                            <audio
+                              controls
+                              className="w-full rounded-lg shadow border border-amber-200"
+                              style={{ height: '40px' }}
+                            >
+                              <source src={answer.audioUrl} type="audio/webm" />
+                              Your browser does not support the audio element.
+                            </audio>
+                          </div>
+                        )}
+                        
+                        {answer.transcription && (
+                          <div className="bg-white rounded-lg p-4 border border-amber-100">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Mic className="h-4 w-4 text-amber-600" />
+                              <span className="text-sm font-semibold text-amber-800">Transcript:</span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleClearTranscript(answer.questionId)}
+                                className="ml-auto text-xs px-2 py-1 h-6"
+                                title="Clear transcript"
+                                disabled={clearingTranscript.has(answer.questionId)}
+                              >
+                                {clearingTranscript.has(answer.questionId) ? 'Clearing...' : 'Clear'}
+                              </Button>
+                            </div>
+                            <p className="text-gray-800 text-sm leading-relaxed" dir="rtl">
+                              "{answer.transcription}"
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
+
         {/* Enhanced Violations Details */}
         {proctoringData?.violations && proctoringData.violations.length > 0 && (
           <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-sm overflow-hidden">
@@ -980,14 +1126,14 @@ export default function ExamMonitoringDashboard({ submissionId, examId, tabMode 
                 <p className="text-sm text-gray-500">Recorded Answers</p>
               </div>
               <div className="text-center">
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Camera className="h-8 w-8 text-purple-600" />
+                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <Mic className="h-8 w-8 text-orange-600" />
                 </div>
-                <h3 className="font-semibold text-gray-900 mb-1">Proctoring Videos</h3>
-                <p className="text-2xl font-bold text-purple-600">
-                  {(proctoringData?.videos?.camera?.length || 0) + (proctoringData?.videos?.screen?.length || 0)}
+                <h3 className="font-semibold text-gray-900 mb-1">Audio Responses</h3>
+                <p className="text-2xl font-bold text-orange-600">
+                  {Object.values(submission.answers || {}).filter((answer: any) => answer.type === 'audio_response').length}
                 </p>
-                <p className="text-sm text-gray-500">Monitoring Segments</p>
+                <p className="text-sm text-gray-500">Recorded Answers</p>
               </div>
             </div>
           </CardContent>
@@ -1124,112 +1270,284 @@ export default function ExamMonitoringDashboard({ submissionId, examId, tabMode 
                     <div>
                       <h2 className="text-2xl font-bold flex items-center gap-3">
                         <Clock className="h-8 w-8" />
-                        Exam Timeline
+                        Comprehensive Exam Timeline
                       </h2>
                       <p className="mt-2 text-blue-100">
-                        Complete chronological view of {submission.studentName}'s exam session
+                        Complete chronological view of {submission.studentName}'s exam journey
                       </p>
                     </div>
                     <div className="text-right">
                       <div className="text-sm text-blue-100">Duration</div>
-                      <div className="text-xl font-semibold">{submission.timeSpent || 0} minutes</div>
+                      <div className="text-xl font-semibold">
+                        {submission.startedAt && submission.submittedAt ? 
+                          Math.round((new Date(submission.submittedAt).getTime() - new Date(submission.startedAt).getTime()) / (1000 * 60)) + ' min' : 
+                          'N/A'
+                        }
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <Card className="border-0 shadow-lg">
-                  <CardHeader className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-                    <CardTitle className="flex items-center gap-2">
-                      <History className="h-6 w-6" />
-                      Real-Time Activity Log
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <div className="space-y-4">
-                      {(() => {
-                        const timelineEvents = [];
+                <div className="space-y-4">
+                  {(() => {
+                    const timelineEvents: Array<{
+                      time: string;
+                      event: string;
+                      icon: any;
+                      color: string;
+                      bgColor: string;
+                      timestamp: number;
+                      category: string;
+                      details?: string;
+                    }> = [];
+
+                    // Add exam start event
+                    if (submission.startedAt) {
+                      timelineEvents.push({
+                        time: new Date(submission.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                        event: 'Exam Started',
+                        icon: Play,
+                        color: 'text-green-600',
+                        bgColor: 'bg-green-100',
+                        timestamp: new Date(submission.startedAt).getTime(),
+                        category: 'System',
+                        details: 'Student began the examination'
+                      });
+                    }
+
+                    // Add proctoring session start
+                    if (proctoringData?.videos?.camera && proctoringData.videos.camera.length > 0) {
+                      const firstVideo = proctoringData.videos.camera[0];
+                      const videoMatch = firstVideo.match(/session_(\d+)/);
+                      if (videoMatch) {
+                        const sessionTimestamp = parseInt(videoMatch[1]);
+                        timelineEvents.push({
+                          time: new Date(sessionTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                          event: 'Proctoring Started',
+                          icon: Camera,
+                          color: 'text-purple-600',
+                          bgColor: 'bg-purple-100',
+                          timestamp: sessionTimestamp,
+                          category: 'Monitoring',
+                          details: 'Camera and screen recording initiated'
+                        });
+                      }
+                    }
+
+                    // Add question attempts and answers
+                    if (submission.answers) {
+                      const answers = typeof submission.answers === 'string' 
+                        ? JSON.parse(submission.answers) 
+                        : submission.answers;
+
+                      Object.entries(answers).forEach(([questionId, answer]: [string, any]) => {
+                        const question = exam.questions?.find((q: any) => q.id.toString() === questionId);
                         
-                        // Add exam start event
-                        if (submission.startedAt) {
-                          timelineEvents.push({
-                            time: new Date(submission.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                            event: 'Exam started',
-                            icon: Play,
-                            color: 'text-green-600',
-                            bgColor: 'bg-green-100',
-                            timestamp: new Date(submission.startedAt).getTime()
-                          });
-                        }
-                        
-                        // Add violations
-                        if (proctoringData?.violations) {
-                          proctoringData.violations.forEach((violation: any) => {
-                            timelineEvents.push({
-                              time: new Date(violation.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                              event: `${violation.severity === 'high' ? 'Critical' : violation.severity === 'medium' ? 'Major' : 'Minor'} violation: ${violation.type.replace('_', ' ')}`,
-                              icon: AlertTriangle,
-                              color: violation.severity === 'high' ? 'text-red-600' : violation.severity === 'medium' ? 'text-yellow-600' : 'text-orange-600',
-                              bgColor: violation.severity === 'high' ? 'bg-red-100' : violation.severity === 'medium' ? 'bg-yellow-100' : 'bg-orange-100',
-                              timestamp: new Date(violation.timestamp).getTime()
-                            });
-                          });
-                        }
-                        
-                        // Add question completion events based on video answers
-                        if (submissionData?.videoAnswers && submissionData.videoAnswers.length > 0) {
-                          submissionData.videoAnswers.forEach((answer: any) => {
-                            if (answer.recordedAt) {
+                        if (answer && typeof answer === 'object') {
+                          // Handle audio responses
+                          if (answer.type === 'audio_response' && answer.audioUrl) {
+                            const audioMatch = answer.audioUrl.match(/_(\d+)\.webm/);
+                            if (audioMatch) {
+                              const audioTimestamp = parseInt(audioMatch[1]);
                               timelineEvents.push({
-                                time: new Date(answer.recordedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                                event: `Question ${answer.questionNumber} answered (Video)`,
+                                time: new Date(audioTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                                event: `Audio Response Q${questionId}`,
+                                icon: Mic,
+                                color: 'text-orange-600',
+                                bgColor: 'bg-orange-100',
+                                timestamp: audioTimestamp,
+                                category: 'Response',
+                                details: `Recorded audio answer for question ${questionId}${answer.transcription ? ` - "${answer.transcription.substring(0, 50)}..."` : ''}`
+                              });
+                            }
+                          }
+                          
+                          // Handle video responses
+                          if (answer.type === 'video_response' && answer.videoUrl) {
+                            const videoMatch = answer.videoUrl.match(/answer_\d+_(\d+)\.webm/);
+                            if (videoMatch) {
+                              const videoTimestamp = parseInt(videoMatch[1]);
+                              timelineEvents.push({
+                                time: new Date(videoTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                                event: `Video Response Q${questionId}`,
                                 icon: Video,
                                 color: 'text-blue-600',
                                 bgColor: 'bg-blue-100',
-                                timestamp: new Date(answer.recordedAt).getTime()
+                                timestamp: videoTimestamp,
+                                category: 'Response',
+                                details: `Recorded video answer for question ${questionId}${answer.transcription ? ` - "${answer.transcription.substring(0, 50)}..."` : ''}`
                               });
                             }
-                          });
+                          }
+                        } else {
+                          // Handle text responses (estimate timing)
+                          if (answer && submission.startedAt) {
+                            const estimatedTime = new Date(submission.startedAt).getTime() + (parseInt(questionId) * 2 * 60 * 1000); // Estimate 2 min per question
+                            timelineEvents.push({
+                              time: new Date(estimatedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                              event: `Text Answer Q${questionId}`,
+                              icon: FileText,
+                              color: 'text-gray-600',
+                              bgColor: 'bg-gray-100',
+                              timestamp: estimatedTime,
+                              category: 'Response',
+                              details: `Answered question ${questionId}: "${String(answer).substring(0, 50)}..."`
+                            });
+                          }
                         }
-                        
-                        // Add submission completion
-                        if (submission.submittedAt) {
+                      });
+                    }
+
+                    // Add proctoring video segments
+                    if (proctoringData?.videos?.camera) {
+                      proctoringData.videos.camera.forEach((videoPath: string, index: number) => {
+                        const chunkMatch = videoPath.match(/chunk(\d+)\.webm/);
+                        const sessionMatch = videoPath.match(/session_(\d+)/);
+                        if (chunkMatch && sessionMatch) {
+                          const sessionStart = parseInt(sessionMatch[1]);
+                          const chunkTimestamp = sessionStart + (index * 40 * 1000); // Assuming 40s chunks
                           timelineEvents.push({
-                            time: new Date(submission.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                            event: 'Exam submitted',
-                            icon: CheckCircle,
-                            color: 'text-green-600',
-                            bgColor: 'bg-green-100',
-                            timestamp: new Date(submission.submittedAt).getTime()
+                            time: new Date(chunkTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                            event: `Camera Recording Segment ${index + 1}`,
+                            icon: Camera,
+                            color: 'text-purple-500',
+                            bgColor: 'bg-purple-50',
+                            timestamp: chunkTimestamp,
+                            category: 'Monitoring',
+                            details: `Proctoring video segment recorded`
                           });
                         }
-                        
-                        // Sort events by timestamp
-                        timelineEvents.sort((a, b) => a.timestamp - b.timestamp);
-                        
-                        return timelineEvents.length > 0 ? timelineEvents.map((event, idx) => (
-                          <div key={idx} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                            <div className={`w-12 h-12 rounded-full ${event.bgColor} flex items-center justify-center`}>
-                              <event.icon className={`h-6 w-6 ${event.color}`} />
+                      });
+                    }
+
+                    // Add screen recording segments
+                    if (proctoringData?.videos?.screen) {
+                      proctoringData.videos.screen.forEach((videoPath: string, index: number) => {
+                        const chunkMatch = videoPath.match(/chunk(\d+)\.webm/);
+                        const sessionMatch = videoPath.match(/session_(\d+)/);
+                        if (chunkMatch && sessionMatch) {
+                          const sessionStart = parseInt(sessionMatch[1]);
+                          const chunkTimestamp = sessionStart + (index * 40 * 1000); // Assuming 40s chunks
+                          timelineEvents.push({
+                            time: new Date(chunkTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                            event: `Screen Recording Segment ${index + 1}`,
+                            icon: Monitor,
+                            color: 'text-indigo-500',
+                            bgColor: 'bg-indigo-50',
+                            timestamp: chunkTimestamp,
+                            category: 'Monitoring',
+                            details: `Screen activity recorded`
+                          });
+                        }
+                      });
+                    }
+
+                    // Add AI analysis events
+                    if (aiAnalysis && aiAnalysis.length > 0) {
+                      aiAnalysis.forEach((analysis: any) => {
+                        if (analysis.timestamp) {
+                          timelineEvents.push({
+                            time: new Date(analysis.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                            event: 'AI Analysis Completed',
+                            icon: Brain,
+                            color: 'text-pink-600',
+                            bgColor: 'bg-pink-100',
+                            timestamp: new Date(analysis.timestamp).getTime(),
+                            category: 'Analysis',
+                            details: `AI analysis performed on question responses`
+                          });
+                        }
+                      });
+                    }
+
+                    // Add exam submission event
+                    if (submission.submittedAt) {
+                      timelineEvents.push({
+                        time: new Date(submission.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                        event: 'Exam Submitted',
+                        icon: Trophy,
+                        color: 'text-green-600',
+                        bgColor: 'bg-green-100',
+                        timestamp: new Date(submission.submittedAt).getTime(),
+                        category: 'System',
+                        details: 'Student completed and submitted the examination'
+                      });
+                    }
+
+                    // Sort events by timestamp
+                    timelineEvents.sort((a, b) => a.timestamp - b.timestamp);
+
+                    // Group events by category for better visualization
+                    const eventsByCategory = timelineEvents.reduce((acc, event) => {
+                      if (!acc[event.category]) acc[event.category] = [];
+                      acc[event.category].push(event);
+                      return acc;
+                    }, {} as Record<string, typeof timelineEvents>);
+
+                    // If no real events, show a message
+                    if (timelineEvents.length === 0) {
+                      return (
+                        <div className="text-center py-8">
+                          <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                          <p className="text-gray-500">No timeline events available</p>
+                          <p className="text-sm text-gray-400">Events will appear as they occur during the exam</p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-6">
+                        {/* Category Summary */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {Object.entries(eventsByCategory).map(([category, events]) => (
+                            <div key={category} className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                              <div className="text-sm font-medium text-gray-600">{category}</div>
+                              <div className="text-2xl font-bold text-gray-900">{events.length}</div>
+                              <div className="text-xs text-gray-500">events</div>
                             </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <p className="font-medium text-gray-900">{event.event}</p>
-                                <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded-full">
-                                  {event.time}
-                                </span>
+                          ))}
+                        </div>
+
+                        {/* Timeline Events */}
+                        <div className="relative">
+                          {/* Timeline line */}
+                          <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-blue-500 via-purple-500 to-green-500"></div>
+                          
+                          {timelineEvents.map((event, idx) => (
+                            <div key={idx} className="relative flex items-start gap-4 pb-6">
+                              <div className={`relative z-10 w-12 h-12 rounded-full ${event.bgColor} flex items-center justify-center border-4 border-white shadow-lg`}>
+                                <event.icon className={`h-6 w-6 ${event.color}`} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h3 className="font-semibold text-gray-900">{event.event}</h3>
+                                    <div className="flex items-center gap-2">
+                                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                        event.category === 'System' ? 'bg-green-100 text-green-800' :
+                                        event.category === 'Response' ? 'bg-blue-100 text-blue-800' :
+                                        event.category === 'Monitoring' ? 'bg-purple-100 text-purple-800' :
+                                        'bg-gray-100 text-gray-800'
+                                      }`}>
+                                        {event.category}
+                                      </span>
+                                      <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full font-mono">
+                                        {event.time}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  {event.details && (
+                                    <p className="text-sm text-gray-600 leading-relaxed">{event.details}</p>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )) : (
-                          <div className="text-center py-8 text-gray-500">
-                            <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No timeline events available</p>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </CardContent>
-                </Card>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
               </div>
             </TabsContent>
 
@@ -1311,6 +1629,17 @@ export default function ExamMonitoringDashboard({ submissionId, examId, tabMode 
                                     </Badge>
                                   );
                                 })()}
+                                {(() => {
+                                  const actualAnswer = studentAnswer || 
+                                                     submissionData?.answers?.[question.id] || 
+                                                     submissionData?.answers?.[question.id.toString()];
+                                  return actualAnswer?.type === 'audio_response' && (
+                                    <Badge className="bg-orange-100 text-orange-700 border-orange-300">
+                                      <Mic className="h-3 w-3 mr-1" />
+                                      Audio Response
+                                    </Badge>
+                                  );
+                                })()}
                               </div>
                             </div>
                           </div>
@@ -1383,14 +1712,144 @@ export default function ExamMonitoringDashboard({ submissionId, examId, tabMode 
                                           </div>
                                         )}
                                         
-                                        {actualAnswer.transcription && (
+                                        {actualAnswer.transcription ? (
                                           <div className="bg-white rounded-lg p-3 border border-blue-100">
                                             <div className="flex items-center gap-2 mb-2">
                                               <Mic className="h-3 w-3 text-blue-600" />
                                               <span className="text-xs font-semibold text-blue-800">Transcript:</span>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleClearTranscript(question.id)}
+                                                className="ml-auto text-xs px-2 py-1 h-6"
+                                                title="Clear transcript"
+                                                disabled={clearingTranscript.has(question.id)}
+                                              >
+                                                {clearingTranscript.has(question.id) ? 'Clearing...' : 'Clear'}
+                                              </Button>
                                             </div>
                                             <p className="text-gray-800 text-sm leading-relaxed" dir="rtl">
                                               "{actualAnswer.transcription}"
+                                            </p>
+                                          </div>
+                                        ) : (
+                                          <div className="bg-white rounded-lg p-3 border border-blue-100">
+                                            <div className="flex items-center gap-2 mb-2">
+                                              <Brain className="h-3 w-3 text-blue-600" />
+                                              <span className="text-xs font-semibold text-blue-800">AI Transcription:</span>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => runAIAnalysis()}
+                                                className="ml-auto text-xs px-2 py-1 h-6 bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100"
+                                                title="Generate AI transcript for this video response"
+                                                disabled={isAnalyzing}
+                                              >
+                                                {isAnalyzing ? (
+                                                  <>
+                                                    <Brain className="h-3 w-3 animate-spin mr-1" />
+                                                    Analyzing...
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <Zap className="h-3 w-3 mr-1" />
+                                                    Get Transcript
+                                                  </>
+                                                )}
+                                              </Button>
+                                            </div>
+                                            <p className="text-gray-600 text-sm italic">
+                                              No transcript available. Click "Get Transcript" to generate AI transcription.
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                
+                                // Handle audio responses
+                                if (actualAnswer?.type === 'audio_response') {
+                                  return (
+                                    <div className="space-y-4">
+                                      {/* Audio Response */}
+                                      <div className="p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border-2 border-orange-200">
+                                        <div className="flex items-center gap-3 mb-3">
+                                          <div className="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center">
+                                            <Mic className="h-4 w-4 text-white" />
+                                          </div>
+                                          <div className="flex-1">
+                                            <span className="font-bold text-orange-800 text-sm">Audio Response</span>
+                                            <p className="text-orange-600 text-xs">Recorded answer with transcription</p>
+                                          </div>
+                                          {actualAnswer.confidence && (
+                                            <Badge variant="outline" className="bg-white border-orange-300 text-orange-700 text-xs">
+                                              {Math.round(actualAnswer.confidence * 100)}%
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        
+                                        {actualAnswer.audioUrl && (
+                                          <div className="mb-3">
+                                            <audio
+                                              controls
+                                              className="w-full rounded-lg shadow border border-orange-300"
+                                              style={{ maxHeight: '50px' }}
+                                            >
+                                              <source src={actualAnswer.audioUrl} type="audio/webm" />
+                                              Your browser does not support the audio element.
+                                            </audio>
+                                          </div>
+                                        )}
+                                        
+                                        {actualAnswer.transcription ? (
+                                          <div className="bg-white rounded-lg p-3 border border-orange-100">
+                                            <div className="flex items-center gap-2 mb-2">
+                                              <Mic className="h-3 w-3 text-orange-600" />
+                                              <span className="text-xs font-semibold text-orange-800">Transcript:</span>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleClearTranscript(question.id)}
+                                                className="ml-auto text-xs px-2 py-1 h-6"
+                                                title="Clear transcript"
+                                                disabled={clearingTranscript.has(question.id)}
+                                              >
+                                                {clearingTranscript.has(question.id) ? 'Clearing...' : 'Clear'}
+                                              </Button>
+                                            </div>
+                                            <p className="text-gray-800 text-sm leading-relaxed" dir="rtl">
+                                              "{actualAnswer.transcription}"
+                                            </p>
+                                          </div>
+                                        ) : (
+                                          <div className="bg-white rounded-lg p-3 border border-orange-100">
+                                            <div className="flex items-center gap-2 mb-2">
+                                              <Brain className="h-3 w-3 text-orange-600" />
+                                              <span className="text-xs font-semibold text-orange-800">AI Transcription:</span>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => runAIAnalysis()}
+                                                className="ml-auto text-xs px-2 py-1 h-6 bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100"
+                                                title="Generate AI transcript for this audio response"
+                                                disabled={isAnalyzing}
+                                              >
+                                                {isAnalyzing ? (
+                                                  <>
+                                                    <Brain className="h-3 w-3 animate-spin mr-1" />
+                                                    Analyzing...
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <Zap className="h-3 w-3 mr-1" />
+                                                    Get Transcript
+                                                  </>
+                                                )}
+                                              </Button>
+                                            </div>
+                                            <p className="text-gray-600 text-sm italic">
+                                              No transcript available. Click "Get Transcript" to generate AI transcription.
                                             </p>
                                           </div>
                                         )}
@@ -1518,7 +1977,7 @@ export default function ExamMonitoringDashboard({ submissionId, examId, tabMode 
                         </Alert>
                         <div className="space-y-2">
                           {aiAnalysis.slice(0, 3).map((item: any, idx: number) => (
-                            <div key={idx} className="flex items-start gap-2 text-sm">
+                            <div key={idx} className="flex items-start gap-2 text-sm p-2 bg-green-50 rounded">
                               <CheckCircle className="h-4 w-4 text-green-500 mt-0.5" />
                               <span>{item.summary || item.description}</span>
                             </div>
@@ -1621,14 +2080,10 @@ export default function ExamMonitoringDashboard({ submissionId, examId, tabMode 
                   <CardHeader className="relative z-10 bg-gradient-to-r from-green-600 to-teal-600 text-white">
                     <CardTitle className="flex items-center space-x-3 text-2xl">
                       <Monitor className="h-8 w-8" />
-                      <span>🖥️ Screen Recording - Activity Monitoring</span>
+                      <span>🖥️ Screen Recording</span>
                       <Badge className="bg-white/20 backdrop-blur-sm text-white ml-auto px-4 py-2">
                         {proctoringData.videos.screen.length} Recording{proctoringData.videos.screen.length !== 1 ? 's' : ''}
                       </Badge>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                        <span className="text-sm font-medium">Active</span>
-                      </div>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="relative z-10 p-0">

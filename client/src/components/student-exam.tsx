@@ -637,7 +637,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
                       {/* Multiple Choice */}
                       {currentQuestion.type === "multiple_choice" && currentQuestion.options && (
                         <RadioGroup
-                          value={answers[currentQuestion.id] || ""}
+                          value={String(answers[currentQuestion.id] || "")}
                           onValueChange={(value) => handleAnswerChange(currentQuestion.id, value)}
                         >
                           <div className="space-y-3">
@@ -714,10 +714,17 @@ export default function StudentExam({ examId }: StudentExamProps) {
                       {currentQuestion.type === "audio_response" && (
                         <AudioQuestion
                           questionId={currentQuestion.id}
-                          questionText={currentQuestion.question}
+                          questionText={String(currentQuestion.question || '')}
                           questionNumber={currentQuestionIndex + 1}
                           duration={180}
                           sessionId={proctoringSessionId}
+                          autoStartRecording={true}
+                          onAutoStartRecording={() => {
+                            console.log(`Auto-started recording for audio question ${currentQuestion.id}`);
+                          }}
+                          onAutoStopRecording={() => {
+                            console.log(`Auto-stopped recording for audio question ${currentQuestion.id}`);
+                          }}
                           onAnswerSave={(transcript, audioUrl) => {
                             handleAnswerChange(currentQuestion.id, {
                               transcription: transcript,
@@ -727,8 +734,8 @@ export default function StudentExam({ examId }: StudentExamProps) {
                           }}
                           savedAnswer={
                             answers[currentQuestion.id] ? {
-                              transcript: answers[currentQuestion.id].transcription || "",
-                              audioUrl: answers[currentQuestion.id].audioUrl
+                              transcript: (answers[currentQuestion.id] as any)?.transcription || "",
+                              audioUrl: (answers[currentQuestion.id] as any)?.audioUrl
                             } : undefined
                           }
                         />
@@ -784,51 +791,7 @@ export default function StudentExam({ examId }: StudentExamProps) {
                 </Card>
               )}
 
-              {/* Question Navigation Grid */}
-              <Card className="mb-6">
-                <CardContent className="pt-6">
-                  <h3 className="font-medium text-gray-900 mb-4">{t('student.navigation')}</h3>
-                  <div className="grid grid-cols-8 sm:grid-cols-12 lg:grid-cols-15 gap-2 mb-4">
-                    {exam.questions.map((question, index) => (
-                      <Button
-                        key={question.id}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentQuestionIndex(index)}
-                        className={`w-8 h-8 p-0 text-xs ${
-                          index === currentQuestionIndex 
-                            ? 'bg-primary text-white border-primary' 
-                            : answers[question.id] 
-                              ? 'bg-green-100 text-green-800 border-green-300'
-                              : flaggedQuestions.has(question.id)
-                                ? 'bg-orange-100 text-orange-800 border-orange-300'
-                                : ''
-                        }`}
-                      >
-                        {index + 1}
-                      </Button>
-                    ))}
-                  </div>
-                  <div className="flex justify-center items-center space-x-4 text-xs text-gray-600">
-                    <div className="flex items-center space-x-1">
-                      <div className="w-3 h-3 bg-green-100 border border-green-300 rounded"></div>
-                      <span>{t('exam.answered')}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <div className="w-3 h-3 bg-primary rounded"></div>
-                      <span>{t('exam.current')}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <div className="w-3 h-3 bg-orange-100 border border-orange-300 rounded"></div>
-                      <span>{t('exam.flagged')}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <div className="w-3 h-3 bg-white border border-gray-300 rounded"></div>
-                      <span>{t('exam.not_answered')}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+
             </div>
           </div>
         </div>
@@ -878,6 +841,53 @@ export default function StudentExam({ examId }: StudentExamProps) {
               <Progress value={getProgressPercentage()} className="h-2 mb-2" />
               <div className="text-xs text-gray-600">
                 {Object.keys(answers).length} answered, {exam.questions.length - Object.keys(answers).length} remaining
+              </div>
+            </div>
+
+            {/* Question Navigation */}
+            <div className="bg-white rounded-lg p-4 mb-4 border border-gray-200">
+              <h3 className="font-medium text-gray-900 mb-3 flex items-center">
+                <List className="h-4 w-4 mr-2" />
+                {t('student.navigation')}
+              </h3>
+              <div className="grid grid-cols-6 gap-2 mb-3">
+                {exam.questions.map((question, index) => (
+                  <Button
+                    key={question.id}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentQuestionIndex(index)}
+                    className={`w-8 h-8 p-0 text-xs transition-all duration-200 ${
+                      index === currentQuestionIndex 
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                        : answers[question.id] 
+                          ? 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200'
+                          : flaggedQuestions.has(question.id)
+                            ? 'bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-200'
+                            : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    {index + 1}
+                  </Button>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-green-100 border border-green-300 rounded"></div>
+                  <span>{t('exam.answered')}</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-blue-600 rounded"></div>
+                  <span>{t('exam.current')}</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-orange-100 border border-orange-300 rounded"></div>
+                  <span>{t('exam.flagged')}</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-white border border-gray-300 rounded"></div>
+                  <span>{t('exam.not_answered')}</span>
+                </div>
               </div>
             </div>
 

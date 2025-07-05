@@ -2,8 +2,10 @@ import express, { type Express, type Request, type Response } from "express";
 import { Server } from "node:http";
 import type { UploadedFile } from "express-fileupload";
 import { storage } from "./storage";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { insertExamSchema, insertQuestionSchema, insertSubmissionSchema, insertProctoringViolationSchema, insertVideoQuestionSchema, insertVideoAnswerSchema } from "@shared/schema";
+import { insertExamSchema, insertQuestionSchema, insertSubmissionSchema, insertProctoringViolationSchema, insertVideoQuestionSchema, insertVideoAnswerSchema, submissions } from "@shared/schema";
 import { generateQuestions, type GenerateQuestionsRequest } from "./services/openai";
 import { analyzeViolationImage, analyzeVideoRecording, generateViolationReport, analyzeArabicAudioTranscription } from "./services/gemini";
 import { aiAssistantService } from "./services/ai-assistant";
@@ -719,6 +721,210 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Analyze submission - trigger AI analysis for a submission
+  app.post("/api/analyze/submission/:submissionId", isAuthenticated, async (req, res) => {
+    try {
+      const submissionId = parseInt(req.params.submissionId);
+      
+      console.log(`Starting AI analysis for submission ${submissionId}`);
+      
+      // Get submission data
+      const submission = await storage.getSubmission(submissionId);
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      // Get exam data for context
+      const exam = await storage.getExam(submission.examId);
+      const examContext = `${exam?.title || 'Unknown Exam'} - ${exam?.subject || 'General'}`;
+
+      // Check if analysis already exists (but allow re-analysis for missing transcripts)
+      const existingAnalysis = await storage.getAnalysisResultsBySubmission(submissionId);
+      console.log(`Found ${existingAnalysis.length} existing analysis results for submission ${submissionId}`);
+      
+      // Check if there are any responses without transcripts that need analysis
+      const answers = (submission.answers as Record<string, any>) || {};
+      const needsAnalysis = Object.values(answers).some((answer: any) => 
+        answer && typeof answer === 'object' && 
+        (answer.type === 'audio_response' || answer.type === 'video_response') &&
+        (!answer.transcription || answer.transcription.trim() === '')
+      );
+      
+      if (existingAnalysis.length > 0 && !needsAnalysis) {
+        console.log(`Analysis already completed and all responses have transcripts for submission ${submissionId}`);
+        return res.json({ 
+          success: true, 
+          message: "Analysis already completed - all responses have transcripts",
+          analysisCount: existingAnalysis.length 
+        });
+      }
+      
+      console.log(`Proceeding with analysis - ${needsAnalysis ? 'some responses need transcripts' : 'no existing analysis'}`);
+
+      // Analyze audio responses
+      const audioAnalysisPromises = [];
+      const videoAnalysisPromises = [];
+      
+      for (const [questionId, answer] of Object.entries(answers)) {
+        if (typeof answer === 'object' && answer !== null) {
+          const answerObj = answer as any;
+          
+          // Handle audio responses
+          if (answerObj.type === 'audio_response' && answerObj.audioUrl) {
+            const audioPath = path.join(process.cwd(), 'uploads', 'audio', path.basename(answerObj.audioUrl));
+            if (fs.existsSync(audioPath)) {
+              console.log(`Queuing audio analysis for question ${questionId}`);
+              audioAnalysisPromises.push(
+                transcriptionService.transcribeAudio(audioPath, 'ar')
+                  .then(result => ({
+                    questionId,
+                    type: 'audio',
+                    transcription: result,
+                    path: audioPath
+                  }))
+                  .catch(error => {
+                    console.error(`Audio analysis failed for question ${questionId}:`, error);
+                    return null;
+                  })
+              );
+            }
+          }
+          
+          // Handle video responses
+          if (answerObj.type === 'video_response' && answerObj.videoUrl) {
+            const videoPath = path.join(process.cwd(), 'uploads', 'videos', path.basename(answerObj.videoUrl));
+            if (fs.existsSync(videoPath)) {
+              console.log(`Queuing video analysis for question ${questionId}`);
+              videoAnalysisPromises.push(
+                transcriptionService.transcribeVideoAudio(videoPath, 'ar')
+                  .then(result => ({
+                    questionId,
+                    type: 'video',
+                    transcription: result,
+                    path: videoPath
+                  }))
+                  .catch(error => {
+                    console.error(`Video analysis failed for question ${questionId}:`, error);
+                    return null;
+                  })
+              );
+            }
+          }
+        }
+      }
+
+      // Process all analyses
+      const allAnalyses = await Promise.all([
+        ...audioAnalysisPromises,
+        ...videoAnalysisPromises
+      ]);
+
+      const validAnalyses = allAnalyses.filter(analysis => analysis !== null);
+      
+      console.log(`Completed ${validAnalyses.length} analyses for submission ${submissionId}`);
+
+      // Store analysis results and update submission answers with transcripts
+      const storedResults = [];
+      const updatedAnswers = { ...answers };
+      
+      for (const analysis of validAnalyses) {
+        if (analysis) {
+          try {
+            // Store AI analysis result
+            const analysisResult = await storage.createAiAnalysisResult({
+              submissionId,
+              videoPath: `${analysis.type}_question_${analysis.questionId}`,
+              overallSuspicion: analysis.transcription.confidence < 70 ? 30 : 10,
+              summary: `${analysis.type} analysis: ${analysis.transcription.wordCount} words, ${analysis.transcription.confidence}% confidence - "${analysis.transcription.text.substring(0, 100)}..."`
+            });
+            storedResults.push(analysisResult);
+            
+            // Update the submission answer with the transcript
+            const questionId = analysis.questionId;
+            if (updatedAnswers[questionId]) {
+              updatedAnswers[questionId] = {
+                ...updatedAnswers[questionId],
+                transcription: analysis.transcription.text,
+                confidence: analysis.transcription.confidence,
+                aiAnalysis: {
+                  wordCount: analysis.transcription.wordCount,
+                  duration: analysis.transcription.duration,
+                  quality: analysis.transcription.quality,
+                  sentiment: analysis.transcription.sentiment,
+                  keywords: analysis.transcription.keywords,
+                  summary: analysis.transcription.summary
+                }
+              };
+              console.log(`Updated transcript for question ${questionId}: "${analysis.transcription.text.substring(0, 50)}..."`);
+            }
+          } catch (dbError) {
+            console.error(`Failed to store analysis for question ${analysis.questionId}:`, dbError);
+          }
+        }
+      }
+      
+      // Update the submission with enhanced answers including transcripts
+      if (validAnalyses.length > 0) {
+        try {
+          // Direct database update for submission answers
+          await db
+            .update(submissions)
+            .set({ answers: updatedAnswers })
+            .where(eq(submissions.id, submissionId));
+          console.log(`Updated submission ${submissionId} with ${validAnalyses.length} transcripts`);
+        } catch (updateError) {
+          console.error(`Failed to update submission answers:`, updateError);
+        }
+      }
+
+      // Also analyze proctoring videos if they exist
+      try {
+        const proctoringPath = path.join(process.cwd(), 'uploads', 'proctoring');
+        if (fs.existsSync(proctoringPath)) {
+          const proctoringFiles = fs.readdirSync(proctoringPath)
+            .filter(file => file.includes(`session_${submissionId}_`) || file.includes(`_${submissionId}_`))
+            .slice(0, 3); // Limit to first 3 files to avoid quota issues
+
+          for (const file of proctoringFiles) {
+            try {
+              const filePath = path.join(proctoringPath, file);
+              const analysis = await analyzeVideoRecording(`/api/videos/proctoring/${file}`, examContext);
+              
+              const analysisResult = await storage.createAiAnalysisResult({
+                submissionId,
+                videoPath: `/api/videos/proctoring/${file}`,
+                overallSuspicion: analysis.overallSuspicion,
+                summary: analysis.summary
+              });
+              
+              storedResults.push(analysisResult);
+              console.log(`Proctoring analysis completed for ${file}`);
+            } catch (error) {
+              console.error(`Proctoring analysis failed for ${file}:`, error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Proctoring analysis error:', error);
+      }
+
+      res.json({ 
+        success: true, 
+        message: `Analysis completed for submission ${submissionId}`,
+        analysisCount: storedResults.length,
+        audioAnalyses: validAnalyses.filter(a => a?.type === 'audio').length,
+        videoAnalyses: validAnalyses.filter(a => a?.type === 'video').length
+      });
+
+    } catch (error) {
+      console.error('Submission analysis error:', error);
+      res.status(500).json({ 
+        message: "Failed to analyze submission", 
+        error: (error as Error).message 
+      });
+    }
+  });
+
   // Generate AI violation report
   app.post("/api/analyze/generate-report", async (req, res) => {
     try {
@@ -1292,6 +1498,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const head = {
         'Content-Length': fileSize,
         'Content-Type': 'video/webm',
+      };
+      res.writeHead(200, head);
+      fs.createReadStream(filePath).pipe(res);
+    }
+  });
+
+  // Serve audio files
+  app.get("/uploads/audio/:filename", (req, res) => {
+    const { filename } = req.params;
+    const filePath = path.join(process.cwd(), 'uploads', 'audio', filename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "Audio file not found" });
+    }
+
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+      const file = fs.createReadStream(filePath, { start, end });
+      const head = {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': 'audio/webm',
+      };
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      const head = {
+        'Content-Length': fileSize,
+        'Content-Type': 'audio/webm',
       };
       res.writeHead(200, head);
       fs.createReadStream(filePath).pipe(res);
@@ -2451,9 +2694,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Audio answer saved: ${filename} with transcript: "${transcript?.substring(0, 50)}..."`);
 
+      // Store audio answer in temporary storage for later association with submission
+      const audioUrl = `/uploads/audio/${filename}`;
+      
+      // Try to find existing submission with this session ID and create audio answer record
+      try {
+        const submissions = await storage.getSubmissionsBySessionId(sessionId);
+        if (submissions.length > 0) {
+          const submission = submissions[0];
+          
+          // Create audio answer record in database
+          const audioAnswer = await storage.createVideoAnswer({
+            submissionId: submission.id,
+            videoQuestionId: parseInt(questionId),
+            videoUrl: audioUrl,
+            transcript: transcript || null,
+            confidence: 85, // Default confidence for audio
+            duration: null
+          });
+          
+          console.log(`Created audio answer record for submission ${submission.id}, question ${questionId}`);
+        }
+      } catch (dbError) {
+        console.log(`Could not create audio answer record yet (submission may not exist): ${dbError.message}`);
+      }
+
       res.json({
         success: true,
-        url: `/uploads/audio/${filename}`,
+        url: audioUrl,
         transcript: transcript || "",
         filename
       });
@@ -3182,6 +3450,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Failed to get video answers:', error);
       res.status(500).json({ message: "Failed to fetch video answers" });
+    }
+  });
+
+  // Clear transcript for audio/video response
+  app.post("/api/submissions/:submissionId/clear-transcript", async (req, res) => {
+    try {
+      const { submissionId } = req.params;
+      const { questionId } = req.body;
+
+      if (!submissionId || !questionId) {
+        return res.status(400).json({ message: "Missing submissionId or questionId" });
+      }
+
+      // Get the submission
+      const submission = await storage.getSubmissionById(parseInt(submissionId));
+      if (!submission) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      // Parse answers
+      let answers = typeof submission.answers === 'string' 
+        ? JSON.parse(submission.answers) 
+        : submission.answers || {};
+
+      // Clear transcript for the specific question
+      if (answers[questionId]) {
+        if (answers[questionId].type === 'audio_response' || answers[questionId].type === 'video_response') {
+          answers[questionId].transcription = '';
+          console.log(`Cleared transcript for question ${questionId} in submission ${submissionId}`);
+        }
+      }
+
+      // Update the submission with cleared transcript
+      await storage.updateSubmissionAnswers(parseInt(submissionId), answers);
+
+      res.json({ 
+        message: "Transcript cleared successfully",
+        questionId,
+        submissionId
+      });
+    } catch (error) {
+      console.error("Error clearing transcript:", error);
+      res.status(500).json({ message: "Failed to clear transcript" });
     }
   });
 

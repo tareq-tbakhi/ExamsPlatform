@@ -17,6 +17,9 @@ interface AudioQuestionProps {
   duration?: number;
   sessionId: string;
   onAnswerSave: (transcript: string, audioUrl?: string) => void;
+  onAutoStartRecording?: () => void;
+  onAutoStopRecording?: () => void;
+  autoStartRecording?: boolean;
   savedAnswer?: {
     transcript?: string;
     audioUrl?: string;
@@ -36,11 +39,15 @@ export default function AudioQuestion({
   questionNumber,
   sessionId,
   onAnswerSave,
+  onAutoStartRecording,
+  onAutoStopRecording,
+  autoStartRecording = true,
   savedAnswer
 }: AudioQuestionProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [isPlayingQuestion, setIsPlayingQuestion] = useState(false);
   
   // Gemini AI
   const clientRef = useRef<GoogleGenAI | null>(null);
@@ -64,196 +71,106 @@ export default function AudioQuestion({
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const transcriptRef = useRef<string>('');
   const hasSpokenQuestion = useRef(false);
+  const autoRecordingStarted = useRef(false);
   
   useEffect(() => {
     initAudio();
     initClient();
     
     return () => {
+      // Auto-stop recording when component unmounts (navigation)
+      if (isRecording && onAutoStopRecording) {
+        stopRecording();
+        onAutoStopRecording();
+      }
+      
       if (sessionRef.current) {
         sessionRef.current.close();
       }
       if (mediaStream.current) {
         mediaStream.current.getTracks().forEach(track => track.stop());
       }
-      // Cancel any ongoing speech
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
     };
   }, []);
 
-  // Speak the question automatically when component mounts or question changes
+  // Auto-play question when component mounts or question changes
   useEffect(() => {
-    if (questionText && !hasSpokenQuestion.current && sessionRef.current) {
+    if (questionText && !hasSpokenQuestion.current) {
       hasSpokenQuestion.current = true;
       // Wait a bit for audio context to be ready
       setTimeout(() => {
-        speakQuestionWithGemini(questionText);
+        speakQuestionWithGoogleTTS(questionText);
       }, 1000);
-    } else if (questionText && !hasSpokenQuestion.current) {
-      // If Gemini not ready, use browser TTS
-      hasSpokenQuestion.current = true;
-      setTimeout(() => {
-        speakQuestion(questionText);
-      }, 500);
     }
-  }, [questionText, questionId, sessionRef.current]);
+  }, [questionText, questionId]);
 
   // Reset when question changes
   useEffect(() => {
     hasSpokenQuestion.current = false;
+    autoRecordingStarted.current = false;
     transcriptRef.current = '';
     setIsRecording(false);
     setStatus('');
     setError('');
   }, [questionId]);
 
-  const speakQuestion = (text: string) => {
-    // Use browser TTS for now as speaking the question
-    fallbackToBrowserTTS(text);
-  };
-  
-  const speakQuestionWithGemini = async (text: string) => {
-    // Use Google Cloud TTS for natural Arabic voice
-    updateStatus('🔊 جاري تشغيل السؤال بصوت طبيعي...');
+  const speakQuestionWithGoogleTTS = async (text: string) => {
+    setIsPlayingQuestion(true);
+    updateStatus('🔊 Playing question with natural Arabic voice...');
     
-    console.log('Attempting to use Google TTS...');
-    console.log('API Key available:', !!import.meta.env.VITE_GOOGLE_TTS_API_KEY);
+    console.log('Using Google TTS for question playback');
     
     try {
-      // Try Google TTS first
+      // Use Google TTS exclusively
       await playGoogleTTS(text, DEFAULT_VOICE_CONFIG);
-      console.log('Google TTS played successfully!');
-      updateStatus('🎤 جاهز لتسجيل إجابتك');
-      hasSpokenQuestion.current = true;
-    } catch (error) {
-      console.error('Google TTS failed, falling back to browser TTS:', error);
+      console.log('Google TTS completed successfully');
+      updateStatus('🎤 Question completed. Recording will start automatically...');
       
-      // Fallback to browser TTS
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        
-        // Get voices and wait if needed
-        let voices = window.speechSynthesis.getVoices();
-        if (voices.length === 0) {
-          // Wait for voices to load
-          await new Promise(resolve => {
-            window.speechSynthesis.onvoiceschanged = () => {
-              voices = window.speechSynthesis.getVoices();
-              resolve(true);
-            };
-            // Timeout after 1 second
-            setTimeout(resolve, 1000);
-          });
-        }
-        
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'ar-SA';
-        
-        // Find the best Arabic voice
-        const arabicVoices = voices.filter(v => v.lang.startsWith('ar'));
-        const premiumVoices = arabicVoices.filter(v => 
-          v.name.includes('Google') || 
-          v.name.includes('Microsoft') ||
-          v.name.includes('Enhanced') ||
-          !v.localService
-        );
-        
-        const selectedVoice = premiumVoices[0] || arabicVoices[0];
-        if (selectedVoice) {
-          utterance.voice = selectedVoice;
-          console.log('Using fallback voice:', selectedVoice.name);
-        }
-        
-        // Natural speech settings
-        utterance.rate = 0.85;
-        utterance.pitch = 1.05;
-        utterance.volume = 0.9;
-        
-        utterance.onstart = () => {
-          updateStatus('🔊 يتم تشغيل السؤال...');
-        };
-        
-        utterance.onend = () => {
-          updateStatus('🎤 جاهز لتسجيل إجابتك');
-          hasSpokenQuestion.current = true;
-        };
-        
-        utterance.onerror = (event) => {
-          console.error('TTS Error:', event);
-          updateError('فشل تشغيل السؤال. اضغط على زر الإعادة.');
-        };
-        
-        window.speechSynthesis.speak(utterance);
-      }
-    }
-  };
-  
-  const fallbackToBrowserTTS = (text: string) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'ar-SA';
-      utterance.rate = 0.9;
-      utterance.pitch = 1.0;
-      utterance.volume = 0.95;
-      
-      // Try to get any Arabic voice
-      const voices = window.speechSynthesis.getVoices();
-      const arabicVoice = voices.find(voice => voice.lang.startsWith('ar'));
-      if (arabicVoice) {
-        utterance.voice = arabicVoice;
-      }
-      
-      utterance.onstart = () => {
-        updateStatus('🔊 Playing question...');
-      };
-      
-      utterance.onend = () => {
+      // Auto-start recording after question playback with delay
+      if (autoStartRecording && !autoRecordingStarted.current) {
+        setTimeout(() => {
+          startRecordingAuto();
+        }, 1500); // 1.5 second delay after question ends
+      } else {
         updateStatus('🎤 Ready to record your answer');
-      };
+      }
       
-      window.speechSynthesis.speak(utterance);
-    } else {
-      updateError('Text-to-speech is not supported in your browser.');
+    } catch (error) {
+      console.error('Google TTS failed:', error);
+      updateError('Failed to play question. Please use the replay button.');
+    } finally {
+      setIsPlayingQuestion(false);
     }
   };
 
   const initAudio = () => {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    inputAudioContext.current = new AudioContext({ sampleRate: 16000 });
-    outputAudioContext.current = new AudioContext({ sampleRate: 24000 });
-    
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    inputAudioContext.current = new AudioContextClass();
+    outputAudioContext.current = new AudioContextClass();
+
     const inputGain = inputAudioContext.current.createGain();
     const outputGain = outputAudioContext.current.createGain();
     
-    outputGain.connect(outputAudioContext.current.destination);
-    
     setInputNode(inputGain);
     setOutputNode(outputGain);
-    
-    nextStartTime.current = outputAudioContext.current.currentTime;
   };
 
   const initClient = async () => {
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-      if (!apiKey) {
-        console.warn("Gemini API key not found");
+      const API_KEY = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.VITE_GOOGLE_API_KEY;
+      if (!API_KEY) {
+        console.warn('No Gemini API key found');
         return;
       }
 
-      // Import @google/genai dynamically
+      // Import @google/generative-ai dynamically
       const { GoogleGenerativeAI } = await import('@google/generative-ai');
       
-      // Create mock GoogleGenAI interface
+      // Create mock GoogleGenAI interface for now
       clientRef.current = {
         live: {
           connect: async (config) => {
-            // For now, return a mock session that uses browser TTS
-            // Gemini Live Audio is for audio-to-audio conversation, not TTS
+            // For now, return a mock session
             const mockSession: Session = {
               sendRealtimeInput: (input) => {
                 console.log('Audio input to Gemini');
@@ -268,30 +185,6 @@ export default function AudioQuestion({
               config.callbacks.onopen();
             }
             
-            // Set up speech recognition as a fallback
-            if ('webkitSpeechRecognition' in window) {
-              const SpeechRecognition = (window as any).webkitSpeechRecognition;
-              const recognition = new SpeechRecognition();
-              recognition.continuous = true;
-              recognition.interimResults = true;
-              recognition.lang = 'ar-SA';
-
-              recognition.onresult = (event: any) => {
-                let finalTranscript = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                  if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript;
-                  }
-                }
-                if (finalTranscript) {
-                  transcriptRef.current += ' ' + finalTranscript;
-                }
-              };
-              
-              // Store recognition in session for later use
-              (mockSession as any).recognition = recognition;
-            }
-            
             return mockSession;
           }
         }
@@ -299,61 +192,32 @@ export default function AudioQuestion({
       
       await initSession();
     } catch (error) {
-      console.error("Failed to initialize Gemini client:", error);
+      console.error('Failed to initialize Gemini client:', error);
     }
   };
 
   const initSession = async () => {
     if (!clientRef.current) return;
 
-    const model = 'gemini-2.5-flash-preview-native-audio-dialog';
-
     try {
       sessionRef.current = await clientRef.current.live.connect({
-        model: model,
+        model: 'models/gemini-2.0-flash-exp',
         callbacks: {
           onopen: () => {
             updateStatus('Connected to Gemini');
-            // Speak the question once connected
-            if (questionText && !hasSpokenQuestion.current) {
-              hasSpokenQuestion.current = true;
-              speakQuestionWithGemini(questionText);
-            }
           },
           onmessage: async (message: LiveServerMessage) => {
-            const audio = message.serverContent?.modelTurn?.parts[0]?.inlineData;
-
-            if (audio) {
-              nextStartTime.current = Math.max(
-                nextStartTime.current,
-                outputAudioContext.current.currentTime,
-              );
-
-              const audioBuffer = await decodeAudioData(
-                decode(audio.data),
-                outputAudioContext.current,
-                24000,
-                1,
-              );
-              
-              const source = outputAudioContext.current.createBufferSource();
-              source.buffer = audioBuffer;
-              source.connect(outputNode!);
-              source.addEventListener('ended', () => {
-                sources.current.delete(source);
-                // When Gemini finishes speaking, update status
-                if (sources.current.size === 0) {
-                  updateStatus('🎤 Ready to record your answer');
+            if (message.serverContent?.modelTurn?.parts) {
+              const parts = message.serverContent.modelTurn.parts;
+              for (const part of parts) {
+                if (part.text) {
+                  transcriptRef.current += part.text;
+                  console.log('Transcription:', part.text);
                 }
-              });
-
-              source.start(nextStartTime.current);
-              nextStartTime.current = nextStartTime.current + audioBuffer.duration;
-              sources.current.add(source);
+              }
             }
 
-            const interrupted = message.serverContent?.interrupted;
-            if (interrupted) {
+            if (message.serverContent?.interrupted) {
               Array.from(sources.current).forEach(source => {
                 source.stop();
                 sources.current.delete(source);
@@ -365,28 +229,42 @@ export default function AudioQuestion({
             updateError(e.message);
           },
           onclose: (e: CloseEvent) => {
-            updateStatus('Close:' + e.reason);
+            updateStatus('Session closed: ' + e.reason);
           },
         },
         config: {
           responseModalities: ['AUDIO' as Modality],
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aouf' } }, // Arabic voice
-            // voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Orus' } }, // English voice
           },
         },
       });
     } catch (e) {
-      console.error(e);
+      console.error('Failed to initialize session:', e);
     }
   };
 
   const updateStatus = (msg: string) => {
     setStatus(msg);
+    setError('');
   };
 
   const updateError = (msg: string) => {
     setError(msg);
+    setStatus('');
+  };
+
+  const startRecordingAuto = async () => {
+    if (isRecording || autoRecordingStarted.current) {
+      return;
+    }
+
+    autoRecordingStarted.current = true;
+    await startRecording();
+    
+    if (onAutoStartRecording) {
+      onAutoStartRecording();
+    }
   };
 
   const startRecording = async () => {
@@ -394,14 +272,8 @@ export default function AudioQuestion({
       return;
     }
 
-    // Stop any ongoing speech
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-
     inputAudioContext.current.resume();
-
-    updateStatus('Requesting microphone access...');
+    updateStatus('🎤 Starting recording...');
 
     try {
       mediaStream.current = await navigator.mediaDevices.getUserMedia({
@@ -409,7 +281,8 @@ export default function AudioQuestion({
         video: false,
       });
 
-      updateStatus('Microphone access granted. Starting capture...');
+      updateStatus('🔴 Recording your answer...');
+      setIsRecording(true);
 
       // Start MediaRecorder for saving audio
       const options = { mimeType: 'audio/webm;codecs=opus' };
@@ -429,6 +302,60 @@ export default function AudioQuestion({
 
       mediaRecorder.current.start(100);
 
+      // Initialize browser speech recognition for transcription
+      if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+        const recognition = new SpeechRecognition();
+        
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'ar-SA'; // Arabic language
+        recognition.maxAlternatives = 3;
+        
+        recognition.onstart = () => {
+          console.log('Speech recognition started');
+          updateStatus('🔴 Recording and transcribing...');
+        };
+        
+        recognition.onresult = (event: any) => {
+          let finalTranscript = '';
+          let interimTranscript = '';
+          
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const result = event.results[i];
+            if (result.isFinal) {
+              finalTranscript += result[0].transcript + ' ';
+            } else {
+              interimTranscript += result[0].transcript;
+            }
+          }
+          
+          if (finalTranscript) {
+            transcriptRef.current += finalTranscript;
+            console.log('Final transcript:', finalTranscript);
+          }
+        };
+        
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          updateStatus('🔴 Recording (transcription unavailable)...');
+        };
+        
+        recognition.onend = () => {
+          console.log('Speech recognition ended');
+        };
+        
+        try {
+          recognition.start();
+        } catch (error) {
+          console.error('Failed to start speech recognition:', error);
+          updateStatus('🔴 Recording (transcription unavailable)...');
+        }
+      } else {
+        console.warn('Speech recognition not supported');
+        updateStatus('🔴 Recording (transcription unavailable)...');
+      }
+
       sourceNode.current = inputAudioContext.current.createMediaStreamSource(
         mediaStream.current,
       );
@@ -441,86 +368,66 @@ export default function AudioQuestion({
         1,
       );
 
-      scriptProcessorNode.current.onaudioprocess = (audioProcessingEvent) => {
-        if (!isRecording) return;
-
-        const inputBuffer = audioProcessingEvent.inputBuffer;
-        const pcmData = inputBuffer.getChannelData(0);
-
+      scriptProcessorNode.current.onaudioprocess = (event) => {
+        const inputBuffer = event.inputBuffer;
+        const inputData = inputBuffer.getChannelData(0);
+        
         if (sessionRef.current) {
-          const blob = createBlob(pcmData);
-          // Ensure data is always a string
-          const audioData = blob.data || '';
-          sessionRef.current.sendRealtimeInput({ 
-            media: { 
-              data: audioData,
-              mimeType: blob.mimeType || 'audio/pcm;rate=16000'
-            } 
-          });
+          const geminiBlob = createBlob(inputData);
+          if (geminiBlob.data && geminiBlob.mimeType) {
+            sessionRef.current.sendRealtimeInput({ 
+              media: {
+                data: geminiBlob.data,
+                mimeType: geminiBlob.mimeType
+              }
+            });
+          }
         }
       };
 
       sourceNode.current.connect(scriptProcessorNode.current);
       scriptProcessorNode.current.connect(inputAudioContext.current.destination);
 
-      // Start speech recognition if available
-      const recognition = (sessionRef.current as any)?.recognition;
-      if (recognition) {
-        recognition.start();
-      }
-
-      setIsRecording(true);
-      updateStatus('🔴 Recording... Capturing PCM chunks.');
-    } catch (err: any) {
-      console.error('Error starting recording:', err);
-      updateStatus(`Error: ${err.message}`);
-      stopRecording();
+    } catch (error) {
+      console.error("Recording error:", error);
+      updateError("Failed to start recording. Please check microphone permissions.");
+      setIsRecording(false);
     }
   };
 
   const stopRecording = () => {
-    if (!isRecording && !mediaStream.current && !inputAudioContext.current)
-      return;
+    if (!isRecording) return;
 
-    updateStatus('Stopping recording...');
-
+    updateStatus('⏹️ Stopping recording...');
     setIsRecording(false);
 
     if (mediaRecorder.current && mediaRecorder.current.state !== 'inactive') {
       mediaRecorder.current.stop();
     }
 
-    if (scriptProcessorNode.current && sourceNode.current && inputAudioContext.current) {
-      scriptProcessorNode.current.disconnect();
+    if (sourceNode.current) {
       sourceNode.current.disconnect();
     }
-
-    scriptProcessorNode.current = null;
-    sourceNode.current = null;
-
-    // Stop speech recognition if available
-    const recognition = (sessionRef.current as any)?.recognition;
-    if (recognition) {
-      recognition.stop();
+    if (scriptProcessorNode.current) {
+      scriptProcessorNode.current.disconnect();
     }
-
     if (mediaStream.current) {
-      mediaStream.current.getTracks().forEach((track) => track.stop());
-      mediaStream.current = null;
+      mediaStream.current.getTracks().forEach(track => track.stop());
     }
 
-    updateStatus('Recording stopped. Click Start to begin again.');
+    updateStatus('✅ Recording completed and saving...');
   };
 
   const reset = () => {
-    sessionRef.current?.close();
+    stopRecording();
     transcriptRef.current = '';
+    autoRecordingStarted.current = false;
     hasSpokenQuestion.current = false;
-    initSession();
-    updateStatus('Session cleared.');
-    // Speak the question again after reset
+    updateStatus('🔄 Session reset');
+    
+    // Replay question after reset
     setTimeout(() => {
-      speakQuestionWithGemini(questionText);
+      speakQuestionWithGoogleTTS(questionText);
     }, 500);
   };
 
@@ -541,7 +448,7 @@ export default function AudioQuestion({
       if (response.ok) {
         const data = await response.json();
         onAnswerSave(transcriptRef.current, data.url);
-        updateStatus("Answer saved successfully!");
+        updateStatus("✅ Answer saved successfully!");
       } else {
         throw new Error(`Upload failed: ${response.statusText}`);
       }
@@ -551,170 +458,167 @@ export default function AudioQuestion({
     }
   };
 
-  // Replay question button
+  // Manual replay question button
   const replayQuestion = () => {
-    // Use Google TTS if available
-    speakQuestionWithGemini(questionText);
+    speakQuestionWithGoogleTTS(questionText);
   };
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100vh', backgroundColor: 'black', overflow: 'hidden' }}>
-      <GdmLiveAudioVisuals3D inputNode={inputNode} outputNode={outputNode} />
+    <div className="relative w-full h-full bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 overflow-hidden">
+      {/* 3D Audio Visualizer Background */}
+      <div className="absolute inset-0 z-0">
+        <GdmLiveAudioVisuals3D inputNode={inputNode} outputNode={outputNode} />
+      </div>
       
-      <div className="controls">
-        <button
-          id="resetButton"
-          onClick={reset}
-          disabled={isRecording}
-          title="Reset session"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            height="40px"
-            viewBox="0 -960 960 960"
-            width="40px"
-            fill="#ffffff"
-          >
-            <path d="M480-160q-134 0-227-93t-93-227q0-134 93-227t227-93q69 0 132 28.5T720-690v-110h80v280H520v-80h168q-32-56-87.5-88T480-720q-100 0-170 70t-70 170q0 100 70 170t170 70q77 0 139-44t87-116h84q-28 106-114 173t-196 67Z" />
-          </svg>
-        </button>
-        
-        <button
-          id="startButton"
-          onClick={startRecording}
-          disabled={isRecording}
-          title="Start recording"
-        >
-          <svg
-            viewBox="0 0 100 100"
-            width="32px"
-            height="32px"
-            fill="#c80000"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle cx="50" cy="50" r="50" />
-          </svg>
-        </button>
-        
-        <button
-          id="stopButton"
-          onClick={stopRecording}
-          disabled={!isRecording}
-          title="Stop recording"
-        >
-          <svg
-            viewBox="0 0 100 100"
-            width="32px"
-            height="32px"
-            fill="#000000"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <rect x="0" y="0" width="100" height="100" rx="15" />
-          </svg>
-        </button>
+      {/* Main Content Overlay */}
+      <div className="relative z-10 flex flex-col h-full">
+        {/* Header */}
+        <div className="flex-shrink-0 p-6 bg-gradient-to-r from-black/40 to-transparent backdrop-blur-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Audio Question {questionNumber}</h2>
+                <p className="text-blue-200 text-sm">Auto-recording after question playback</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className={`w-3 h-3 rounded-full ${
+                isPlayingQuestion ? 'bg-yellow-500 animate-pulse' :
+                isRecording ? 'bg-red-500 animate-pulse' : 'bg-green-500'
+              }`}></div>
+              <span className="text-white text-sm font-medium">
+                {isPlayingQuestion ? 'Playing Question...' :
+                 isRecording ? 'Recording...' : 'Ready'}
+              </span>
+            </div>
+          </div>
+        </div>
 
-        {/* Replay question button */}
-        <button
-          id="replayButton"
-          onClick={replayQuestion}
-          disabled={isRecording}
-          title="Replay question"
-          style={{ marginTop: '20px' }}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            height="40px"
-            viewBox="0 -960 960 960"
-            width="40px"
-            fill="#ffffff"
-          >
-            <path d="M320-200v-560l440 280-440 280Zm80-280Zm0 134 210-134-210-134v268Z"/>
-          </svg>
-        </button>
-        
-        {/* Debug: List available voices */}
-        <button
-          onClick={() => {
-            const voices = window.speechSynthesis.getVoices();
-            const arabicVoices = voices.filter(v => 
-              v.lang.startsWith('ar') || v.name.includes('Arabic')
-            );
-            console.log('Available Arabic voices:');
-            arabicVoices.forEach(v => {
-              console.log(`- ${v.name} (${v.lang}) - Local: ${v.localService}`);
-            });
-            if (arabicVoices.length === 0) {
-              console.log('No Arabic voices found. All voices:');
-              voices.forEach(v => console.log(`- ${v.name} (${v.lang})`));
-            }
-          }}
-          title="List voices"
-          style={{ marginTop: '10px', fontSize: '12px', padding: '5px 10px' }}
-        >
-          List Voices
-        </button>
+        {/* Question Display */}
+        <div className="flex-1 flex flex-col justify-center items-center p-8">
+          <div className="max-w-4xl w-full">
+            {/* Question Text Card */}
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 mb-8 border border-white/20 shadow-2xl">
+              <div className="flex items-start space-x-4">
+                <div className="w-8 h-8 bg-gradient-to-r from-orange-400 to-red-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-2xl font-bold text-white mb-4 leading-relaxed">
+                    {questionText}
+                  </h3>
+                  <div className="flex items-center space-x-4">
+                    <button
+                      onClick={replayQuestion}
+                      disabled={isRecording || isPlayingQuestion}
+                      className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white rounded-lg transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                      </svg>
+                      <span>Replay Question</span>
+                    </button>
+                    <div className="text-blue-200 text-sm">
+                      🎧 Recording starts automatically after playback
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recording Controls */}
+            <div className="flex justify-center items-center space-x-8">
+              {/* Manual Start Recording Button */}
+              <button
+                onClick={startRecording}
+                disabled={isRecording || isPlayingQuestion}
+                className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 transform hover:scale-110 ${
+                  isRecording || isPlayingQuestion
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg hover:shadow-red-500/30'
+                }`}
+                title="Start recording manually"
+              >
+                <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 012 0v6a1 1 0 11-2 0V7z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              {/* Stop Recording Button */}
+              <button
+                onClick={stopRecording}
+                disabled={!isRecording}
+                className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 transform hover:scale-110 ${
+                  !isRecording 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-800 hover:to-gray-900 shadow-lg hover:shadow-gray-500/30'
+                }`}
+                title="Stop recording"
+              >
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              {/* Reset Button */}
+              <button
+                onClick={reset}
+                disabled={isRecording || isPlayingQuestion}
+                className="w-16 h-16 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 flex items-center justify-center transition-all duration-300 transform hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-orange-500/30"
+                title="Reset and replay question"
+              >
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Instructions */}
+            <div className="mt-8 text-center">
+              <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-4 border border-blue-400/30">
+                <p className="text-blue-200 text-sm">
+                  🤖 <strong>Auto-Recording:</strong> Recording will start automatically 1.5 seconds after the question finishes playing. You can also start/stop manually using the buttons above.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Status Bar */}
+        <div className="flex-shrink-0 p-4 bg-gradient-to-r from-black/40 to-transparent backdrop-blur-sm">
+          <div className="flex items-center justify-center">
+            <div className={`px-4 py-2 rounded-full text-sm font-medium ${
+              error 
+                ? 'bg-red-500/20 text-red-300 border border-red-400/30' 
+                : 'bg-green-500/20 text-green-300 border border-green-400/30'
+            }`}>
+              {error || status || 'Ready to play question and auto-record your answer'}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div id="status">{error || status}</div>
-
-      <style>{`
-        #status {
-          position: absolute;
-          bottom: 5vh;
-          left: 0;
-          right: 0;
-          z-index: 10;
-          text-align: center;
-          color: ${error ? '#ff4444' : '#ffffff'};
-          font-size: 14px;
-        }
-
-        .controls {
-          z-index: 10;
-          position: absolute;
-          bottom: 10vh;
-          left: 0;
-          right: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .controls button {
-          outline: none;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-          color: white;
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.1);
-          width: 64px;
-          height: 64px;
-          cursor: pointer;
-          font-size: 24px;
-          padding: 0;
-          margin: 0;
-          transition: all 0.2s ease;
-        }
-
-        .controls button:hover {
-          background: rgba(255, 255, 255, 0.2);
-          transform: scale(1.05);
-        }
-
-        .controls button[disabled] {
-          display: none;
-        }
-
-        @keyframes fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        #status {
-          animation: fade-in 0.3s ease;
-        }
-      `}</style>
+      {/* Saved Answer Indicator */}
+      {savedAnswer?.transcript && (
+        <div className="absolute top-4 right-4 z-20">
+          <div className="bg-green-500/20 backdrop-blur-sm rounded-lg p-3 border border-green-400/30">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-green-400 rounded-full"></div>
+              <span className="text-green-300 text-sm font-medium">Answer Saved</span>
+            </div>
+            <p className="text-green-200 text-xs mt-1 max-w-xs truncate">
+              "{savedAnswer.transcript}"
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

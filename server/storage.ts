@@ -148,6 +148,7 @@ export interface IStorage {
   createSubmission(submission: InsertSubmission): Promise<Submission>;
   getSubmission(id: number): Promise<Submission | undefined>;
   getSubmissionsByExam(examId: number): Promise<SubmissionWithExam[]>;
+  getSubmissionsBySessionId(sessionId: string): Promise<Submission[]>;
   getRecentSubmissions(limit?: number): Promise<SubmissionWithExam[]>;
   updateSubmissionScore(id: number, score: number): Promise<Submission | undefined>;
 
@@ -440,6 +441,14 @@ export class DatabaseStorage implements IStorage {
       ...submission,
       examTitle: examTitle || "Unknown Exam"
     }));
+  }
+
+  async getSubmissionsBySessionId(sessionId: string): Promise<Submission[]> {
+    return await db
+      .select()
+      .from(submissions)
+      .where(eq(submissions.sessionId, sessionId))
+      .orderBy(desc(submissions.submittedAt));
   }
 
   async updateSubmissionScore(id: number, score: number): Promise<Submission | undefined> {

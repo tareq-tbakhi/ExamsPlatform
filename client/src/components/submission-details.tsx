@@ -1,11 +1,16 @@
+import { useState } from 'react';
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle, XCircle, Clock, User, BookOpen, Video, Mic, FileText, Camera, Monitor } from "lucide-react";
+import { CheckCircle, XCircle, Clock, User, BookOpen, Video, Mic, FileText, Camera, Monitor, Brain, Zap, Eye, AlertTriangle } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 import type { Submission, ExamWithQuestions } from "@shared/schema";
+// import { apiRequest } from '@/lib/utils';
 
 interface SubmissionDetailsProps {
   submissionId: number;
@@ -43,6 +48,9 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
     queryKey: [`/api/submissions/${submissionId}/proctoring`],
     enabled: !!submissionId,
   });
+
+  const [isAIAnalysisOpen, setIsAIAnalysisOpen] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState<any>(null);
 
   if (isLoading) {
     return (
@@ -247,6 +255,11 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
     }
   };
 
+  const handleAIAnalysis = (question: any) => {
+    setSelectedQuestion(question);
+    setIsAIAnalysisOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       {/* Submission Overview */}
@@ -336,7 +349,7 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
                     
                     <div className="mb-4">
                       <div className="bg-blue-50 rounded-lg p-4 mb-4">
-                        <p className="font-medium text-gray-900 text-lg">{question.question}</p>
+                        <p className="font-medium text-gray-900 text-lg">{String(question.question)}</p>
                       </div>
                       
                       {/* Show options for multiple choice */}
@@ -354,7 +367,7 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
                               }`}
                             >
                               <span className="font-bold mr-2">{String.fromCharCode(65 + optIndex)}.</span>
-                              {option}
+                              {String(option)}
                               {option === question.correctAnswer && (
                                 <Badge className="ml-2 bg-green-600 text-white">Correct</Badge>
                               )}
@@ -377,7 +390,7 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
                       <div className="mt-4">
                         <p className="text-sm font-medium text-gray-700 mb-2">Correct Answer:</p>
                         <div className="p-3 rounded-lg bg-green-50 text-green-800 text-sm border border-green-200">
-                          {question.correctAnswer}
+                          {String(question.correctAnswer)}
                         </div>
                       </div>
                     )}
@@ -514,6 +527,21 @@ export default function SubmissionDetails({ submissionId }: SubmissionDetailsPro
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* AI Analysis Dialog */}
+      <Dialog open={isAIAnalysisOpen} onOpenChange={setIsAIAnalysisOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline">AI Analysis</Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>AI Analysis</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            {/* Add AI analysis components here */}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -25,6 +25,9 @@ interface VideoQuestionProps {
   onNext: () => void;
   isLastQuestion: boolean;
   submissionId?: number;
+  autoStartRecording?: boolean;
+  onAutoStartRecording?: () => void;
+  onAutoStopRecording?: () => void;
 }
 
 interface VideoAnswerData {
@@ -39,7 +42,10 @@ export default function VideoQuestionComponent({
   onAnswerSubmit, 
   onNext, 
   isLastQuestion,
-  submissionId 
+  submissionId,
+  autoStartRecording = true,
+  onAutoStartRecording,
+  onAutoStopRecording
 }: VideoQuestionProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
@@ -50,6 +56,7 @@ export default function VideoQuestionComponent({
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [autoRecordingStarted, setAutoRecordingStarted] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -62,10 +69,37 @@ export default function VideoQuestionComponent({
 
   useEffect(() => {
     initializeSpeechRecognition();
+    
+    // Auto-start recording after a short delay
+    if (autoStartRecording && !autoRecordingStarted) {
+      setTimeout(() => {
+        startRecordingAuto();
+      }, 2000); // 2 second delay to show question first
+    }
+    
     return () => {
+      // Auto-stop recording when component unmounts (navigation)
+      if (isRecording && onAutoStopRecording) {
+        stopRecording();
+        onAutoStopRecording();
+      }
       cleanup();
     };
   }, []);
+
+  // Reset when question changes
+  useEffect(() => {
+    setAutoRecordingStarted(false);
+    setIsRecording(false);
+    setRecordedBlob(null);
+    setRecordedUrl("");
+    setTranscript("");
+    setTranscriptionConfidence(0);
+    setTimeRemaining(question.maxDuration);
+    setIsTranscribing(false);
+    setIsUploading(false);
+    setHasSubmitted(false);
+  }, [question.id]);
 
   useEffect(() => {
     if (isRecording && timeRemaining > 0) {
@@ -144,6 +178,19 @@ export default function VideoQuestionComponent({
         description: "Your browser doesn't support speech recognition. Video recording will still work.",
         variant: "destructive"
       });
+    }
+  };
+
+  const startRecordingAuto = async () => {
+    if (isRecording || autoRecordingStarted) {
+      return;
+    }
+
+    setAutoRecordingStarted(true);
+    await startRecording();
+    
+    if (onAutoStartRecording) {
+      onAutoStartRecording();
     }
   };
 
@@ -390,7 +437,7 @@ export default function VideoQuestionComponent({
               {/* Recording Controls */}
               <div className="flex justify-center space-x-4">
                 {!isRecording && !recordedBlob && (
-                  <Button onClick={startRecording} size="lg" className="flex items-center space-x-2">
+                  <Button onClick={startRecordingAuto} size="lg" className="flex items-center space-x-2">
                     <Video className="h-5 w-5" />
                     <span>Start Recording</span>
                   </Button>

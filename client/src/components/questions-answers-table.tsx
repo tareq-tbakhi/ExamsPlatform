@@ -50,6 +50,7 @@ export default function QuestionsAnswersTable({
   const [analysisLoading, setAnalysisLoading] = useState<Set<number>>(new Set());
   const [selectedMedia, setSelectedMedia] = useState<{ type: 'video' | 'audio', url: string } | null>(null);
   const [analysisResults, setAnalysisResults] = useState<Map<number, any>>(new Map());
+  const [clearingTranscript, setClearingTranscript] = useState<Set<number>>(new Set());
 
   // Get exam questions
   const { data: questions = [], isLoading: questionsLoading } = useQuery<Question[]>({
@@ -190,7 +191,19 @@ export default function QuestionsAnswersTable({
             )}
             {answer.transcription && (
               <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-sm font-medium mb-1">{t('ai.transcription')}:</div>
+                <div className="text-sm font-medium mb-1 flex items-center justify-between">
+                  <span>{t('ai.transcription')}:</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleClearTranscript(answer.questionId)}
+                    className="text-xs px-2 py-1 h-6"
+                    title="Clear transcript"
+                    disabled={clearingTranscript.has(answer.questionId)}
+                  >
+                    {clearingTranscript.has(answer.questionId) ? 'Clearing...' : 'Clear'}
+                  </Button>
+                </div>
                 <div className="text-sm text-gray-700">"{answer.transcription}"</div>
               </div>
             )}
@@ -218,7 +231,19 @@ export default function QuestionsAnswersTable({
             )}
             {answer.transcription && (
               <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-sm font-medium mb-1">{t('ai.transcription')}:</div>
+                <div className="text-sm font-medium mb-1 flex items-center justify-between">
+                  <span>{t('ai.transcription')}:</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleClearTranscript(answer.questionId)}
+                    className="text-xs px-2 py-1 h-6"
+                    title="Clear transcript"
+                    disabled={clearingTranscript.has(answer.questionId)}
+                  >
+                    {clearingTranscript.has(answer.questionId) ? 'Clearing...' : 'Clear'}
+                  </Button>
+                </div>
                 <div className="text-sm text-gray-700">"{answer.transcription}"</div>
               </div>
             )}
@@ -356,6 +381,48 @@ export default function QuestionsAnswersTable({
         )}
       </div>
     );
+  };
+
+  // Handle clearing transcript
+  const handleClearTranscript = async (questionId: number) => {
+    if (clearingTranscript.has(questionId)) return;
+
+    setClearingTranscript(prev => new Set(prev).add(questionId));
+    
+    try {
+      const response = await fetch(`/api/submissions/${submissionId}/clear-transcript`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ questionId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear transcript');
+      }
+
+      toast({
+        title: "Transcript Cleared",
+        description: `Transcript for question ${questionId} has been cleared successfully.`,
+      });
+
+      // Refresh the data
+      queryClient.invalidateQueries({ queryKey: [`/api/submissions/${submissionId}/details`] });
+    } catch (error) {
+      console.error('Error clearing transcript:', error);
+      toast({
+        title: "Error",
+        description: "Failed to clear transcript. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setClearingTranscript(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(questionId);
+        return newSet;
+      });
+    }
   };
 
   if (questionsLoading || submissionLoading) {
